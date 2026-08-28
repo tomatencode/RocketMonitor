@@ -1,6 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { btnBlue, btnGhost, btnGreen, btnRed, btnSlate } from "../shared/styles";
+import { RocketLink } from "../features/RocketLink/RocketLink";
+import { btnBlue, btnGhost, btnGreen, btnRed, btnSlate, btnYellow } from "../shared/styles";
 
 // ─── Command definitions ──────────────────────────────────────────────────────
 // Add new commands here. Params are rendered automatically as inputs.
@@ -102,6 +102,7 @@ function parseHex(input: string): number[] | null {
 }
 
 export default function HomeScreen() {
+    const rocketLink = useRef(new RocketLink());
     const [connected, setConnected] = useState(false);
     const [portName, setPortName] = useState<string | null>(null);
     const [sendInput, setSendInput] = useState("");
@@ -129,7 +130,7 @@ export default function HomeScreen() {
         if (pollRef.current) return;
         pollRef.current = setInterval(async () => {
             try {
-                const bytes = await invoke<number[]>("rocket_link_read");
+                const bytes = await rocketLink.current.receive();
                 if (bytes.length > 0)
                     setLog(prev => [...prev, { dir: "rx", text: toHex(bytes), time: timestamp() }]);
             } catch { /* ignore transient read errors while polling */ }
@@ -140,16 +141,18 @@ export default function HomeScreen() {
     async function handleConnect() {
         addLog("info", "Searching for RocketLink...");
         try {
-            const port = await invoke<string>("rocket_link_connect");
-            setPortName(port);
+            await rocketLink.current.connect();
             setConnected(true);
-            addLog("info", `Connected to ${port}`);
+            startPolling();
+            setPortName(rocketLink.current.getPortName());
+            addLog("info", `Connected to ${rocketLink.current.getPortName()}`);
         } catch (e) { addLog("error", String(e)); }
     }
 
     async function handleDisconnect() {
-        await invoke("rocket_link_disconnect");
+        await rocketLink.current.disconnect();
         setConnected(false);
+        setPortName(null);
         stopPolling();
         addLog("info", "Disconnected");
     }
@@ -158,14 +161,14 @@ export default function HomeScreen() {
         const bytes = parseHex(sendInput);
         if (!bytes || bytes.length === 0) { addLog("error", "Invalid hex input"); return; }
         try {
-            await invoke("rocket_link_send", { data: bytes });
+            await rocketLink.current.send(bytes);
             addLog("tx", toHex(bytes));
         } catch (e) { addLog("error", String(e)); }
     }
 
     async function handleRead() {
         try {
-            const bytes = await invoke<number[]>("rocket_link_read");
+            const bytes = await rocketLink.current.receive();
             if (bytes.length > 0) addLog("rx", toHex(bytes));
             else addLog("info", "No data");
         } catch (e) { addLog("error", String(e)); }
@@ -193,7 +196,9 @@ export default function HomeScreen() {
                     <button className={`${btnGreen} px-3 py-1 text-xs`} onClick={handleConnect} disabled={connected}>
                         Connect
                     </button>
-                    <button className={`${btnRed} px-3 py-1 text-xs`} onClick={handleDisconnect} disabled={!connected}>Disconnect</button>
+                    <button className={`${btnRed} px-3 py-1 text-xs`} onClick={handleDisconnect} disabled={!connected}>
+                        Disconnect
+                    </button>
                 </div>
             </div>
 
@@ -246,7 +251,7 @@ export default function HomeScreen() {
                         />
                         <button className={`${btnBlue} px-3 py-1.5 text-xs`} onClick={handleRawSend} disabled={!connected || !sendInput.trim()}>Send</button>
                         <button className={`${btnSlate} px-3 py-1.5 text-xs`} onClick={handleRead} disabled={!connected || polling}>Read</button>
-                        <button className={`${polling ? btnRed : btnSlate} px-3 py-1.5 text-xs`} onClick={polling ? stopPolling : startPolling} disabled={!connected}>
+                        <button className={`${polling ? btnYellow : btnSlate} px-3 py-1.5 text-xs`} onClick={polling ? stopPolling : startPolling} disabled={!connected}>
                             {polling ? "Stop Poll" : "Poll"}
                         </button>
                         <button className={`${btnGhost} px-3 py-1.5 text-xs`} onClick={() => setLog([])}>Clear</button>

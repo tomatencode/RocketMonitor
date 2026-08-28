@@ -15,7 +15,7 @@ export const btnGreen =
   "bg-green-700/80 hover:bg-green-600/80 border border-green-600/60 hover:border-green-500 rounded-lg font-semibold text-green-100 transition-colors shadow-sm shadow-green-900/30 disabled:opacity-40 disabled:pointer-events-none";
 
 export const btnYellow =
-  "bg-yellow-700/80 hover:bg-yellow-600/80 border border-yellow-600/60 hover:border-yellow-500 rounded-lg font-semibold text-yellow-100 transition-colors shadow-sm shadow-yellow-900/30";
+  "bg-yellow-700/80 hover:bg-yellow-600/80 border border-yellow-600/60 hover:border-yellow-500 rounded-lg font-semibold text-yellow-100 transition-colors shadow-sm shadow-yellow-900/30 disabled:opacity-40 disabled:pointer-events-none";
 
 export const btnRed =
-  "bg-red-900/60 hover:bg-red-800/60 border border-red-800/60 hover:border-red-700 rounded-lg font-semibold text-red-300 hover:text-red-200 transition-colors shadow-sm shadow-red-950/30";
+  "bg-red-900/60 hover:bg-red-800/60 border border-red-800/60 hover:border-red-700 rounded-lg font-semibold text-red-300 hover:text-red-200 transition-colors shadow-sm shadow-red-950/30 disabled:opacity-40 disabled:pointer-events-none";
