@@ -25,31 +25,23 @@ fn try_handshake(port_name: &str) -> bool {
     port.read_exact(&mut response).is_ok() && response == HANDSHAKE_RESPONSE
 }
 
-/// Scans all serial ports and returns the name of the first one that responds
-/// to the RocketLink handshake.
+/// Opens a connection to the RocketLink on the given port name.
 #[tauri::command]
-fn rocket_link_find() -> Result<String, String> {
+fn rocket_link_connect(
+    state: tauri::State<RocketLinkState>
+) -> Result<String, String> {
     let ports = serialport::available_ports().map_err(|e| e.to_string())?;
     for port_info in ports {
         if try_handshake(&port_info.port_name) {
+                let port = serialport::new(&port_info.port_name, BAUD_RATE)
+                .timeout(Duration::from_millis(100))
+                .open()
+                .map_err(|e| e.to_string())?;
+            *state.0.lock().unwrap() = Some(port);
             return Ok(port_info.port_name);
         }
     }
     Err("RocketLink device not found".to_string())
-}
-
-/// Opens a connection to the RocketLink on the given port name.
-#[tauri::command]
-fn rocket_link_connect(
-    state: tauri::State<RocketLinkState>,
-    port_name: String,
-) -> Result<(), String> {
-    let port = serialport::new(&port_name, BAUD_RATE)
-        .timeout(Duration::from_millis(100))
-        .open()
-        .map_err(|e| e.to_string())?;
-    *state.0.lock().unwrap() = Some(port);
-    Ok(())
 }
 
 /// Closes the active RocketLink connection.
@@ -90,7 +82,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(RocketLinkState(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
-            rocket_link_find,
             rocket_link_connect,
             rocket_link_disconnect,
             rocket_link_send,
