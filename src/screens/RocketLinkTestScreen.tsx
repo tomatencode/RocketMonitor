@@ -48,7 +48,7 @@ export default function RocketLinkTestScreen() {
     const logContainerRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true);
 
-    const visibleLog = log.filter(e => e.ts > clearedAt);
+    const visibleLog = useMemo(() => log.filter(e => e.ts > clearedAt), [log, clearedAt]);
     const logTypes = useMemo(() => [...new Set(visibleLog.map(e => formatEntry(e).label))], [visibleLog]);
     const filteredLog = useMemo(
         () => visibleLog.filter(e => !hiddenTypes.has(formatEntry(e).label)),
