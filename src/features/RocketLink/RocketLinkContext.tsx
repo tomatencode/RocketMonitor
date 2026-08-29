@@ -8,7 +8,9 @@ interface RocketLinkContextValue {
     connected: boolean;
     portName: string | null;
 
-    sendRadio: (data: number[]) => Promise<number[]>;
+    sendRadio: (data: number[]) => Promise<void>;
+    receiveRadio: (timeout_ms?: number) => Promise<number[]>;
+    
     sendAT: (command: string) => Promise<string>;
 
     sendRaw: (data: number[]) => Promise<void>;
@@ -18,14 +20,17 @@ interface RocketLinkContextValue {
 }
 
 type DataDirection = "send" | "receive";
-type LogEntry = { direction: DataDirection; data: number[]; ts: number };
+type LogEntry = { direction: DataDirection; type?: PacketType; data: number[]; ts: number };
 
 const RocketLinkContext = createContext<RocketLinkContextValue | null>(null);
 
 export function RocketLinkProvider({ children }: { children: React.ReactNode }) {
     const [connected, setConnected] = useState(false);
     const [portName, setPortName] = useState<string | null>(null);
+
+
     const [log, setLog] = useState<LogEntry[]>([]);
+
     const failedPings = useRef(0);
 
     const sendAndLog = async (data: number[]) => {
@@ -41,37 +46,33 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
         return data;
     }
 
-    const sendPacket = async (packet: Packet) => {
+    const sendAndReceivePacket = async (packet: Packet, timeout_ms: number = 500): Promise<Packet> => {
         receiveAndLog(); // Clear any pending data before sending
 
         const encodedData = encode(packet);
         await sendAndLog(Array.from(encodedData));
-    }
 
-    const receivePacket = async (timeout_ms: number = 2000): Promise<Packet | null> => {
         const parser = createParser();
         let startTime = Date.now();
-        let packet: Packet | null = null;
+        let receivedPacket: Packet | null = null;
         while (Date.now() - startTime < timeout_ms) {
             const bytes = await receiveAndLog();
             for (const byte of bytes) {
                 feed(parser, byte);
-                packet = take(parser);
-                if (packet) {
-                    return packet;
+                receivedPacket = take(parser);
+                if (receivedPacket) {
+                    return receivedPacket;
                 }
             }
         }
 
-        return null; // Timeout reached without receiving a complete packet
+        throw new Error("Timeout reached without receiving a complete packet");
     }
 
-    
+
     const pingRocketLink = async () => {
-        await sendPacket({ type: PacketType.PING, payload: new Uint8Array(0) });
-        const packet = await receivePacket(2000); // 2s timeout
+        const packet = await sendAndReceivePacket({ type: PacketType.PING, payload: new Uint8Array(0) }, 2000); // 2s timeout
         
-        if (!packet) throw new Error("No response packet received");
         if (packet.type !== PacketType.PONG) throw new Error(`Unexpected pong packet type: ${packet.type}`);
     }
 
@@ -116,25 +117,28 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
         return await receiveAndLog();
     }
 
-    const sendRadio = async (data: number[]): Promise<number[]> => {
-        await sendPacket({ type: PacketType.DATA, payload: new Uint8Array(data) });
+    const sendRadio = async (data: number[]) => {
+        const packet = { type: PacketType.SEND_RADIO_REQ, payload: new Uint8Array(data) };
+        const responsePacket = await sendAndReceivePacket(packet);
+        if (responsePacket.type !== PacketType.SEND_RADIO_ACK) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
+    }
 
-        const packet = await receivePacket(2000); // 2s timeout
-
-        if (!packet) throw new Error("No response packet received"); // This should never happen due to the while loop above
-        if (packet.type !== PacketType.DATA) throw new Error(`Unexpected packet type: ${packet.type}`);
-        return Array.from(packet.payload);
+    const receiveRadio = async (timeout_ms: number = 2000): Promise<number[]> => {
+        const packet = { type: PacketType.RECEIVE_RADIO_REQ, payload: new Uint8Array(0) };
+        const responsePacket = await sendAndReceivePacket(packet, timeout_ms);
+        if (responsePacket.type !== PacketType.RECEIVE_RADIO_RESP) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
+        return Array.from(responsePacket.payload);
     }
 
     const sendAT = async (command: string): Promise<string> => {
         const commandBytes = new TextEncoder().encode(command);
-        await sendPacket({ type: PacketType.AT_CMD, payload: commandBytes });
 
-        const packet = await receivePacket(2000); // 2s timeout
 
-        if (!packet) throw new Error("No response packet received"); // This should never happen due to the while loop above
-        if (packet.type !== PacketType.AT_RESP) throw new Error(`Unexpected packet type: ${packet.type}`);
-        return new TextDecoder().decode(packet.payload);
+        const responsePacket = await sendAndReceivePacket({ type: PacketType.AT_CMD, payload: commandBytes }, 2000); // 2s timeout
+
+        if (!responsePacket) throw new Error("No response packet received"); // This should never happen due to the while loop above
+        if (responsePacket.type !== PacketType.AT_RESP) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
+        return new TextDecoder().decode(responsePacket.payload);
     }
 
     return (
@@ -142,6 +146,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
             connected,
             portName,
             sendRadio: sendRadio,
+            receiveRadio: receiveRadio,
             sendAT: sendAT,
             sendRaw: sendRaw,
             receiveRaw: receiveRaw,

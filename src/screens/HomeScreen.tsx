@@ -98,13 +98,11 @@ function parseHex(input: string): number[] | null {
 }
 
 export default function HomeScreen() {
-    const { connected, portName, sendRaw, receiveRaw, log: contextLog } = useRocketLink();
+    const { connected, portName, sendRaw, log: contextLog } = useRocketLink();
     const [sendInput, setSendInput] = useState("");
     const [extraLog, setExtraLog] = useState<DisplayEntry[]>([]);
     const [clearedAt, setClearedAt] = useState(0);
-    const [polling, setPolling] = useState(false);
     const logEndRef = useRef<HTMLDivElement>(null);
-    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     function addLog(dir: "info" | "error", text: string) {
         setExtraLog(prev => [...prev, { dir, text, ts: Date.now() }]);
@@ -118,38 +116,15 @@ export default function HomeScreen() {
     }, [contextLog, extraLog, clearedAt]);
 
     useEffect(() => {
-        logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        //logEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [displayLog]);
 
-    const stopPolling = useCallback(() => {
-        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-        setPolling(false);
-    }, []);
-
-    useEffect(() => () => stopPolling(), [stopPolling]);
-
-    const startPolling = useCallback(() => {
-        if (pollRef.current) return;
-        pollRef.current = setInterval(async () => {
-            try {
-                await receiveRaw();
-            } catch { /* ignore transient read errors while polling */ }
-        }, 100);
-        setPolling(true);
-    }, [receiveRaw]);
 
     async function handleRawSend() {
         const bytes = parseHex(sendInput);
         if (!bytes || bytes.length === 0) { addLog("error", "Invalid hex input"); return; }
         try {
             await sendRaw(bytes);
-        } catch (e) { addLog("error", String(e)); }
-    }
-
-    async function handleRead() {
-        try {
-            const bytes = await receiveRaw();
-            if (bytes.length === 0) addLog("info", "No data");
         } catch (e) { addLog("error", String(e)); }
     }
 
@@ -221,10 +196,6 @@ export default function HomeScreen() {
                             className="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 disabled:opacity-40"
                         />
                         <button className={`${btnBlue} px-3 py-1.5 text-xs`} onClick={handleRawSend} disabled={!connected || !sendInput.trim()}>Send</button>
-                        <button className={`${btnSlate} px-3 py-1.5 text-xs`} onClick={handleRead} disabled={!connected || polling}>Read</button>
-                        <button className={`${polling ? btnYellow : btnSlate} px-3 py-1.5 text-xs`} onClick={polling ? stopPolling : startPolling} disabled={!connected}>
-                            {polling ? "Stop Poll" : "Poll"}
-                        </button>
                         <button className={`${btnGhost} px-3 py-1.5 text-xs`} onClick={() => { setClearedAt(Date.now()); setExtraLog([]); }}>Clear</button>
                     </div>
                 </div>
