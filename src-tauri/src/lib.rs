@@ -11,18 +11,20 @@ const BAUD_RATE: u32 = 115200;
 
 struct RocketLinkState(Mutex<Option<Box<dyn SerialPort + Send>>>);
 
-fn try_handshake(port_name: &str) -> bool {
-    let Ok(mut port) = serialport::new(port_name, BAUD_RATE)
+fn try_connect(port_name: &str) -> Option<Box<dyn SerialPort + Send>> {
+    let mut port = serialport::new(port_name, BAUD_RATE)
         .timeout(Duration::from_millis(500))
         .open()
-    else {
-        return false;
-    };
+        .ok()?;
     if port.write_all(HANDSHAKE_SEND).is_err() {
-        return false;
+        return None;
     }
     let mut response = [0u8; 14];
-    port.read_exact(&mut response).is_ok() && response == HANDSHAKE_RESPONSE
+    if port.read_exact(&mut response).is_err() || response != HANDSHAKE_RESPONSE {
+        return None;
+    }
+    port.set_timeout(Duration::from_millis(100)).ok()?;
+    Some(port)
 }
 
 /// Opens a connection to the RocketLink
@@ -32,12 +34,8 @@ fn rocket_link_connect(
 ) -> Result<String, String> {
     let ports = serialport::available_ports().map_err(|e| e.to_string())?;
     for port_info in ports {
-        if try_handshake(&port_info.port_name) {
-                let port = serialport::new(&port_info.port_name, BAUD_RATE)
-                .timeout(Duration::from_millis(100))
-                .open()
-                .map_err(|e| e.to_string())?;
-            *state.0.lock().unwrap() = Some(port);
+        if let Some(port) = try_connect(&port_info.port_name) {
+            *state.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(port);
             return Ok(port_info.port_name);
         }
     }
@@ -47,17 +45,17 @@ fn rocket_link_connect(
 /// Closes the active RocketLink connection.
 #[tauri::command]
 fn rocket_link_disconnect(state: tauri::State<RocketLinkState>) {
-    *state.0.lock().unwrap() = None;
+    *state.0.lock().unwrap_or_else(|e| e.into_inner()) = None;
 }
 
 #[tauri::command]
 fn rocket_link_is_connected(state: tauri::State<RocketLinkState>) -> bool {
-    state.0.lock().unwrap().is_some()
+    state.0.lock().unwrap_or_else(|e| e.into_inner()).is_some()
 }
 
 #[tauri::command]
 fn rocket_link_get_port_name(state: tauri::State<RocketLinkState>) -> Option<String> {
-    let guard = state.0.lock().unwrap();
+    let guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
     guard.as_ref().map(|port| port.name().unwrap_or_default())
 }
 
@@ -67,7 +65,7 @@ fn rocket_link_send(
     state: tauri::State<RocketLinkState>,
     data: Vec<u8>,
 ) -> Result<(), String> {
-    let mut guard = state.0.lock().unwrap();
+    let mut guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
     let port = guard.as_mut().ok_or("Not connected to RocketLink")?;
     port.write_all(&data).map_err(|e| e.to_string())
 }
@@ -75,7 +73,7 @@ fn rocket_link_send(
 /// Returns all bytes currently available in the receive buffer.
 #[tauri::command]
 fn rocket_link_read(state: tauri::State<RocketLinkState>) -> Result<Vec<u8>, String> {
-    let mut guard = state.0.lock().unwrap();
+    let mut guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
     let port = guard.as_mut().ok_or("Not connected to RocketLink")?;
     let n = port.bytes_to_read().map_err(|e| e.to_string())?;
     if n == 0 {
