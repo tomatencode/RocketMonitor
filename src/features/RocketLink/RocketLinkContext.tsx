@@ -13,13 +13,19 @@ interface RocketLinkContextValue {
 
     sendRaw: (data: number[]) => Promise<void>;
     receiveRaw: () => Promise<number[]>;
+
+    getLog: () => LogEntry[];
 }
+
+type DataDirection = "send" | "receive";
+type LogEntry = { direction: DataDirection; data: number[] };
 
 const RocketLinkContext = createContext<RocketLinkContextValue | null>(null);
 
 export function RocketLinkProvider({ children }: { children: React.ReactNode }) {
     const [connected, setConnected] = useState(false);
     const [portName, setPortName] = useState<string | null>(null);
+    const [log, setLog] = useState<LogEntry[]>([]);
 
     useEffect(() => {
         const id = setInterval(async () => {
@@ -50,12 +56,25 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
         return () => clearInterval(id); // cleanup on unmount
     }, []);
 
-    const sendRaw = async (data: number[]) => {
+    const sendAndLog = async (data: number[]) => {
+        setLog((prev) => [...prev, { direction: "send", data }]);
         await invoke("rocket_link_send", { data });
     }
 
+    const receiveAndLog = async (): Promise<number[]> => {
+        const data = await invoke<number[]>("rocket_link_read");
+        if (data.length > 0) {
+            setLog((prev) => [...prev, { direction: "receive", data }]);
+        }
+        return data;
+    }
+
+    const sendRaw = async (data: number[]) => {
+        await sendAndLog(data);
+    }
+
     const receiveRaw = async (): Promise<number[]> => {
-        return await invoke<number[]>("rocket_link_read");
+        return await receiveAndLog();
     }
 
     const receivePacket = async (timeout_ms: number = 2000): Promise<Packet | null> => {
@@ -63,7 +82,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
         let startTime = Date.now();
         let packet: Packet | null = null;
         while (Date.now() - startTime < timeout_ms) {
-            const bytes = await invoke<number[]>("rocket_link_read");
+            const bytes = await receiveRaw();
             for (const byte of bytes) {
                 feed(parser, byte);
                 packet = take(parser);
@@ -111,6 +130,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
             sendAT: sendAT,
             sendRaw: sendRaw,
             receiveRaw: receiveRaw,
+            getLog: () => log,
         }}>
             {children}
         </RocketLinkContext.Provider>
