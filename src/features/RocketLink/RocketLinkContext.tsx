@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createParser, feed, take, encode, Packet, PacketType } from "./Protocol";
 
 const PING_INTERVAL_MS = 500;
@@ -26,16 +26,21 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     const [connected, setConnected] = useState(false);
     const [portName, setPortName] = useState<string | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
+    const failedPings = useRef(0);
 
     useEffect(() => {
         const id = setInterval(async () => {
             if (await invoke<boolean>("rocket_link_is_connected")) {
                 const [isAlive, _] = await invoke<[boolean, string | null]>("rocket_link_ping");
                 if (!isAlive) {
-                    await invoke("rocket_link_disconnect");
-                    setConnected(false);
-                    setPortName(null);
+                    if (++failedPings.current >= 5) {
+                        failedPings.current = 0;
+                        await invoke("rocket_link_disconnect");
+                        setConnected(false);
+                        setPortName(null);
+                    }
                 } else {
+                    failedPings.current = 0;
                     const port = await invoke<string>("rocket_link_get_port_name");
                     setPortName(port);
                     setConnected(true);
