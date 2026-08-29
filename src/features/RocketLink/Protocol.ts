@@ -89,6 +89,7 @@ export function take(parser: Parser): Packet | null {
 }
 
 export function encode(packet: Packet): Uint8Array {
+    if (packet.payload.length > MAX_PAYLOAD) throw new Error(`Payload length exceeds maximum of ${MAX_PAYLOAD}`);
     const bytes = new Uint8Array(4 + packet.payload.length);
     bytes[0] = SOF_BYTE;
     bytes[1] = packet.type;
