@@ -31,8 +31,18 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     const [log, setLog] = useState<LogEntry[]>([]);
 
     const failedPings = useRef(0);
+    const mutex = useRef<Promise<void>>(Promise.resolve());
 
-    const sendAndReceivePacket = async (packet: Packet, timeout_ms: number = 500): Promise<Packet> => {
+    const withMutex = <T,>(fn: () => Promise<T>): Promise<T> => {
+        const result = mutex.current.then(() => fn());
+        mutex.current = result.then(() => {}, () => {});
+        return result;
+    };
+
+    const sendAndReceivePacket = (packet: Packet, timeout_ms: number = 500): Promise<Packet> =>
+        withMutex(() => sendAndReceivePacketUnsafe(packet, timeout_ms));
+
+    const sendAndReceivePacketUnsafe = async (packet: Packet, timeout_ms: number = 500): Promise<Packet> => {
         // Read any pending data to clear the buffer
         const data = await invoke<number[]>("rocket_link_read");
         if (data.length > 0) {
