@@ -160,8 +160,8 @@ export default function RocketLinkTestScreen() {
                         <button className={`${btnYellow} px-3 py-1.5 text-xs self-start`} onClick={handleSendAT} disabled={!connected}>
                             Send AT
                         </button>
+                        {atError && <span className="text-xs text-red-400 break-all">{atError}</span>}
                     </div>
-                    {atError && <span className="text-xs text-red-400 break-all">{atError}</span>}
                 </div>
 
                 {/* Right: log */}
