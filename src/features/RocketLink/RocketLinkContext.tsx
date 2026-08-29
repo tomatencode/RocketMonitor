@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createContext, useContext, useEffect, useState } from "react";
-import { createParser, feed, take, encode, Packet, PacketType } from "./Protocoll";
+import { createParser, feed, take, encode, Packet, PacketType } from "./Protocol";
 
 const PING_INTERVAL_MS = 500;
 
