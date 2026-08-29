@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRocketLink } from "../features/RocketLink/RocketLinkContext";
-import { btnBlue, btnGhost, btnGreen, btnRed, btnSlate, btnYellow } from "../shared/styles";
+import { btnBlue, btnGhost, btnSlate, btnYellow } from "../shared/styles";
 
 // ─── Command definitions ──────────────────────────────────────────────────────
 // Add new commands here. Params are rendered automatically as inputs.
@@ -102,7 +102,7 @@ function parseHex(input: string): number[] | null {
 }
 
 export default function HomeScreen() {
-    const { connected, portName, send, receive } = useRocketLink();
+    const { connected, portName, sendRaw, receiveRaw } = useRocketLink();
     const [sendInput, setSendInput] = useState("");
     const [log, setLog] = useState<LogEntry[]>([]);
     const [polling, setPolling] = useState(false);
@@ -128,26 +128,26 @@ export default function HomeScreen() {
         if (pollRef.current) return;
         pollRef.current = setInterval(async () => {
             try {
-                const bytes = await receive();
+                const bytes = await receiveRaw();
                 if (bytes.length > 0)
                     setLog(prev => [...prev, { dir: "rx", text: toHex(bytes), time: timestamp() }]);
             } catch { /* ignore transient read errors while polling */ }
         }, 100);
         setPolling(true);
-    }, [receive]);
+    }, [receiveRaw]);
 
     async function handleRawSend() {
         const bytes = parseHex(sendInput);
         if (!bytes || bytes.length === 0) { addLog("error", "Invalid hex input"); return; }
         try {
-            await send(bytes);
+            await sendRaw(bytes);
             addLog("tx", toHex(bytes));
         } catch (e) { addLog("error", String(e)); }
     }
 
     async function handleRead() {
         try {
-            const bytes = await receive();
+            const bytes = await receiveRaw();
             if (bytes.length > 0) addLog("rx", toHex(bytes));
             else addLog("info", "No data");
         } catch (e) { addLog("error", String(e)); }
