@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useRocketLink } from "../../features/RocketLink/RocketLinkContext";
 
 export default function TitleBar() {
   const appWindow = useRef(getCurrentWindow());
   const [isMaximized, setIsMaximized] = useState(false);
+  const { connected, portName } = useRocketLink();
 
   useEffect(() => {
     const win = appWindow.current;
@@ -29,20 +31,43 @@ export default function TitleBar() {
   }
 
   return (
-    <div className="flex items-center h-9 bg-[#0d1017] border-b border-slate-700/60 select-none shrink-0">
+    <div className="relative flex items-center h-9 bg-[#0d1017] border-b border-slate-700/60 select-none shrink-0">
 
-      {/* Drag region — sibling to controls, NOT a parent of the buttons */}
-      <div
-        data-tauri-drag-region
-        className="flex-1 h-full flex items-center px-4"
-      >
-        <span className="text-xs shrink-0 font-semibold tracking-widest text-slate-600 uppercase pointer-events-none">
-          Roicket Monitor
+      {/* Full-width drag region */}
+      <div data-tauri-drag-region className="absolute inset-0" />
+
+      {/* Centered title */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span className="text-xs font-semibold tracking-widest text-slate-500 uppercase">
+          Rocket Monitor
         </span>
       </div>
 
-      {/* Window controls — outside the drag region */}
-      <div className="flex items-center gap-1.5 px-2">
+      {/* Top-left USB status — above drag region */}
+      <div
+        className="relative z-10 flex items-center gap-1.5 px-3"
+        title={connected ? `Connected: ${portName}` : "Not connected"}
+      >
+        <svg
+          viewBox="0 0 56 40"
+          className={`w-6 ${connected ? "text-green-400" : "text-slate-600"}`}
+        >
+          <g fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+            <line x1="8" y1="20" x2="50" y2="20" />
+            <line x1="22" y1="20" x2="36" y2="7" />
+            <line x1="22" y1="20" x2="38" y2="34" />
+          </g>
+          <g fill="currentColor" stroke="none">
+            <polygon points="48,13 48,27 56,20" />
+            <circle cx="8" cy="20" r="6.5" />
+            <circle cx="36" cy="7" r="4" />
+            <rect x="34" y="30" width="7" height="7" />
+          </g>
+        </svg>
+      </div>
+
+      {/* Window controls — above drag region */}
+      <div className="relative z-10 ml-auto flex items-center gap-1.5 px-2">
         {/* Minimize */}
         <button
           onClick={handleMinimize}
