@@ -31,7 +31,7 @@ function formatEntry(entry: LogEntry): { label: string; detail: string; isText: 
 }
 
 export default function RocketLinkTestScreen() {
-    const { connected, portName, sendRadio, receiveRadio, sendAT, log } = useRocketLink();
+    const { connected, sendRadio, receiveRadio, sendAT, log } = useRocketLink();
 
     const [radioInput, setRadioInput] = useState("DE AD BE EF");
     const [radioError, setRadioError] = useState<string | null>(null);
