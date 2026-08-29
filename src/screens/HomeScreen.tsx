@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RocketLink } from "../features/RocketLink/RocketLink";
+import { useRocketLink } from "../features/RocketLink/RocketLinkContext";
 import { btnBlue, btnGhost, btnGreen, btnRed, btnSlate, btnYellow } from "../shared/styles";
 
 // ─── Command definitions ──────────────────────────────────────────────────────
@@ -102,9 +102,7 @@ function parseHex(input: string): number[] | null {
 }
 
 export default function HomeScreen() {
-    const rocketLink = useRef(new RocketLink());
-    const [connected, setConnected] = useState(false);
-    const [portName, setPortName] = useState<string | null>(null);
+    const { connected, portName, connect, disconnect, send, receive } = useRocketLink();
     const [sendInput, setSendInput] = useState("");
     const [log, setLog] = useState<LogEntry[]>([]);
     const [polling, setPolling] = useState(false);
@@ -130,29 +128,25 @@ export default function HomeScreen() {
         if (pollRef.current) return;
         pollRef.current = setInterval(async () => {
             try {
-                const bytes = await rocketLink.current.receive();
+                const bytes = await receive();
                 if (bytes.length > 0)
                     setLog(prev => [...prev, { dir: "rx", text: toHex(bytes), time: timestamp() }]);
             } catch { /* ignore transient read errors while polling */ }
         }, 100);
         setPolling(true);
-    }, []);
+    }, [receive]);
 
     async function handleConnect() {
         addLog("info", "Searching for RocketLink...");
         try {
-            await rocketLink.current.connect();
-            setConnected(true);
+            const port = await connect();
             startPolling();
-            setPortName(rocketLink.current.getPortName());
-            addLog("info", `Connected to ${rocketLink.current.getPortName()}`);
+            addLog("info", `Connected to ${port}`);
         } catch (e) { addLog("error", String(e)); }
     }
 
     async function handleDisconnect() {
-        await rocketLink.current.disconnect();
-        setConnected(false);
-        setPortName(null);
+        await disconnect();
         stopPolling();
         addLog("info", "Disconnected");
     }
@@ -161,14 +155,14 @@ export default function HomeScreen() {
         const bytes = parseHex(sendInput);
         if (!bytes || bytes.length === 0) { addLog("error", "Invalid hex input"); return; }
         try {
-            await rocketLink.current.send(bytes);
+            await send(bytes);
             addLog("tx", toHex(bytes));
         } catch (e) { addLog("error", String(e)); }
     }
 
     async function handleRead() {
         try {
-            const bytes = await rocketLink.current.receive();
+            const bytes = await receive();
             if (bytes.length > 0) addLog("rx", toHex(bytes));
             else addLog("info", "No data");
         } catch (e) { addLog("error", String(e)); }

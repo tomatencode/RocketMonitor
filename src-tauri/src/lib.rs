@@ -25,7 +25,7 @@ fn try_handshake(port_name: &str) -> bool {
     port.read_exact(&mut response).is_ok() && response == HANDSHAKE_RESPONSE
 }
 
-/// Opens a connection to the RocketLink on the given port name.
+/// Opens a connection to the RocketLink
 #[tauri::command]
 fn rocket_link_connect(
     state: tauri::State<RocketLinkState>
