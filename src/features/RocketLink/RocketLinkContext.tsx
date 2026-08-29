@@ -14,11 +14,11 @@ interface RocketLinkContextValue {
     sendRaw: (data: number[]) => Promise<void>;
     receiveRaw: () => Promise<number[]>;
 
-    getLog: () => LogEntry[];
+    log: LogEntry[];
 }
 
 type DataDirection = "send" | "receive";
-type LogEntry = { direction: DataDirection; data: number[] };
+type LogEntry = { direction: DataDirection; data: number[]; ts: number };
 
 const RocketLinkContext = createContext<RocketLinkContextValue | null>(null);
 
@@ -57,14 +57,14 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     }, []);
 
     const sendAndLog = async (data: number[]) => {
-        setLog((prev) => [...prev, { direction: "send", data }]);
+        setLog((prev) => [...prev, { direction: "send", data, ts: Date.now() }]);
         await invoke("rocket_link_send", { data });
     }
 
     const receiveAndLog = async (): Promise<number[]> => {
         const data = await invoke<number[]>("rocket_link_read");
         if (data.length > 0) {
-            setLog((prev) => [...prev, { direction: "receive", data }]);
+            setLog((prev) => [...prev, { direction: "receive", data, ts: Date.now() }]);
         }
         return data;
     }
@@ -130,7 +130,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
             sendAT: sendAT,
             sendRaw: sendRaw,
             receiveRaw: receiveRaw,
-            getLog: () => log,
+            log,
         }}>
             {children}
         </RocketLinkContext.Provider>

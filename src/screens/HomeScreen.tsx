@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRocketLink } from "../features/RocketLink/RocketLinkContext";
 import { btnBlue, btnGhost, btnSlate, btnYellow } from "../shared/styles";
 
@@ -34,11 +34,7 @@ const COMMANDS: CommandDef[] = [
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
-type LogEntry = { dir: "tx" | "rx" | "info" | "error"; text: string; time: string };
-
-function timestamp() {
-    return new Date().toLocaleTimeString("en-GB", { hour12: false });
-}
+type DisplayEntry = { dir: "tx" | "rx" | "info" | "error"; text: string; ts: number };
 
 function CommandCard({ cmd, connected, onSend }: {
     cmd: CommandDef;
@@ -102,20 +98,28 @@ function parseHex(input: string): number[] | null {
 }
 
 export default function HomeScreen() {
-    const { connected, portName, sendRaw, receiveRaw } = useRocketLink();
+    const { connected, portName, sendRaw, receiveRaw, log: contextLog } = useRocketLink();
     const [sendInput, setSendInput] = useState("");
-    const [log, setLog] = useState<LogEntry[]>([]);
+    const [extraLog, setExtraLog] = useState<DisplayEntry[]>([]);
+    const [clearedAt, setClearedAt] = useState(0);
     const [polling, setPolling] = useState(false);
     const logEndRef = useRef<HTMLDivElement>(null);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    function addLog(dir: LogEntry["dir"], text: string) {
-        setLog(prev => [...prev, { dir, text, time: timestamp() }]);
+    function addLog(dir: "info" | "error", text: string) {
+        setExtraLog(prev => [...prev, { dir, text, ts: Date.now() }]);
     }
+
+    const displayLog = useMemo<DisplayEntry[]>(() => {
+        const txrx = contextLog
+            .filter(e => e.ts > clearedAt)
+            .map(e => ({ dir: (e.direction === "send" ? "tx" : "rx") as DisplayEntry["dir"], text: toHex(e.data), ts: e.ts }));
+        return [...txrx, ...extraLog].sort((a, b) => a.ts - b.ts);
+    }, [contextLog, extraLog, clearedAt]);
 
     useEffect(() => {
         logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [log]);
+    }, [displayLog]);
 
     const stopPolling = useCallback(() => {
         if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -128,9 +132,7 @@ export default function HomeScreen() {
         if (pollRef.current) return;
         pollRef.current = setInterval(async () => {
             try {
-                const bytes = await receiveRaw();
-                if (bytes.length > 0)
-                    setLog(prev => [...prev, { dir: "rx", text: toHex(bytes), time: timestamp() }]);
+                await receiveRaw();
             } catch { /* ignore transient read errors while polling */ }
         }, 100);
         setPolling(true);
@@ -141,15 +143,13 @@ export default function HomeScreen() {
         if (!bytes || bytes.length === 0) { addLog("error", "Invalid hex input"); return; }
         try {
             await sendRaw(bytes);
-            addLog("tx", toHex(bytes));
         } catch (e) { addLog("error", String(e)); }
     }
 
     async function handleRead() {
         try {
             const bytes = await receiveRaw();
-            if (bytes.length > 0) addLog("rx", toHex(bytes));
-            else addLog("info", "No data");
+            if (bytes.length === 0) addLog("info", "No data");
         } catch (e) { addLog("error", String(e)); }
     }
 
@@ -189,10 +189,10 @@ export default function HomeScreen() {
 
                     {/* Log */}
                     <div className="flex-1 min-h-0 overflow-y-auto bg-slate-900/60 border border-slate-700/60 rounded-lg p-3 flex flex-col gap-0.5">
-                        {log.length === 0 && <span className="text-slate-600 text-xs">Log is empty.</span>}
-                        {log.map((entry, i) => (
+                        {displayLog.length === 0 && <span className="text-slate-600 text-xs">Log is empty.</span>}
+                        {displayLog.map((entry, i) => (
                             <div key={i} className="flex gap-2 text-xs leading-relaxed">
-                                <span className="text-slate-600 shrink-0">{entry.time}</span>
+                                <span className="text-slate-600 shrink-0">{new Date(entry.ts).toLocaleTimeString("en-GB", { hour12: false })}</span>
                                 <span className={
                                     entry.dir === "tx"    ? "text-blue-400  shrink-0 w-7" :
                                     entry.dir === "rx"    ? "text-green-400 shrink-0 w-7" :
@@ -225,7 +225,7 @@ export default function HomeScreen() {
                         <button className={`${polling ? btnYellow : btnSlate} px-3 py-1.5 text-xs`} onClick={polling ? stopPolling : startPolling} disabled={!connected}>
                             {polling ? "Stop Poll" : "Poll"}
                         </button>
-                        <button className={`${btnGhost} px-3 py-1.5 text-xs`} onClick={() => setLog([])}>Clear</button>
+                        <button className={`${btnGhost} px-3 py-1.5 text-xs`} onClick={() => { setClearedAt(Date.now()); setExtraLog([]); }}>Clear</button>
                     </div>
                 </div>
             </div>
