@@ -67,6 +67,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
                     return pkt;
                 }
             }
+            await new Promise((resolve) => setTimeout(resolve, 5));
         }
 
         const receivedBytes = Array.from(parser.pending.payload.subarray(0, parser.pendingPayloadLen));
@@ -85,7 +86,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     useEffect(() => {
         const id = setInterval(async () => {
             if (await invoke<boolean>("rocket_link_is_connected")) {
-                const [isAlive, _] = await pingRocketLink().then(() => [true, null]).catch((e) => [false, e]);
+                const isAlive = await pingRocketLink().then(() => true).catch(() => false);
                 if (!isAlive) {
                     if (++failedPings.current >= 5) {
                         failedPings.current = 0;
