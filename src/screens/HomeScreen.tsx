@@ -102,7 +102,7 @@ function parseHex(input: string): number[] | null {
 }
 
 export default function HomeScreen() {
-    const { connected, portName, connect, disconnect, send, receive } = useRocketLink();
+    const { connected, portName, send, receive } = useRocketLink();
     const [sendInput, setSendInput] = useState("");
     const [log, setLog] = useState<LogEntry[]>([]);
     const [polling, setPolling] = useState(false);
@@ -135,21 +135,6 @@ export default function HomeScreen() {
         }, 100);
         setPolling(true);
     }, [receive]);
-
-    async function handleConnect() {
-        addLog("info", "Searching for RocketLink...");
-        try {
-            const port = await connect();
-            startPolling();
-            addLog("info", `Connected to ${port}`);
-        } catch (e) { addLog("error", String(e)); }
-    }
-
-    async function handleDisconnect() {
-        await disconnect();
-        stopPolling();
-        addLog("info", "Disconnected");
-    }
 
     async function handleRawSend() {
         const bytes = parseHex(sendInput);
@@ -186,14 +171,6 @@ export default function HomeScreen() {
                 <span className={`text-xs ${connected ? "text-green-400" : "text-slate-500"}`}>
                     {connected ? portName : "disconnected"}
                 </span>
-                <div className="flex gap-2 ml-auto">
-                    <button className={`${btnGreen} px-3 py-1 text-xs`} onClick={handleConnect} disabled={connected}>
-                        Connect
-                    </button>
-                    <button className={`${btnRed} px-3 py-1 text-xs`} onClick={handleDisconnect} disabled={!connected}>
-                        Disconnect
-                    </button>
-                </div>
             </div>
 
             {/* Two-column body */}
