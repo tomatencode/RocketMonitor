@@ -28,10 +28,57 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     const [log, setLog] = useState<LogEntry[]>([]);
     const failedPings = useRef(0);
 
+    const sendAndLog = async (data: number[]) => {
+        setLog((prev) => [...prev, { direction: "send", data, ts: Date.now() }]);
+        await invoke("rocket_link_send", { data });
+    }
+
+    const receiveAndLog = async (): Promise<number[]> => {
+        const data = await invoke<number[]>("rocket_link_read");
+        if (data.length > 0) {
+            setLog((prev) => [...prev, { direction: "receive", data, ts: Date.now() }]);
+        }
+        return data;
+    }
+
+    const sendPacket = async (packet: Packet) => {
+        receiveAndLog(); // Clear any pending data before sending
+
+        const encodedData = encode(packet);
+        await sendAndLog(Array.from(encodedData));
+    }
+
+    const receivePacket = async (timeout_ms: number = 2000): Promise<Packet | null> => {
+        const parser = createParser();
+        let startTime = Date.now();
+        let packet: Packet | null = null;
+        while (Date.now() - startTime < timeout_ms) {
+            const bytes = await receiveAndLog();
+            for (const byte of bytes) {
+                feed(parser, byte);
+                packet = take(parser);
+                if (packet) {
+                    return packet;
+                }
+            }
+        }
+
+        return null; // Timeout reached without receiving a complete packet
+    }
+
+    
+    const pingRocketLink = async () => {
+        await sendPacket({ type: PacketType.PING, payload: new Uint8Array(0) });
+        const packet = await receivePacket(2000); // 2s timeout
+        
+        if (!packet) throw new Error("No response packet received");
+        if (packet.type !== PacketType.PONG) throw new Error(`Unexpected pong packet type: ${packet.type}`);
+    }
+
     useEffect(() => {
         const id = setInterval(async () => {
             if (await invoke<boolean>("rocket_link_is_connected")) {
-                const [isAlive, _] = await invoke<[boolean, string | null]>("rocket_link_ping");
+                const [isAlive, _] = await pingRocketLink().then(() => [true, null]).catch((e) => [false, e]);
                 if (!isAlive) {
                     if (++failedPings.current >= 5) {
                         failedPings.current = 0;
@@ -61,19 +108,6 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
         return () => clearInterval(id); // cleanup on unmount
     }, []);
 
-    const sendAndLog = async (data: number[]) => {
-        setLog((prev) => [...prev, { direction: "send", data, ts: Date.now() }]);
-        await invoke("rocket_link_send", { data });
-    }
-
-    const receiveAndLog = async (): Promise<number[]> => {
-        const data = await invoke<number[]>("rocket_link_read");
-        if (data.length > 0) {
-            setLog((prev) => [...prev, { direction: "receive", data, ts: Date.now() }]);
-        }
-        return data;
-    }
-
     const sendRaw = async (data: number[]) => {
         await sendAndLog(data);
     }
@@ -82,29 +116,8 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
         return await receiveAndLog();
     }
 
-    const receivePacket = async (timeout_ms: number = 2000): Promise<Packet | null> => {
-        const parser = createParser();
-        let startTime = Date.now();
-        let packet: Packet | null = null;
-        while (Date.now() - startTime < timeout_ms) {
-            const bytes = await receiveRaw();
-            for (const byte of bytes) {
-                feed(parser, byte);
-                packet = take(parser);
-                if (packet) {
-                    return packet;
-                }
-            }
-        }
-
-        return null; // Timeout reached without receiving a complete packet
-    }
-
     const sendRadio = async (data: number[]): Promise<number[]> => {
-        await receiveRaw(); // Clear any pending data before sending
-
-        const encodedData = encode({ type: PacketType.DATA, payload: new Uint8Array(data) });
-        await sendRaw(Array.from(encodedData));
+        await sendPacket({ type: PacketType.DATA, payload: new Uint8Array(data) });
 
         const packet = await receivePacket(2000); // 2s timeout
 
@@ -114,11 +127,8 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     }
 
     const sendAT = async (command: string): Promise<string> => {
-        await receiveRaw(); // Clear any pending data before sending
-
         const commandBytes = new TextEncoder().encode(command);
-        const encodedData = encode({ type: PacketType.AT_CMD, payload: commandBytes });
-        await sendRaw(Array.from(encodedData));
+        await sendPacket({ type: PacketType.AT_CMD, payload: commandBytes });
 
         const packet = await receivePacket(2000); // 2s timeout
 

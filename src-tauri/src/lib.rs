@@ -61,23 +61,6 @@ fn rocket_link_get_port_name(state: tauri::State<RocketLinkState>) -> Option<Str
     guard.as_ref().map(|port| port.name().unwrap_or_default())
 }
 
-#[tauri::command]
-fn rocket_link_ping(state: tauri::State<RocketLinkState>) -> (bool, Option<String>) {
-    let mut guard = state.0.lock().unwrap();
-    let port = match guard.as_mut() {
-        Some(p) => p,
-        None => return (false, Some("Not connected to RocketLink".to_string())),
-    };
-    if let Err(e) = port.write_all(HANDSHAKE_SEND) {
-        return (false, Some(e.to_string()));
-    }
-    let mut response = [0u8; 14];
-    if let Err(e) = port.read_exact(&mut response) {
-        return (false, Some(e.to_string()));
-    }
-    (response == HANDSHAKE_RESPONSE, None)
-}
-
 /// Sends raw bytes to the connected RocketLink.
 #[tauri::command]
 fn rocket_link_send(
@@ -114,7 +97,6 @@ pub fn run() {
             rocket_link_disconnect,
             rocket_link_is_connected,
             rocket_link_get_port_name,
-            rocket_link_ping,
             rocket_link_send,
             rocket_link_read,
         ])
