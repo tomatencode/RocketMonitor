@@ -5,10 +5,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 
-const HANDSHAKE_SEND: &[u8] = &[0xAA, 0x01, 0x00, 0x01];
-const HANDSHAKE_RESPONSE: &[u8] = &[
-    0xAA, 0x02, 0x0A, 0x52, 0x6F, 0x63, 0x6B, 0x65, 0x74, 0x4C, 0x69, 0x6E, 0x6B, 0x0C,
-];
+const HANDSHAKE_SEND: &[u8] = &[0xAA, 0x01, 0x00, 0x15];
+const HANDSHAKE_RESPONSE: &[u8] = &[0xAA, 0x02, 0x00, 0x2A];
 const BAUD_RATE: u32 = 115200;
 
 struct RocketLinkState(Mutex<Option<Box<dyn SerialPort + Send>>>);
@@ -22,7 +20,7 @@ fn try_connect(port_name: &str) -> Option<Box<dyn SerialPort + Send>> {
     if port.write_all(HANDSHAKE_SEND).is_err() {
         return None;
     }
-    let mut response = [0u8; 14];
+    let mut response = [0u8; HANDSHAKE_RESPONSE.len()];
     if port.read_exact(&mut response).is_err() || response != HANDSHAKE_RESPONSE {
         return None;
     }
