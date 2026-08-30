@@ -15,7 +15,7 @@ export function usePacketTransport() {
 
     const typeMutexes = useRef<Map<PacketType, Promise<void>>>(new Map());
     const pendingRequests = useRef<Map<PacketType, (p: Packet) => void>>(new Map());
-    const pushListeners = useRef<Map<PacketType, (p: Packet) => void>>(new Map());
+    const pushListeners = useRef<Map<PacketType, ((p: Packet) => void)[]>>(new Map());
 
     const addLogEntry = (entry: LogEntry) => {
         setLog((prev) => {
@@ -45,7 +45,7 @@ export function usePacketTransport() {
                             pendingRequests.current.delete(pkt.type);
                             resolver(pkt);
                         } else {
-                            pushListeners.current.get(pkt.type)?.(pkt);
+                            pushListeners.current.get(pkt.type)?.forEach((listener) => listener(pkt));
                         }
                     }
                 } catch { /* not connected */ }

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { createContext, useContext, useEffect, useState } from "react";
-import { PacketType } from "./Protocol";
+import { PacketType, Packet } from "./Protocol";
 import { usePacketTransport, LogEntry } from "./usePacketTransport";
 
 interface RocketLinkContextValue {
@@ -49,11 +49,15 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     }
 
     const onReceiveRadio = (callback: (data: number[]) => void) => {
-        pushListeners.current.set(PacketType.RADIO_RECEIVED, (pkt) => {
+        const listener = (pkt: Packet) => {
             callback(Array.from(pkt.payload));
-        });
+        };
+        const listeners = pushListeners.current.get(PacketType.RADIO_RECEIVED) ?? [];
+        listeners.push(listener);
+        pushListeners.current.set(PacketType.RADIO_RECEIVED, listeners);
         return () => {
-            pushListeners.current.delete(PacketType.RADIO_RECEIVED);
+            const listeners = pushListeners.current.get(PacketType.RADIO_RECEIVED) ?? [];
+            pushListeners.current.set(PacketType.RADIO_RECEIVED, listeners.filter(l => l !== listener));
         };
     }
 
