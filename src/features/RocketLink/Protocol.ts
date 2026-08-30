@@ -38,10 +38,24 @@ const VALID_TYPES = new Set<number>([
     PacketType.RADIO_RECEIVED, PacketType.AT_CMD, PacketType.AT_RESP,
 ]);
 
+// CRC-8/SMBUS, poly 0x07
+const CRC8_TABLE = (() => {
+    const table = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) {
+        let crc = i;
+        for (let bit = 0; bit < 8; bit++)
+            crc = crc & 0x80 ? (crc << 1) ^ 0x07 : crc << 1;
+        table[i] = crc & 0xFF;
+    }
+    return table;
+})();
+
 function crc8(packet: Packet): number {
-    let crc = packet.type ^ packet.payload.length;
-    for (let i = 0; i < packet.payload.length; i++) crc ^= packet.payload[i];
-    return crc & 0xFF;
+    let crc = 0;
+    crc = CRC8_TABLE[crc ^ packet.type];
+    crc = CRC8_TABLE[crc ^ packet.payload.length];
+    for (const byte of packet.payload) crc = CRC8_TABLE[crc ^ byte];
+    return crc;
 }
 
 export function createParser(): Parser {
