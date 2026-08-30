@@ -61,7 +61,6 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
 
         const responsePacket = await sendAndReceivePacket({ type: PacketType.AT_CMD, payload: commandBytes }, 2000); // 2s timeout
 
-        if (!responsePacket) throw new Error("No response packet received");
         if (responsePacket.type !== PacketType.AT_RESP) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
         return new TextDecoder().decode(responsePacket.payload);
     }
