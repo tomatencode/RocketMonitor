@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import { createParser, encode, feed, take, Packet, PacketType, EXPECTED_RESPONSE } from "./Protocol";
 
@@ -26,34 +27,27 @@ export function usePacketTransport() {
     };
 
     useEffect(() => {
-        let running = true;
         const parser = createParser();
 
-        async function loop() {
-            while (running) {
-                try {
-                    const bytes = await invoke<number[]>("rocket_link_read");
-                    for (const byte of bytes) {
-                        feed(parser, byte);
-                        const pkt = take(parser);
-                        if (!pkt) continue;
+        const unlisten = listen<number[]>("rocket-link-data", (e) => {
+            for (const byte of e.payload) {
+                feed(parser, byte);
+                const pkt = take(parser);
+                if (!pkt) continue;
 
-                        addLogEntry({ direction: "receive", packet: pkt, ts: Date.now() });
+                addLogEntry({ direction: "receive", packet: pkt, ts: Date.now() });
 
-                        const resolver = pendingRequests.current.get(pkt.type);
-                        if (resolver) {
-                            pendingRequests.current.delete(pkt.type);
-                            resolver(pkt);
-                        } else {
-                            pushListeners.current.get(pkt.type)?.forEach((listener) => listener(pkt));
-                        }
-                    }
-                } catch { /* not connected */ }
-                await new Promise(r => setTimeout(r, 5));
+                const resolver = pendingRequests.current.get(pkt.type);
+                if (resolver) {
+                    pendingRequests.current.delete(pkt.type);
+                    resolver(pkt);
+                } else {
+                    pushListeners.current.get(pkt.type)?.forEach((listener) => listener(pkt));
+                }
             }
-        }
-        loop();
-        return () => { running = false; };
+        });
+
+        return () => { unlisten.then((fn) => fn()); };
     }, []);
 
     const sendPacket = async (packet: Packet) => {

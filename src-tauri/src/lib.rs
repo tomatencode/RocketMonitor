@@ -29,7 +29,7 @@ fn try_connect(port_name: &str) -> Option<Box<dyn SerialPort + Send>> {
 }
 
 /// Starts a background thread that scans for the RocketLink and monitors the connection.
-/// Emits `rocket-link-found` (payload: port name string) and `rocket-link-lost` events.
+/// Emits `rocket-link-found` (payload: port name), `rocket-link-lost`, and `rocket-link-data` (payload: bytes) events.
 #[tauri::command]
 fn rocket_link_start_search(app: tauri::AppHandle, search: tauri::State<SearchActive>) {
     if search.0.swap(true, Ordering::SeqCst) {
@@ -37,33 +37,57 @@ fn rocket_link_start_search(app: tauri::AppHandle, search: tauri::State<SearchAc
     }
     let should_run = Arc::clone(&search.0);
     std::thread::spawn(move || {
+        let mut scan_ticker: u32 = 50; // scan immediately on first cycle
         while should_run.load(Ordering::SeqCst) {
             let port_state = app.state::<RocketLinkState>();
-            // try_lock skips this cycle instead of blocking frontend send/read
+            // try_lock skips this cycle instead of blocking frontend sends
             if let Ok(mut guard) = port_state.0.try_lock() {
                 if let Some(ref mut port) = *guard {
-                    if port.bytes_to_read().is_err() {
-                        *guard = None;
-                        drop(guard);
-                        let _ = app.emit("rocket-link-lost", ());
+                    scan_ticker = 0;
+                    match port.bytes_to_read() {
+                        Err(_) => {
+                            *guard = None;
+                            drop(guard);
+                            let _ = app.emit("rocket-link-lost", ());
+                        }
+                        Ok(0) => {}
+                        Ok(n) => {
+                            let mut buf = vec![0u8; n as usize];
+                            match port.read(&mut buf) {
+                                Ok(read) => {
+                                    buf.truncate(read);
+                                    drop(guard);
+                                    let _ = app.emit("rocket-link-data", buf);
+                                }
+                                Err(_) => {
+                                    *guard = None;
+                                    drop(guard);
+                                    let _ = app.emit("rocket-link-lost", ());
+                                }
+                            }
+                        }
                     }
                 } else {
+                    scan_ticker += 1;
                     drop(guard);
-                    if let Ok(ports) = serialport::available_ports() {
-                        for port_info in ports {
-                            if let Some(new_port) = try_connect(&port_info.port_name) {
-                                let port_name = port_info.port_name.clone();
-                                let mut g = port_state.0.lock().unwrap_or_else(|e| e.into_inner());
-                                *g = Some(new_port);
-                                drop(g);
-                                let _ = app.emit("rocket-link-found", port_name);
-                                break;
+                    if scan_ticker >= 50 { // scan ports every ~500ms
+                        scan_ticker = 0;
+                        if let Ok(ports) = serialport::available_ports() {
+                            for port_info in ports {
+                                if let Some(new_port) = try_connect(&port_info.port_name) {
+                                    let port_name = port_info.port_name.clone();
+                                    let mut g = port_state.0.lock().unwrap_or_else(|e| e.into_inner());
+                                    *g = Some(new_port);
+                                    drop(g);
+                                    let _ = app.emit("rocket-link-found", port_name);
+                                    break;
+                                }
                             }
                         }
                     }
                 }
             }
-            std::thread::sleep(Duration::from_millis(500));
+            std::thread::sleep(Duration::from_millis(10));
         }
     });
 }
@@ -106,45 +130,6 @@ fn rocket_link_send(
     Ok(())
 }
 
-/// Returns all bytes currently available in the receive buffer.
-#[tauri::command]
-fn rocket_link_read(
-    app: tauri::AppHandle,
-    state: tauri::State<RocketLinkState>,
-) -> Result<Vec<u8>, String> {
-    let mut guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
-    let result = {
-        let port = guard.as_mut().ok_or("Not connected to RocketLink")?;
-        port.bytes_to_read().map_err(|e| e.to_string())
-    };
-    let n = match result {
-        Ok(n) => n,
-        Err(e) => {
-            *guard = None;
-            drop(guard);
-            let _ = app.emit("rocket-link-lost", ());
-            return Err(e);
-        }
-    };
-    if n == 0 {
-        return Ok(vec![]);
-    }
-    let result = {
-        let port = guard.as_mut().unwrap();
-        let mut buf = vec![0u8; n as usize];
-        port.read(&mut buf).map(|read| { let mut b = buf; b.truncate(read); b })
-    };
-    match result {
-        Ok(buf) => Ok(buf),
-        Err(e) => {
-            *guard = None;
-            drop(guard);
-            let _ = app.emit("rocket-link-lost", ());
-            Err(e.to_string())
-        }
-    }
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -157,7 +142,6 @@ pub fn run() {
             rocket_link_is_connected,
             rocket_link_get_port_name,
             rocket_link_send,
-            rocket_link_read,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
