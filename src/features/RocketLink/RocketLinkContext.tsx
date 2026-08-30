@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { createContext, useContext, useEffect, useState } from "react";
-import { PacketType, Packet } from "./Protocol";
+import { PacketType } from "./Protocol";
 import { usePacketTransport, LogEntry } from "./usePacketTransport";
 
 interface RocketLinkContextValue {
@@ -21,7 +21,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     const [connected, setConnected] = useState(false);
     const [portName, setPortName] = useState<string | null>(null);
 
-    const { log, sendAndReceivePacket, pushListeners } = usePacketTransport();
+    const { log, sendAndReceivePacket, subscribeToPacketType} = usePacketTransport();
 
     useEffect(() => {
         invoke("rocket_link_start_search");
@@ -49,16 +49,10 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     }
 
     const onReceiveRadio = (callback: (data: number[]) => void) => {
-        const listener = (pkt: Packet) => {
-            callback(Array.from(pkt.payload));
-        };
-        const listeners = pushListeners.current.get(PacketType.RADIO_RECEIVED) ?? [];
-        listeners.push(listener);
-        pushListeners.current.set(PacketType.RADIO_RECEIVED, listeners);
-        return () => {
-            const listeners = pushListeners.current.get(PacketType.RADIO_RECEIVED) ?? [];
-            pushListeners.current.set(PacketType.RADIO_RECEIVED, listeners.filter(l => l !== listener));
-        };
+        const unsubscribe = subscribeToPacketType(PacketType.RADIO_RECEIVED, (packet) => {
+            callback(Array.from(packet.payload));
+        });
+        return unsubscribe;
     }
 
     const sendAT = async (command: string): Promise<string> => {
@@ -67,7 +61,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
 
         const responsePacket = await sendAndReceivePacket({ type: PacketType.AT_CMD, payload: commandBytes }, 2000); // 2s timeout
 
-        if (!responsePacket) throw new Error("No response packet received"); // This should never happen due to the while loop above
+        if (!responsePacket) throw new Error("No response packet received");
         if (responsePacket.type !== PacketType.AT_RESP) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
         return new TextDecoder().decode(responsePacket.payload);
     }

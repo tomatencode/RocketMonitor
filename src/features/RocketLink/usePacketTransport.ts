@@ -72,11 +72,26 @@ export function usePacketTransport() {
                 resolve(pkt);
             });
 
-            sendPacket(packet);
+            sendPacket(packet).catch((err) => {
+                clearTimeout(timer);
+                pendingRequests.current.delete(responseType);
+                reject(err);
+            });
         }));
         typeMutexes.current.set(responseType, result.then(() => {}, () => {}));
         return result;
     };
 
-    return { log, sendPacket, sendAndReceivePacket, pushListeners };
+    const subscribeToPacketType = (type: PacketType, callback: (pkt: Packet) => void) => {
+        const listeners = pushListeners.current.get(type) ?? [];
+        listeners.push(callback);
+        pushListeners.current.set(type, listeners);
+
+        return () => {
+            const listeners = pushListeners.current.get(type) ?? [];
+            pushListeners.current.set(type, listeners.filter((l) => l !== callback));
+        };
+    }
+
+    return { log, sendPacket, sendAndReceivePacket, subscribeToPacketType };
 }
