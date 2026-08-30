@@ -8,12 +8,22 @@ export type LogEntry = { direction: DataDirection; ts: number } & (
     | { data: number[]; packet?: never }
 );
 
+const MAX_LOG_ENTRIES = 1000;
+
 export function usePacketTransport() {
     const [log, setLog] = useState<LogEntry[]>([]);
 
     const typeMutexes = useRef<Map<PacketType, Promise<void>>>(new Map());
     const pendingRequests = useRef<Map<PacketType, (p: Packet) => void>>(new Map());
     const pushListeners = useRef<Map<PacketType, (p: Packet) => void>>(new Map());
+
+    const addLogEntry = (entry: LogEntry) => {
+        setLog((prev) => {
+            const newLog = [...prev, entry];
+            if (newLog.length > MAX_LOG_ENTRIES) newLog.shift();
+            return newLog;
+        });
+    };
 
     useEffect(() => {
         let running = true;
@@ -28,7 +38,7 @@ export function usePacketTransport() {
                         const pkt = take(parser);
                         if (!pkt) continue;
 
-                        setLog((prev) => [...prev, { direction: "receive", packet: pkt, ts: Date.now() }]);
+                        addLogEntry({ direction: "receive", packet: pkt, ts: Date.now() });
 
                         const resolver = pendingRequests.current.get(pkt.type);
                         if (resolver) {
@@ -48,7 +58,7 @@ export function usePacketTransport() {
 
     const sendPacket = async (packet: Packet) => {
         const encodedData = encode(packet);
-        setLog((prev) => [...prev, { direction: "send", packet, ts: Date.now() }]);
+        addLogEntry({ direction: "send", packet, ts: Date.now() });
         await invoke("rocket_link_send", { data: encodedData });
     };
 
