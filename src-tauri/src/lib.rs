@@ -41,24 +41,26 @@ fn rocket_link_start_search(app: tauri::AppHandle, search: tauri::State<SearchAc
     std::thread::spawn(move || {
         while should_run.load(Ordering::SeqCst) {
             let port_state = app.state::<RocketLinkState>();
-            let mut guard = port_state.0.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(ref mut port) = *guard {
-                if port.bytes_to_read().is_err() {
-                    *guard = None;
+            // try_lock skips this cycle instead of blocking frontend send/read
+            if let Ok(mut guard) = port_state.0.try_lock() {
+                if let Some(ref mut port) = *guard {
+                    if port.bytes_to_read().is_err() {
+                        *guard = None;
+                        drop(guard);
+                        let _ = app.emit("rocket-link-lost", ());
+                    }
+                } else {
                     drop(guard);
-                    let _ = app.emit("rocket-link-lost", ());
-                }
-            } else {
-                drop(guard);
-                if let Ok(ports) = serialport::available_ports() {
-                    for port_info in ports {
-                        if let Some(new_port) = try_connect(&port_info.port_name) {
-                            let port_name = port_info.port_name.clone();
-                            let mut g = port_state.0.lock().unwrap_or_else(|e| e.into_inner());
-                            *g = Some(new_port);
-                            drop(g);
-                            let _ = app.emit("rocket-link-found", port_name);
-                            break;
+                    if let Ok(ports) = serialport::available_ports() {
+                        for port_info in ports {
+                            if let Some(new_port) = try_connect(&port_info.port_name) {
+                                let port_name = port_info.port_name.clone();
+                                let mut g = port_state.0.lock().unwrap_or_else(|e| e.into_inner());
+                                *g = Some(new_port);
+                                drop(g);
+                                let _ = app.emit("rocket-link-found", port_name);
+                                break;
+                            }
                         }
                     }
                 }
@@ -88,27 +90,61 @@ fn rocket_link_get_port_name(state: tauri::State<RocketLinkState>) -> Option<Str
 /// Sends raw bytes to the connected RocketLink.
 #[tauri::command]
 fn rocket_link_send(
+    app: tauri::AppHandle,
     state: tauri::State<RocketLinkState>,
     data: Vec<u8>,
 ) -> Result<(), String> {
     let mut guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
-    let port = guard.as_mut().ok_or("Not connected to RocketLink")?;
-    port.write_all(&data).map_err(|e| e.to_string())
+    let result = {
+        let port = guard.as_mut().ok_or("Not connected to RocketLink")?;
+        port.write_all(&data)
+    };
+    if let Err(e) = result {
+        *guard = None;
+        drop(guard);
+        let _ = app.emit("rocket-link-lost", ());
+        return Err(e.to_string());
+    }
+    Ok(())
 }
 
 /// Returns all bytes currently available in the receive buffer.
 #[tauri::command]
-fn rocket_link_read(state: tauri::State<RocketLinkState>) -> Result<Vec<u8>, String> {
+fn rocket_link_read(
+    app: tauri::AppHandle,
+    state: tauri::State<RocketLinkState>,
+) -> Result<Vec<u8>, String> {
     let mut guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
-    let port = guard.as_mut().ok_or("Not connected to RocketLink")?;
-    let n = port.bytes_to_read().map_err(|e| e.to_string())?;
+    let result = {
+        let port = guard.as_mut().ok_or("Not connected to RocketLink")?;
+        port.bytes_to_read().map_err(|e| e.to_string())
+    };
+    let n = match result {
+        Ok(n) => n,
+        Err(e) => {
+            *guard = None;
+            drop(guard);
+            let _ = app.emit("rocket-link-lost", ());
+            return Err(e);
+        }
+    };
     if n == 0 {
         return Ok(vec![]);
     }
-    let mut buf = vec![0u8; n as usize];
-    let read = port.read(&mut buf).map_err(|e| e.to_string())?;
-    buf.truncate(read);
-    Ok(buf)
+    let result = {
+        let port = guard.as_mut().unwrap();
+        let mut buf = vec![0u8; n as usize];
+        port.read(&mut buf).map(|read| { let mut b = buf; b.truncate(read); b })
+    };
+    match result {
+        Ok(buf) => Ok(buf),
+        Err(e) => {
+            *guard = None;
+            drop(guard);
+            let _ = app.emit("rocket-link-lost", ());
+            Err(e.to_string())
+        }
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
