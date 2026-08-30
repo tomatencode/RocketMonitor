@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { createParser, feed, take, encode, Packet, PacketType } from "./Protocol";
+import { createParser, feed, take, encode, Packet, PacketType, EXPECTED_RESPONSE } from "./Protocol";
 
 interface RocketLinkContextValue {
     connected: boolean;
@@ -26,55 +26,8 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     const [connected, setConnected] = useState(false);
     const [portName, setPortName] = useState<string | null>(null);
 
-
     const [log, setLog] = useState<LogEntry[]>([]);
-
-    const mutex = useRef<Promise<void>>(Promise.resolve());
-
-    const withMutex = <T,>(fn: () => Promise<T>): Promise<T> => {
-        const result = mutex.current.then(() => fn());
-        mutex.current = result.then(() => {}, () => {});
-        return result;
-    };
-
-    const sendAndReceivePacket = (packet: Packet, timeout_ms: number = 500): Promise<Packet> =>
-        withMutex(() => sendAndReceivePacketUnsafe(packet, timeout_ms));
-
-    const sendAndReceivePacketUnsafe = async (packet: Packet, timeout_ms: number = 500): Promise<Packet> => {
-        // Read any pending data to clear the buffer
-        const data = await invoke<number[]>("rocket_link_read");
-        if (data.length > 0) {
-            setLog((prev) => [...prev, { direction: "receive", data, ts: Date.now() }]);
-        }
-
-        const encodedData = encode(packet);
-        setLog((prev) => [...prev, { direction: "send", packet, ts: Date.now() }]);
-        await invoke("rocket_link_send", { data: encodedData });
-
-        const parser = createParser();
-        let startTime = Date.now();
-        let receivedPacket: Packet | null = null;
-        while (Date.now() - startTime < timeout_ms) {
-            const bytes = await invoke<number[]>("rocket_link_read");
-            for (const byte of bytes) {
-                feed(parser, byte);
-                receivedPacket = take(parser);
-                if (receivedPacket) {
-                    const pkt = receivedPacket;
-                    setLog((prev) => [...prev, { direction: "receive", packet: pkt, ts: Date.now() }]);
-                    return pkt;
-                }
-            }
-            await new Promise((resolve) => setTimeout(resolve, 5));
-        }
-
-        const receivedBytes = Array.from(parser.pending.payload.subarray(0, parser.pendingPayloadLen));
-        setLog((prev) => [...prev, { direction: "receive", data: receivedBytes, ts: Date.now() }]);
-
-        throw new Error("Timeout reached without receiving a complete packet");
-    }
-
-
+    
     useEffect(() => {
         invoke("rocket_link_start_search");
 
@@ -93,6 +46,72 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
             unlistenLost.then((fn) => fn());
         };
     }, []);
+
+    const typeMutexes = useRef<Map<PacketType, Promise<void>>>(new Map());
+
+    // Resolvers waiting for a specific response type
+    const pendingRequests = useRef<Map<PacketType, (p: Packet) => void>>(new Map());
+    // Listeners for unsolicited push packets
+    const pushListeners = useRef<Map<PacketType, (p: Packet) => void>>(new Map());
+
+    useEffect(() => {
+        let running = true;
+        const parser = createParser(); // one parser for the lifetime of the connection
+
+        async function loop() {
+            while (running) {
+                try {
+                    const bytes = await invoke<number[]>("rocket_link_read");
+                    for (const byte of bytes) {
+                        feed(parser, byte);
+                        const pkt = take(parser);
+                        if (!pkt) continue;
+
+                        setLog((prev) => [...prev, { direction: "receive", packet: pkt, ts: Date.now() }]);
+
+                        const resolver = pendingRequests.current.get(pkt.type);
+                        if (resolver) {
+                            pendingRequests.current.delete(pkt.type);
+                            resolver(pkt);
+                        } else {
+                            pushListeners.current.get(pkt.type)?.(pkt);
+                        }
+                    }
+                } catch { /* not connected */ }
+                await new Promise(r => setTimeout(r, 5));
+            }
+        }
+        loop();
+        return () => { running = false; };
+    }, []);
+
+    const sendPacket = async (packet: Packet) => {
+        const encodedData = encode(packet);
+        setLog((prev) => [...prev, { direction: "send", packet, ts: Date.now() }]);
+        await invoke("rocket_link_send", { data: encodedData });
+    }
+
+    const sendAndReceivePacket = (packet: Packet, timeout_ms = 500): Promise<Packet> => {
+        const responseType = EXPECTED_RESPONSE[packet.type];
+        if (!responseType) return Promise.reject(new Error(`No expected response type for packet type ${packet.type}`));
+
+        const prev = typeMutexes.current.get(responseType) ?? Promise.resolve();
+        const result = prev.then(() => new Promise<Packet>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                pendingRequests.current.delete(responseType);
+                reject(new Error("Timeout"));
+            }, timeout_ms);
+
+            pendingRequests.current.set(responseType, (pkt) => {
+                clearTimeout(timer);
+                resolve(pkt);
+            });
+
+            sendPacket(packet);
+        }));
+        typeMutexes.current.set(responseType, result.then(() => {}, () => {}));
+        return result;
+    };
 
     const sendRadio = async (data: number[]) => {
         const packet = { type: PacketType.SEND_RADIO_REQ, payload: new Uint8Array(data) };

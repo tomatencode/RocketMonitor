@@ -1,10 +1,17 @@
 // Enum values must match the C++ protocol.hpp definition
 export enum PacketType {
-    PING=0x01,                             PONG=0x02,
-    SEND_RADIO_REQ=0x10,         SEND_RADIO_ACK=0x11,
-    RECEIVE_RADIO_REQ=0x12,  RECEIVE_RADIO_RESP=0x13,
-    AT_CMD=0x20,                        AT_RESP=0x21
+    PING=0x01, PONG=0x02,
+    SEND_RADIO_REQ=0x10, SEND_RADIO_ACK=0x11,
+    RECEIVE_RADIO_REQ=0x12, RECEIVE_RADIO_RESP=0x13,
+    AT_CMD=0x20, AT_RESP=0x21
 }
+
+export const EXPECTED_RESPONSE: Partial<Record<PacketType, PacketType>> = {
+    [PacketType.PING]: PacketType.PONG,
+    [PacketType.SEND_RADIO_REQ]: PacketType.SEND_RADIO_ACK,
+    [PacketType.RECEIVE_RADIO_REQ]: PacketType.RECEIVE_RADIO_RESP,
+    [PacketType.AT_CMD]: PacketType.AT_RESP,
+};
 
 export interface Packet {
     type: PacketType;
