@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRocketLink } from "../features/RocketLink/RocketLinkContext";
 import { PacketType } from "../features/RocketLink/Protocol";
-import { btnBlue, btnGhost, btnGreen, btnYellow } from "../shared/styles";
+import { btnBlue, btnGhost, btnYellow } from "../shared/styles";
 
 type LogEntry = ReturnType<typeof useRocketLink>["log"][number];
 
@@ -31,13 +31,10 @@ function formatEntry(entry: LogEntry): { label: string; detail: string; isText: 
 }
 
 export default function RocketLinkTestScreen() {
-    const { connected, sendRadio, receiveRadio, sendAT, log } = useRocketLink();
+    const { connected, sendRadio, sendAT, log } = useRocketLink();
 
     const [radioInput, setRadioInput] = useState("DE AD BE EF");
     const [radioError, setRadioError] = useState<string | null>(null);
-
-    const [rxTimeout, setRxTimeout] = useState(2000);
-    const [rxError, setRxError] = useState<string | null>(null);
 
     const [atCommand, setAtCommand] = useState("AT+VER");
     const [atError, setAtError] = useState<string | null>(null);
@@ -78,15 +75,6 @@ export default function RocketLinkTestScreen() {
         }
     }
 
-    async function handleReceiveRadio() {
-        setRxError(null);
-        try {
-            await receiveRadio(rxTimeout);
-        } catch (e) {
-            setRxError(String(e));
-        }
-    }
-
     async function handleSendAT() {
         setAtError(null);
         try {
@@ -120,29 +108,6 @@ export default function RocketLinkTestScreen() {
                             Send Radio
                         </button>
                         {radioError  && <span className="text-xs text-red-400 break-all">{radioError}</span>}
-                    </div>
-
-                    {/* Receive Radio */}
-                    <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg p-3 flex flex-col gap-2">
-                        <span className="text-xs font-semibold text-green-300 tracking-wide uppercase">Receive Radio</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500">Timeout</span>
-                            <input
-                                type="number"
-                                value={rxTimeout}
-                                min={100}
-                                max={10000}
-                                step={100}
-                                onChange={e => setRxTimeout(parseInt(e.target.value) || 2000)}
-                                disabled={!connected}
-                                className="w-24 bg-slate-900/60 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-40"
-                            />
-                            <span className="text-xs text-slate-600">ms</span>
-                        </div>
-                        <button className={`${btnGreen} px-3 py-1.5 text-xs self-start`} onClick={handleReceiveRadio} disabled={!connected}>
-                            Receive Radio
-                        </button>
-                        {rxError && <span className="text-xs text-red-400 break-all">{rxError}</span>}
                     </div>
 
                     {/* Send AT Command */}

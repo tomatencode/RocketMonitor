@@ -9,7 +9,7 @@ interface RocketLinkContextValue {
     portName: string | null;
 
     sendRadio: (data: number[]) => Promise<void>;
-    receiveRadio: (timeout_ms?: number) => Promise<number[]>;
+    onReceiveRadio: (callback: (data: number[]) => void) => () => void;
     sendAT: (command: string) => Promise<string>;
 
     log: LogEntry[];
@@ -21,7 +21,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     const [connected, setConnected] = useState(false);
     const [portName, setPortName] = useState<string | null>(null);
 
-    const { log, sendAndReceivePacket } = usePacketTransport();
+    const { log, sendAndReceivePacket, pushListeners } = usePacketTransport();
 
     useEffect(() => {
         invoke("rocket_link_start_search");
@@ -43,16 +43,18 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     }, []);
 
     const sendRadio = async (data: number[]) => {
-        const packet = { type: PacketType.SEND_RADIO_REQ, payload: new Uint8Array(data) };
+        const packet = { type: PacketType.RADIO_SEND, payload: new Uint8Array(data) };
         const responsePacket = await sendAndReceivePacket(packet);
-        if (responsePacket.type !== PacketType.SEND_RADIO_ACK) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
+        if (responsePacket.type !== PacketType.RADIO_SEND_ACK) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
     }
 
-    const receiveRadio = async (timeout_ms: number = 2000): Promise<number[]> => {
-        const packet = { type: PacketType.RECEIVE_RADIO_REQ, payload: new Uint8Array(0) };
-        const responsePacket = await sendAndReceivePacket(packet, timeout_ms);
-        if (responsePacket.type !== PacketType.RECEIVE_RADIO_RESP) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
-        return Array.from(responsePacket.payload);
+    const onReceiveRadio = (callback: (data: number[]) => void) => {
+        pushListeners.current.set(PacketType.RADIO_RECEIVED, (pkt) => {
+            callback(Array.from(pkt.payload));
+        });
+        return () => {
+            pushListeners.current.delete(PacketType.RADIO_RECEIVED);
+        };
     }
 
     const sendAT = async (command: string): Promise<string> => {
@@ -71,7 +73,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
             connected,
             portName,
             sendRadio: sendRadio,
-            receiveRadio: receiveRadio,
+            onReceiveRadio: onReceiveRadio,
             sendAT: sendAT,
             log,
         }}>
