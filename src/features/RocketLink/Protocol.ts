@@ -3,7 +3,7 @@ export enum PacketType {
     PING=0x01,
     PONG=0x02,
     RADIO_SEND=0x10,
-    RADIO_SEND_ACK=0x11,
+    RADIO_SEND_QUEUED=0x11,
     RADIO_RECEIVED=0x12,
     AT_CMD=0x20,
     AT_RESP=0x21
@@ -11,7 +11,7 @@ export enum PacketType {
 
 export const EXPECTED_RESPONSE: Partial<Record<PacketType, PacketType>> = {
     [PacketType.PING]: PacketType.PONG,
-    [PacketType.RADIO_SEND]: PacketType.RADIO_SEND_ACK,
+    [PacketType.RADIO_SEND]: PacketType.RADIO_SEND_QUEUED,
     [PacketType.AT_CMD]: PacketType.AT_RESP,
 };
 
@@ -34,7 +34,7 @@ const SOF_BYTE = 0xAA;
 const MAX_PAYLOAD = 255;
 
 const VALID_TYPES = new Set<number>([
-    PacketType.PING, PacketType.PONG, PacketType.RADIO_SEND, PacketType.RADIO_SEND_ACK,
+    PacketType.PING, PacketType.PONG, PacketType.RADIO_SEND, PacketType.RADIO_SEND_QUEUED,
     PacketType.RADIO_RECEIVED, PacketType.AT_CMD, PacketType.AT_RESP,
 ]);
 

@@ -45,7 +45,7 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     const sendRadio = async (data: number[]) => {
         const packet = { type: PacketType.RADIO_SEND, payload: new Uint8Array(data) };
         const responsePacket = await sendAndReceivePacket(packet);
-        if (responsePacket.type !== PacketType.RADIO_SEND_ACK) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
+        if (responsePacket.type !== PacketType.RADIO_SEND_QUEUED) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
     }
 
     const onReceiveRadio = (callback: (data: number[]) => void) => {
