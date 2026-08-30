@@ -1,7 +1,9 @@
 use serialport::SerialPort;
 use std::io::{Read, Write};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tauri::{Emitter, Manager};
 
 const HANDSHAKE_SEND: &[u8] = &[0xAA, 0x01, 0x00, 0x01];
 const HANDSHAKE_RESPONSE: &[u8] = &[
@@ -10,6 +12,7 @@ const HANDSHAKE_RESPONSE: &[u8] = &[
 const BAUD_RATE: u32 = 115200;
 
 struct RocketLinkState(Mutex<Option<Box<dyn SerialPort + Send>>>);
+struct SearchActive(Arc<AtomicBool>);
 
 fn try_connect(port_name: &str) -> Option<Box<dyn SerialPort + Send>> {
     let mut port = serialport::new(port_name, BAUD_RATE)
@@ -27,25 +30,48 @@ fn try_connect(port_name: &str) -> Option<Box<dyn SerialPort + Send>> {
     Some(port)
 }
 
-/// Opens a connection to the RocketLink
+/// Starts a background thread that scans for the RocketLink and monitors the connection.
+/// Emits `rocket-link-found` (payload: port name string) and `rocket-link-lost` events.
 #[tauri::command]
-fn rocket_link_connect(
-    state: tauri::State<RocketLinkState>
-) -> Result<String, String> {
-    let ports = serialport::available_ports().map_err(|e| e.to_string())?;
-    for port_info in ports {
-        if let Some(port) = try_connect(&port_info.port_name) {
-            *state.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(port);
-            return Ok(port_info.port_name);
-        }
+fn rocket_link_start_search(app: tauri::AppHandle, search: tauri::State<SearchActive>) {
+    if search.0.swap(true, Ordering::SeqCst) {
+        return; // already running
     }
-    Err("RocketLink device not found".to_string())
+    let should_run = Arc::clone(&search.0);
+    std::thread::spawn(move || {
+        while should_run.load(Ordering::SeqCst) {
+            let port_state = app.state::<RocketLinkState>();
+            let mut guard = port_state.0.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(ref mut port) = *guard {
+                if port.bytes_to_read().is_err() {
+                    *guard = None;
+                    drop(guard);
+                    let _ = app.emit("rocket-link-lost", ());
+                }
+            } else {
+                drop(guard);
+                if let Ok(ports) = serialport::available_ports() {
+                    for port_info in ports {
+                        if let Some(new_port) = try_connect(&port_info.port_name) {
+                            let port_name = port_info.port_name.clone();
+                            let mut g = port_state.0.lock().unwrap_or_else(|e| e.into_inner());
+                            *g = Some(new_port);
+                            drop(g);
+                            let _ = app.emit("rocket-link-found", port_name);
+                            break;
+                        }
+                    }
+                }
+            }
+            std::thread::sleep(Duration::from_millis(500));
+        }
+    });
 }
 
-/// Closes the active RocketLink connection.
+/// Stops the background search/monitor thread.
 #[tauri::command]
-fn rocket_link_disconnect(state: tauri::State<RocketLinkState>) {
-    *state.0.lock().unwrap_or_else(|e| e.into_inner()) = None;
+fn rocket_link_stop_search(search: tauri::State<SearchActive>) {
+    search.0.store(false, Ordering::SeqCst);
 }
 
 #[tauri::command]
@@ -90,9 +116,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(RocketLinkState(Mutex::new(None)))
+        .manage(SearchActive(Arc::new(AtomicBool::new(false))))
         .invoke_handler(tauri::generate_handler![
-            rocket_link_connect,
-            rocket_link_disconnect,
+            rocket_link_start_search,
+            rocket_link_stop_search,
             rocket_link_is_connected,
             rocket_link_get_port_name,
             rocket_link_send,

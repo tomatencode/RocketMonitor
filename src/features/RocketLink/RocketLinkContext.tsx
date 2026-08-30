@@ -1,8 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createParser, feed, take, encode, Packet, PacketType } from "./Protocol";
-
-const PING_INTERVAL_MS = 500;
 
 interface RocketLinkContextValue {
     connected: boolean;
@@ -30,7 +29,6 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
 
     const [log, setLog] = useState<LogEntry[]>([]);
 
-    const failedPings = useRef(0);
     const mutex = useRef<Promise<void>>(Promise.resolve());
 
     const withMutex = <T,>(fn: () => Promise<T>): Promise<T> => {
@@ -77,43 +75,23 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
     }
 
 
-    const pingRocketLink = async () => {
-        const packet = await sendAndReceivePacket({ type: PacketType.PING, payload: new Uint8Array(0) }, 2000); // 2s timeout
-        
-        if (packet.type !== PacketType.PONG) throw new Error(`Unexpected pong packet type: ${packet.type}`);
-    }
-
     useEffect(() => {
-        const id = setInterval(async () => {
-            if (await invoke<boolean>("rocket_link_is_connected")) {
-                const isAlive = await pingRocketLink().then(() => true).catch(() => false);
-                if (!isAlive) {
-                    if (++failedPings.current >= 5) {
-                        failedPings.current = 0;
-                        await invoke("rocket_link_disconnect");
-                        setConnected(false);
-                        setPortName(null);
-                    }
-                } else {
-                    failedPings.current = 0;
-                    const port = await invoke<string>("rocket_link_get_port_name");
-                    setPortName(port);
-                    setConnected(true);
-                }
-            } else {
-                setConnected(false);
-                setPortName(null);
-                try {
-                    const port = await invoke<string>("rocket_link_connect");
-                    setPortName(port);
-                    setConnected(true);
-                } catch (e) {
+        invoke("rocket_link_start_search");
 
-                }
-            }
-        }, PING_INTERVAL_MS);
+        const unlistenFound = listen<string>("rocket-link-found", (e) => {
+            setPortName(e.payload);
+            setConnected(true);
+        });
+        const unlistenLost = listen("rocket-link-lost", () => {
+            setConnected(false);
+            setPortName(null);
+        });
 
-        return () => clearInterval(id); // cleanup on unmount
+        return () => {
+            invoke("rocket_link_stop_search");
+            unlistenFound.then((fn) => fn());
+            unlistenLost.then((fn) => fn());
+        };
     }, []);
 
     const sendRadio = async (data: number[]) => {
