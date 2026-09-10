@@ -3,16 +3,11 @@ import { PacketType } from "../features/RadioLink/Protocol";
 import { useRadioLink } from "../features/RadioLink/RadioLinkContext";
 import {
 	appBackground,
-	outerCard,
-	btnBlue,
-	btnRed,
-	btnYellow,
-	inputBackground,
-	inputBorder,
-	innerCard,
-	radius,
 } from "../shared/styles";
 import PacketLog from "../shared/components/PacketLog";
+import { Button } from "../shared/components/primitives/Button";
+import { Card } from "../shared/components/primitives/Card";
+import { Input } from "../shared/components/primitives/Input";
 
 type LogEntry = ReturnType<typeof useRadioLink>["log"][number];
 
@@ -47,25 +42,29 @@ export default function RadioLinkTestScreen() {
 	return (
 		<div className={`flex flex-col h-full ${appBackground} text-zinc-200 font-mono text-sm overflow-hidden p-3 gap-3`}>
 			<div className="flex flex-1 min-h-0 gap-3">
-				<div className={`${outerCard} w-80 shrink-0 flex flex-col gap-3 overflow-y-auto p-3`}>
-					<div className={`${innerCard} p-3 flex flex-col gap-2`}>
+				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
+					<Card className="p-3 flex flex-col gap-2">
 						<span className="text-xs font-semibold text-zinc-300 tracking-wide uppercase">Set Gimbal Position</span>
 						<div className="flex gap-2">
-							<input type="number" value={gimbalX} onChange={e => setGimbalX(e.target.value)} placeholder="X deg" disabled={!connected} className={`w-1/2 ${inputBackground} border ${inputBorder} rounded px-2 py-1.5 text-xs focus:outline-none focus:border-zinc-500 disabled:opacity-40`} />
-							<input type="number" value={gimbalY} onChange={e => setGimbalY(e.target.value)} placeholder="Y deg" disabled={!connected} className={`w-1/2 ${inputBackground} border ${inputBorder} rounded px-2 py-1.5 text-xs focus:outline-none focus:border-zinc-500 disabled:opacity-40`} />
+							<Input type="number" value={gimbalX} onChange={e => setGimbalX(e.target.value)} placeholder="X deg" disabled={!connected} className="w-1/2" />
+							<Input type="number" value={gimbalY} onChange={e => setGimbalY(e.target.value)} placeholder="Y deg" disabled={!connected} className="w-1/2" />
 						</div>
-						<button className={`${btnBlue} px-3 py-1.5 text-xs self-start`} disabled={!connected} onClick={() => run(() => setGimbalPos(Number(gimbalX), Number(gimbalY)))}>Send Gimbal</button>
-					</div>
-					<div className={`${innerCard} p-3 flex flex-col gap-2`}>
+						<Button variant="primary" className="px-3 py-1.5 text-xs self-start" disabled={!connected} onClick={() => run(() => setGimbalPos(Number(gimbalX), Number(gimbalY)))}>Send Gimbal</Button>
+					</Card>
+					<Card className="p-3 flex flex-col gap-2">
 						<span className="text-xs font-semibold text-yellow-300 tracking-wide uppercase">Buzzer</span>
-						<button className={`${btnYellow} px-3 py-1.5 text-xs self-start`} disabled={!connected} onClick={() => run(beepBuzzer)}>Beep Buzzer</button>
-					</div>
-					<div className={`${innerCard} p-3 flex flex-col gap-2`}>
+						<Button variant="warning" className="px-3 py-1.5 text-xs self-start" disabled={!connected} onClick={() => run(beepBuzzer)}>Beep Buzzer</Button>
+					</Card>
+					<Card className="p-3 flex flex-col gap-2">
 						<span className="text-xs font-semibold text-red-300 tracking-wide uppercase">Fire Pyro Channel</span>
-						<input type="number" min="0" value={channel} onChange={e => setChannel(e.target.value)} disabled={!connected} className={`${inputBackground} border ${inputBorder} ${radius} px-2 py-1.5 text-xs focus:outline-none focus:border-red-500 disabled:opacity-40`} />
-						<button className={`${btnRed} px-3 py-1.5 text-xs self-start`} disabled={!connected} onClick={() => run(() => firePyroChanel(Number(channel)))}>Fire Channel</button>
-					</div>
-					{error && <span className="text-xs text-red-400 break-all">{error}</span>}
+						<Input type="number" min="0" value={channel} onChange={e => setChannel(e.target.value)} disabled={!connected} />
+						<Button variant="danger" className="px-3 py-1.5 text-xs self-start" disabled={!connected} onClick={() => run(() => firePyroChanel(Number(channel)))}>Fire Channel</Button>
+					</Card>
+					{error &&
+					<Card variant="error" className="p-3 flex flex-col gap-2">
+						<span className="text-xs text-red-400 break-all">{error}</span>
+					</Card>
+					}
 				</div>
 
 				<PacketLog title="Radio Packet Log" log={log} formatEntry={formatEntry} />

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { dividerBorder, dropdownBackground, dropdownHoverBackground, dropdownItemBorder, radius } from "../styles";
+import { dividerBorder, radius } from "../../styles";
+
+const dropdownBackground = "bg-[#090909]";
+const dropdownHoverBackground = "hover:bg-zinc-800/40";
+const dropdownItemBorder = "border-zinc-700/30";
 
 interface Props<T> {
   value: T | null;

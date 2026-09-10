@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    btnGhost,
     filterBackground,
     filterBorder,
-    innerCard,
     mutedBorder,
-    outerCard,
     radius,
 } from "../styles";
+import { Button } from "./primitives/Button";
+import { Card } from "./primitives/Card";
 
 export type PacketLogEntry = { direction: "send" | "receive"; ts: number };
 
@@ -51,10 +50,10 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
     }
 
     return (
-        <div className={`${outerCard} flex flex-1 flex-col min-h-0 gap-2 p-3`}>
+        <Card className="flex flex-1 flex-col min-h-0 gap-2 p-3">
             <div className="flex items-center justify-between shrink-0">
                 <span className="text-xs text-zinc-600 uppercase tracking-widest">{title}</span>
-                <button className={`${btnGhost} px-2.5 py-1 text-xs`} onClick={() => setClearedAt(Date.now())}>Clear</button>
+                <Button variant="ghost" className="px-2.5 py-1 text-xs" onClick={() => setClearedAt(Date.now())}>Clear</Button>
             </div>
 
             {logTypes.length > 0 && (
@@ -78,7 +77,7 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
                 </div>
             )}
 
-            <div ref={logContainerRef} onScroll={handleLogScroll} className={`${innerCard} flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-1`}>
+            <Card variant="inner" ref={logContainerRef} onScroll={handleLogScroll} className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-1">
                 {filteredLog.length === 0 && (
                     <span className="text-zinc-600 text-xs">
                         {visibleLog.length === 0 ? "No packets yet." : "No packets match the filter."}
@@ -104,7 +103,7 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
                     );
                 })}
                 <div ref={logEndRef} />
-            </div>
-        </div>
+            </Card>
+        </Card>
     );
 }

@@ -3,14 +3,11 @@ import { useRocketLink } from "../features/RocketLink/RocketLinkContext";
 import { PacketType } from "../features/RocketLink/Protocol";
 import {
     appBackground,
-    outerCard,
-    btnBlue,
-    btnYellow,
-    inputBackground,
-    inputBorder,
-    innerCard,
 } from "../shared/styles";
 import PacketLog from "../shared/components/PacketLog";
+import { Button } from "../shared/components/primitives/Button";
+import { Card } from "../shared/components/primitives/Card";
+import { Input } from "../shared/components/primitives/Input";
 
 type LogEntry = ReturnType<typeof useRocketLink>["log"][number];
 
@@ -73,48 +70,43 @@ export default function RocketLinkTestScreen() {
             {/* Body: controls on left, log on right */}
             <div className="flex flex-1 min-h-0 gap-3">
 
-                {/* Left: action cards */}
-                <div className={`${outerCard} w-80 shrink-0 flex flex-col gap-3 overflow-y-auto p-3`}>
+                <div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
 
-                    {/* Send Radio */}
-                    <div className={`${innerCard} p-3 flex flex-col gap-2`}>
+                    <Card className="p-3 flex flex-col gap-2">
                         <span className="text-xs font-semibold text-zinc-300 tracking-wide uppercase">Send Radio</span>
-                        <input
+                        <Input
                             type="text"
                             value={radioInput}
                             onChange={e => { setRadioInput(e.target.value); setRadioError(null); }}
                             onKeyDown={e => e.key === "Enter" && handleSendRadio()}
                             placeholder="hex bytes  e.g.  DE AD BE EF"
                             disabled={!connected}
-                            className={`${inputBackground} border ${inputBorder} rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 disabled:opacity-40`}
                         />
-                        <button className={`${btnBlue} px-3 py-1.5 text-xs self-start`} onClick={handleSendRadio} disabled={!connected}>
+                        <Button variant="primary" className="px-3 py-1.5 text-xs self-start" onClick={handleSendRadio} disabled={!connected}>
                             Send Radio
-                        </button>
+                        </Button>
                         {radioError  && <span className="text-xs text-red-400 break-all">{radioError}</span>}
-                    </div>
+                    </Card>
 
-                    {/* Send AT Command */}
-                    <div className={`${innerCard} p-3 flex flex-col gap-2`}>
+                    <Card className="p-3 flex flex-col gap-2">
                         <span className="text-xs font-semibold text-yellow-300 tracking-wide uppercase">AT Command</span>
-                        <input
+                        <Input
                             type="text"
                             value={atCommand}
                             onChange={e => { setAtCommand(e.target.value); setAtError(null); }}
                             onKeyDown={e => e.key === "Enter" && handleSendAT()}
                             placeholder="e.g.  AT+VER"
                             disabled={!connected}
-                            className={`${inputBackground} border ${inputBorder} rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 disabled:opacity-40`}
                         />
-                        <button className={`${btnYellow} px-3 py-1.5 text-xs self-start`} onClick={handleSendAT} disabled={!connected}>
+                        <Button variant="warning" className="px-3 py-1.5 text-xs self-start" onClick={handleSendAT} disabled={!connected}>
                             Send AT
-                        </button>
-                        {atError && <span className="text-xs text-red-400 break-all">{atError}</span>}
-                    </div>
+                        </Button>
+                        {atError &&<span className="text-xs text-red-400 break-all">{atError}</span>}
+                    </Card>
                 </div>
 
                 {/* Right: log */}
-                <PacketLog title="Packet Log" log={log} formatEntry={formatEntry} />
+                <PacketLog title="Rocket Link Packet Log" log={log} formatEntry={formatEntry} />
 
             </div>
         </div>
