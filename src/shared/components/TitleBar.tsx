@@ -76,7 +76,7 @@ export default function TitleBar() {
           title="Minimize"
           tabIndex={-1}
         >
-          <svg className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-200 transition-colors" viewBox="0 0 12 2" fill="currentColor">
+          <svg className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-200 transition-colors" viewBox="0 0 12 2" fill="currentColor">
             <rect width="12" height="1.5" rx="0.75" />
           </svg>
         </button>
@@ -84,17 +84,17 @@ export default function TitleBar() {
         {/* Maximize / Restore */}
         <button
           onClick={handleMaximize}
-          className="group w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-700/60 transition-colors"
+          className="group w-7 h-7 flex items-center justify-center rounded-md hover:bg-zinc-700/60 transition-colors"
           title={isMaximized ? "Restore" : "Maximize"}
           tabIndex={-1}
         >
           {isMaximized ? (
-            <svg className="w-3 h-3 text-slate-500 group-hover:text-blue-400 transition-colors" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg className="w-3 h-3 text-zinc-500 group-hover:text-blue-400 transition-colors" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
               <rect x="3" y="1" width="8" height="8" rx="1" />
               <path d="M1 4v6a1 1 0 0 0 1 1h6" />
             </svg>
           ) : (
-            <svg className="w-3 h-3 text-slate-500 group-hover:text-blue-400 transition-colors" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg className="w-3 h-3 text-zinc-500 group-hover:text-blue-400 transition-colors" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
               <rect x="1" y="1" width="10" height="10" rx="1.5" />
             </svg>
           )}
@@ -107,7 +107,7 @@ export default function TitleBar() {
           title="Close"
           tabIndex={-1}
         >
-          <svg className="w-3 h-3 text-slate-500 group-hover:text-white transition-colors" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <svg className="w-3 h-3 text-zinc-500 group-hover:text-white transition-colors" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
             <line x1="1" y1="1" x2="11" y2="11" />
             <line x1="11" y1="1" x2="1" y2="11" />
           </svg>
