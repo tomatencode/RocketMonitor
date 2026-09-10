@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useRocketLink } from "../../features/RocketLink/RocketLinkContext";
+import { appBackground, dividerBorder } from "../styles";
 
 export default function TitleBar() {
   const appWindow = useRef(getCurrentWindow());
@@ -31,7 +32,7 @@ export default function TitleBar() {
   }
 
   return (
-    <div className="relative flex items-center h-9 bg-[#0d1017] border-b border-slate-700/60 select-none shrink-0">
+    <div className={`relative flex items-center h-9 ${appBackground} border-b ${dividerBorder} select-none shrink-0`}>
 
       {/* Full-width drag region */}
       <div data-tauri-drag-region className="absolute inset-0" />

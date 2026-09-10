@@ -2,6 +2,21 @@
 // These cover colour, border, shadow, text colour, and disabled state.
 // Callers add layout (flex, gap), spacing (px-*, py-*), text size, and width.
 
+export const appBackground = "bg-[#0d1017]";
+export const panelBackground = "bg-slate-800/40";
+export const inputBackground = "bg-slate-900/60";
+export const logBackground = "bg-slate-900/60";
+export const filterBackground = "bg-slate-700/60";
+export const dropdownBackground = "bg-[#0a0c10]";
+export const dropdownHoverBackground = "hover:bg-slate-800/40";
+
+export const dividerBorder = "border-slate-700/60";
+export const panelBorder = "border-slate-700/60";
+export const inputBorder = "border-slate-600";
+export const filterBorder = "border-slate-600";
+export const mutedBorder = "border-slate-700";
+export const dropdownItemBorder = "border-slate-700/30";
+
 export const btnBlue =
   "bg-blue-700/80 hover:bg-blue-600/80 border border-blue-600/60 hover:border-blue-500 rounded-lg font-semibold text-blue-100 transition-colors shadow-sm shadow-blue-900/30 disabled:opacity-40 disabled:pointer-events-none";
 

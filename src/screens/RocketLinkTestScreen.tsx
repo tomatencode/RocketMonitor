@@ -1,7 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRocketLink } from "../features/RocketLink/RocketLinkContext";
 import { PacketType } from "../features/RocketLink/Protocol";
-import { btnBlue, btnGhost, btnYellow } from "../shared/styles";
+import {
+    appBackground,
+    btnBlue,
+    btnGhost,
+    btnYellow,
+    dividerBorder,
+    filterBackground,
+    filterBorder,
+    inputBackground,
+    inputBorder,
+    logBackground,
+    mutedBorder,
+    panelBackground,
+    panelBorder,
+} from "../shared/styles";
 
 type LogEntry = ReturnType<typeof useRocketLink>["log"][number];
 
@@ -85,15 +99,15 @@ export default function RocketLinkTestScreen() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#0d1017] text-slate-200 font-mono text-sm overflow-hidden">
+        <div className={`flex flex-col h-full ${appBackground} text-slate-200 font-mono text-sm overflow-hidden`}>
             {/* Body: controls on left, log on right */}
             <div className="flex flex-1 min-h-0">
 
                 {/* Left: action cards */}
-                <div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto p-3 border-r border-slate-700/60">
+                <div className={`w-80 shrink-0 flex flex-col gap-3 overflow-y-auto p-3 border-r ${dividerBorder}`}>
 
                     {/* Send Radio */}
-                    <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg p-3 flex flex-col gap-2">
+                    <div className={`${panelBackground} border ${panelBorder} rounded-lg p-3 flex flex-col gap-2`}>
                         <span className="text-xs font-semibold text-blue-300 tracking-wide uppercase">Send Radio</span>
                         <input
                             type="text"
@@ -102,7 +116,7 @@ export default function RocketLinkTestScreen() {
                             onKeyDown={e => e.key === "Enter" && handleSendRadio()}
                             placeholder="hex bytes  e.g.  DE AD BE EF"
                             disabled={!connected}
-                            className="bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 disabled:opacity-40"
+                            className={`${inputBackground} border ${inputBorder} rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 disabled:opacity-40`}
                         />
                         <button className={`${btnBlue} px-3 py-1.5 text-xs self-start`} onClick={handleSendRadio} disabled={!connected}>
                             Send Radio
@@ -111,7 +125,7 @@ export default function RocketLinkTestScreen() {
                     </div>
 
                     {/* Send AT Command */}
-                    <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg p-3 flex flex-col gap-2">
+                    <div className={`${panelBackground} border ${panelBorder} rounded-lg p-3 flex flex-col gap-2`}>
                         <span className="text-xs font-semibold text-yellow-300 tracking-wide uppercase">AT Command</span>
                         <input
                             type="text"
@@ -120,7 +134,7 @@ export default function RocketLinkTestScreen() {
                             onKeyDown={e => e.key === "Enter" && handleSendAT()}
                             placeholder="e.g.  AT+VER"
                             disabled={!connected}
-                            className="bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 disabled:opacity-40"
+                            className={`${inputBackground} border ${inputBorder} rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 disabled:opacity-40`}
                         />
                         <button className={`${btnYellow} px-3 py-1.5 text-xs self-start`} onClick={handleSendAT} disabled={!connected}>
                             Send AT
@@ -151,8 +165,8 @@ export default function RocketLinkTestScreen() {
                                         })}
                                         className={`px-2 py-0.5 text-xs rounded border font-mono transition-colors ${
                                             hidden
-                                                ? "border-slate-700 text-slate-600 line-through"
-                                                : "bg-slate-700/60 border-slate-600 text-slate-300"
+                                                ? `${mutedBorder} text-slate-600 line-through`
+                                                : `${filterBackground} ${filterBorder} text-slate-300`
                                         }`}
                                     >
                                         {type}
@@ -162,7 +176,7 @@ export default function RocketLinkTestScreen() {
                         </div>
                     )}
 
-                    <div ref={logContainerRef} onScroll={handleLogScroll} className="flex-1 min-h-0 overflow-y-auto bg-slate-900/60 border border-slate-700/60 rounded-lg p-3 flex flex-col gap-1">
+                    <div ref={logContainerRef} onScroll={handleLogScroll} className={`flex-1 min-h-0 overflow-y-auto ${logBackground} border ${panelBorder} rounded-lg p-3 flex flex-col gap-1`}>
                         {filteredLog.length === 0 && (
                             <span className="text-slate-600 text-xs">
                                 {visibleLog.length === 0 ? "No packets yet." : "No packets match the filter."}

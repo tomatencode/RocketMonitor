@@ -4,6 +4,7 @@ import RocketLinkTestScreen from "./screens/RocketLinkTestScreen";
 import RadioLinkTestScreen from "./screens/RadioLinkTestScreen";
 import { RocketLinkProvider } from "./features/RocketLink/RocketLinkContext";
 import { RadioLinkProvider } from "./features/RadioLink/RadioLinkContext";
+import { appBackground, dividerBorder } from "./shared/styles";
 import "./App.css";
 
 function App() {
@@ -13,7 +14,7 @@ function App() {
         <RadioLinkProvider>
           <div className="flex flex-col h-screen overflow-hidden">
             <TitleBar />
-            <nav className="flex gap-1 px-3 py-1.5 border-b border-slate-700/60 bg-[#0d1017] shrink-0">
+            <nav className={`flex gap-1 px-3 py-1.5 border-b ${dividerBorder} ${appBackground} shrink-0`}>
               <NavLink
                 to="/rocketlink-test"
                 className={({ isActive }) =>

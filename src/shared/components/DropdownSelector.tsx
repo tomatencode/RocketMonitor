@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { dividerBorder, dropdownBackground, dropdownHoverBackground, dropdownItemBorder } from "../styles";
 
 interface Props<T> {
   value: T | null;
@@ -51,13 +52,13 @@ export function DropdownSelector<T>({
   return (
     <div
       ref={ref}
-      className={`flex-1 border bg-[#0a0c10] transition-colors border-slate-700/60${!inline ? " relative" + (open ? " rounded-t-lg rounded-b-none" : " rounded-lg") : " rounded-lg overflow-hidden"}`}
+      className={`flex-1 border ${dropdownBackground} transition-colors ${dividerBorder}${!inline ? " relative" + (open ? " rounded-t-lg rounded-b-none" : " rounded-lg") : " rounded-lg overflow-hidden"}`}
     >
       {/* Trigger */}
       <button
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
-        className={`w-full flex items-center gap-2 px-2 py-1.5 hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed${inline ? "" : open ? " rounded-t-lg" : " rounded-lg"}`}
+        className={`w-full flex items-center gap-2 px-2 py-1.5 ${dropdownHoverBackground} transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed${inline ? "" : open ? " rounded-t-lg" : " rounded-lg"}`}
       >
         {value !== null ? renderSelected(value) : placeholder ?? <span className="text-xs text-slate-600 italic">No value</span>}
         {options.length > 0 && (
@@ -78,14 +79,14 @@ export function DropdownSelector<T>({
       {/* Options */}
       {open && others.length > 0 && (
         <div className={!inline
-          ? "absolute left-[-1px] right-[-1px] top-full z-50 rounded-b-lg border border-slate-700/60 bg-[#0a0c10] overflow-hidden"
-          : "border-t border-slate-700/60"
+          ? `absolute left-[-1px] right-[-1px] top-full z-50 rounded-b-lg border ${dividerBorder} ${dropdownBackground} overflow-hidden`
+          : `border-t ${dividerBorder}`
         }>
           {others.map((opt) => (
             <button
               key={keyOf(opt)}
               onClick={() => { onChange(opt); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-slate-800/40 border-b border-slate-700/30 last:border-b-0 text-left transition-colors"
+              className={`w-full flex items-center gap-2 px-2 py-1.5 ${dropdownHoverBackground} border-b ${dropdownItemBorder} last:border-b-0 text-left transition-colors`}
             >
               {renderOption(opt)}
             </button>
@@ -94,8 +95,8 @@ export function DropdownSelector<T>({
       )}
       {open && others.length === 0 && (
         <div className={!inline
-          ? "absolute left-[-1px] right-[-1px] top-full z-50 rounded-b-lg border border-slate-700/60 bg-[#0a0c10] px-2 py-1.5 text-xs text-slate-600 italic"
-          : "border-t border-slate-700/60 px-2 py-1.5 text-xs text-slate-600 italic"
+          ? `absolute left-[-1px] right-[-1px] top-full z-50 rounded-b-lg border ${dividerBorder} ${dropdownBackground} px-2 py-1.5 text-xs text-slate-600 italic`
+          : `border-t ${dividerBorder} px-2 py-1.5 text-xs text-slate-600 italic`
         }>
           No other options available
         </div>
