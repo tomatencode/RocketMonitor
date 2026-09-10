@@ -5,8 +5,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 
-const HANDSHAKE_SEND: &[u8] = &[0xAA, 0x01, 0x00, 0x15];
-const HANDSHAKE_RESPONSE: &[u8] = &[0xAA, 0x02, 0x00, 0x2A];
+const HANDSHAKE_SEND: &[u8] = &[0xAA, 0x01, 0x00, 0x00, 0x6B];
+const HANDSHAKE_RESPONSE: &[u8] = &[0xAA, 0x02, 0x00, 0x00, 0xD6];
 const BAUD_RATE: u32 = 115200;
 
 struct RocketLinkState(Mutex<Option<Box<dyn SerialPort + Send>>>);

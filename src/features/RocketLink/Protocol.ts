@@ -20,7 +20,7 @@ export interface Packet {
     payload: Uint8Array;
 }
 
-const enum ParserState { SOF, TYPE, LEN, PAYLOAD, CHECKSUM }
+const enum ParserState { SOF, TYPE, LEN_LOW, LEN_HIGH, PAYLOAD, CHECKSUM }
 
 export interface Parser {
     state: ParserState;
@@ -31,7 +31,7 @@ export interface Parser {
 }
 
 const SOF_BYTE = 0xAA;
-const MAX_PAYLOAD = 255;
+const MAX_PAYLOAD = 1024;
 
 const VALID_TYPES = new Set<number>([
     PacketType.PING, PacketType.PONG, PacketType.RADIO_SEND, PacketType.RADIO_SEND_QUEUED,
@@ -53,7 +53,8 @@ const CRC8_TABLE = (() => {
 function crc8(packet: Packet): number {
     let crc = 0;
     crc = CRC8_TABLE[crc ^ packet.type];
-    crc = CRC8_TABLE[crc ^ packet.payload.length];
+    crc = CRC8_TABLE[crc ^ (packet.payload.length & 0xFF)];
+    crc = CRC8_TABLE[crc ^ ((packet.payload.length >> 8) & 0xFF)];
     for (const byte of packet.payload) crc = CRC8_TABLE[crc ^ byte];
     return crc;
 }
@@ -80,14 +81,26 @@ export function feed(parser: Parser, byte: number): void {
         case ParserState.TYPE:
             if (VALID_TYPES.has(byte)) {
                 parser.pending.type = byte as PacketType;
-                parser.state = ParserState.LEN;
+                parser.state = ParserState.LEN_LOW;
             } else {
                 parser.state = ParserState.SOF;
             }
             break;
-        case ParserState.LEN:
+        case ParserState.LEN_LOW:
             parser.pendingPayloadLen = byte;
-            parser.state = byte > 0 ? ParserState.PAYLOAD : ParserState.CHECKSUM;
+            parser.state = ParserState.LEN_HIGH;
+            break;
+        case ParserState.LEN_HIGH:
+            parser.pendingPayloadLen |= byte << 8;
+            if (parser.pendingPayloadLen > MAX_PAYLOAD) {
+                parser.state = ParserState.SOF;
+                break;
+            }
+            if (parser.pendingPayloadLen === 0) {
+                parser.state = ParserState.CHECKSUM;
+                break;
+            }
+            parser.state = ParserState.PAYLOAD;
             break;
         case ParserState.PAYLOAD:
             parser.pending.payload[parser.cursor++] = byte;
@@ -113,12 +126,13 @@ export function take(parser: Parser): Packet | null {
 
 export function encode(packet: Packet): Uint8Array {
     if (packet.payload.length > MAX_PAYLOAD) throw new Error(`Payload length exceeds maximum of ${MAX_PAYLOAD}`);
-    const bytes = new Uint8Array(4 + packet.payload.length);
+    const bytes = new Uint8Array(5 + packet.payload.length);
     bytes[0] = SOF_BYTE;
     bytes[1] = packet.type;
-    bytes[2] = packet.payload.length;
-    for (let i = 0; i < packet.payload.length; i++) bytes[3 + i] = packet.payload[i];
-    bytes[3 + packet.payload.length] = crc8(packet);
+    bytes[2] = packet.payload.length & 0xFF;
+    bytes[3] = (packet.payload.length >> 8) & 0xFF;
+    for (let i = 0; i < packet.payload.length; i++) bytes[4 + i] = packet.payload[i];
+    bytes[4 + packet.payload.length] = crc8(packet);
     return bytes;
 }
 
