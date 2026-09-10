@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { dividerBorder, dropdownBackground, dropdownHoverBackground, dropdownItemBorder } from "../styles";
+import { dividerBorder, dropdownBackground, dropdownHoverBackground, dropdownItemBorder, radius } from "../styles";
 
 interface Props<T> {
   value: T | null;
@@ -52,15 +52,15 @@ export function DropdownSelector<T>({
   return (
     <div
       ref={ref}
-      className={`flex-1 border ${dropdownBackground} transition-colors ${dividerBorder}${!inline ? " relative" + (open ? " rounded-t-lg rounded-b-none" : " rounded-lg") : " rounded-lg overflow-hidden"}`}
+      className={`flex-1 border ${dropdownBackground} transition-colors ${dividerBorder}${!inline ? ` relative ${radius}` : ` ${radius} overflow-hidden`}`}
     >
       {/* Trigger */}
       <button
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
-        className={`w-full flex items-center gap-2 px-2 py-1.5 ${dropdownHoverBackground} transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed${inline ? "" : open ? " rounded-t-lg" : " rounded-lg"}`}
+        className={`w-full flex items-center gap-2 px-2 py-1.5 ${radius} ${dropdownHoverBackground} transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed`}
       >
-        {value !== null ? renderSelected(value) : placeholder ?? <span className="text-xs text-slate-600 italic">No value</span>}
+        {value !== null ? renderSelected(value) : placeholder ?? <span className="text-xs text-zinc-600 italic">No value</span>}
         {options.length > 0 && (
           <svg
             viewBox="0 0 12 12"
@@ -69,7 +69,7 @@ export function DropdownSelector<T>({
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className={`w-3 h-3 text-slate-600 shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
+            className={`w-3 h-3 text-zinc-600 shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
           >
             <path d="M4 2l4 4-4 4" />
           </svg>
@@ -79,7 +79,7 @@ export function DropdownSelector<T>({
       {/* Options */}
       {open && others.length > 0 && (
         <div className={!inline
-          ? `absolute left-[-1px] right-[-1px] top-full z-50 rounded-b-lg border ${dividerBorder} ${dropdownBackground} overflow-hidden`
+          ? `absolute left-[-1px] right-[-1px] top-full z-50 ${radius} border ${dividerBorder} ${dropdownBackground} overflow-hidden`
           : `border-t ${dividerBorder}`
         }>
           {others.map((opt) => (
@@ -95,8 +95,8 @@ export function DropdownSelector<T>({
       )}
       {open && others.length === 0 && (
         <div className={!inline
-          ? `absolute left-[-1px] right-[-1px] top-full z-50 rounded-b-lg border ${dividerBorder} ${dropdownBackground} px-2 py-1.5 text-xs text-slate-600 italic`
-          : `border-t ${dividerBorder} px-2 py-1.5 text-xs text-slate-600 italic`
+          ? `absolute left-[-1px] right-[-1px] top-full z-50 ${radius} border ${dividerBorder} ${dropdownBackground} px-2 py-1.5 text-xs text-zinc-600 italic`
+          : `border-t ${dividerBorder} px-2 py-1.5 text-xs text-zinc-600 italic`
         }>
           No other options available
         </div>

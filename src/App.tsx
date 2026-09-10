@@ -4,7 +4,7 @@ import RocketLinkTestScreen from "./screens/RocketLinkTestScreen";
 import RadioLinkTestScreen from "./screens/RadioLinkTestScreen";
 import { RocketLinkProvider } from "./features/RocketLink/RocketLinkContext";
 import { RadioLinkProvider } from "./features/RadioLink/RadioLinkContext";
-import { appBackground, dividerBorder } from "./shared/styles";
+import { appBackground, radius } from "./shared/styles";
 import "./App.css";
 
 function App() {
@@ -12,13 +12,13 @@ function App() {
     <HashRouter>
       <RocketLinkProvider>
         <RadioLinkProvider>
-          <div className="flex flex-col h-screen overflow-hidden">
+          <div className={`flex flex-col h-screen overflow-hidden ${radius} ${appBackground}`}>
             <TitleBar />
-            <nav className={`flex gap-1 px-3 py-1.5 border-b ${dividerBorder} ${appBackground} shrink-0`}>
+            <nav className={`flex gap-1 mx-3 my-1.5 px-2 py-1.5 ${radius} shrink-0`}>
               <NavLink
                 to="/rocketlink-test"
                 className={({ isActive }) =>
-                  `px-3 py-1 text-xs rounded font-mono font-semibold tracking-wide transition-colors ${isActive ? "bg-slate-700 text-slate-100" : "text-slate-500 hover:text-slate-300"}`
+                  `px-3 py-1 text-xs ${radius} font-mono font-semibold tracking-wide transition-colors ${isActive ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`
                 }
               >
                 RocketLink Test
@@ -26,7 +26,7 @@ function App() {
               <NavLink
                 to="/radiolink-test"
                 className={({ isActive }) =>
-                  `px-3 py-1 text-xs rounded font-mono font-semibold tracking-wide transition-colors ${isActive ? "bg-slate-700 text-slate-100" : "text-slate-500 hover:text-slate-300"}`
+                  `px-3 py-1 text-xs ${radius} font-mono font-semibold tracking-wide transition-colors ${isActive ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`
                 }
               >
                 RadioLink Test

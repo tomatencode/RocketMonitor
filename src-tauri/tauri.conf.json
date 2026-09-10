@@ -15,9 +15,9 @@
         "title": "Rocket Monitor",
         "width": 1200,
         "height": 800,
-        "transparent": false,
+        "transparent": true,
         "decorations": false,
-        "backgroundColor": "#0a0c10"
+        "backgroundColor": "#00000000"
       }
     ],
     "security": {

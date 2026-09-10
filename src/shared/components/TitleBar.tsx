@@ -39,7 +39,7 @@ export default function TitleBar() {
 
       {/* Centered title */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <span className="text-xs font-semibold tracking-widest text-slate-500 uppercase">
+        <span className="text-xs font-semibold tracking-widest text-zinc-500 uppercase">
           Rocket Monitor
         </span>
       </div>
@@ -51,7 +51,7 @@ export default function TitleBar() {
       >
         <svg
           viewBox="0 0 56 40"
-          className={`w-6 ${connected ? "text-green-400" : "text-slate-600"}`}
+          className={`w-6 ${connected ? "text-green-400" : "text-zinc-600"}`}
         >
           <g fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
             <line x1="8" y1="20" x2="50" y2="20" />

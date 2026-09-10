@@ -1,21 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import { useRocketLink } from "../features/RocketLink/RocketLinkContext";
 import { PacketType } from "../features/RocketLink/Protocol";
 import {
     appBackground,
+    outerCard,
     btnBlue,
-    btnGhost,
     btnYellow,
-    dividerBorder,
-    filterBackground,
-    filterBorder,
     inputBackground,
     inputBorder,
-    logBackground,
-    mutedBorder,
-    panelBackground,
-    panelBorder,
+    innerCard,
 } from "../shared/styles";
+import PacketLog from "../shared/components/PacketLog";
 
 type LogEntry = ReturnType<typeof useRocketLink>["log"][number];
 
@@ -53,31 +48,6 @@ export default function RocketLinkTestScreen() {
     const [atCommand, setAtCommand] = useState("AT+VER");
     const [atError, setAtError] = useState<string | null>(null);
 
-    const [clearedAt, setClearedAt] = useState(0);
-    const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
-    const logEndRef = useRef<HTMLDivElement>(null);
-    const logContainerRef = useRef<HTMLDivElement>(null);
-    const isAtBottomRef = useRef(true);
-
-    const visibleLog = useMemo(() => log.filter(e => e.ts > clearedAt), [log, clearedAt]);
-    const logTypes = useMemo(() => [...new Set(visibleLog.map(e => formatEntry(e).label))], [visibleLog]);
-    const filteredLog = useMemo(
-        () => visibleLog.filter(e => !hiddenTypes.has(formatEntry(e).label)),
-        [visibleLog, hiddenTypes]
-    );
-
-    useEffect(() => {
-        if (isAtBottomRef.current) {
-            logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }
-    }, [filteredLog.length]);
-
-    function handleLogScroll() {
-        const el = logContainerRef.current;
-        if (!el) return;
-        isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
-    }
-
     async function handleSendRadio() {
         setRadioError(null);
         const bytes = parseHex(radioInput);
@@ -99,16 +69,16 @@ export default function RocketLinkTestScreen() {
     }
 
     return (
-        <div className={`flex flex-col h-full ${appBackground} text-slate-200 font-mono text-sm overflow-hidden`}>
+        <div className={`flex flex-col h-full ${appBackground} text-zinc-200 font-mono text-sm overflow-hidden p-3 gap-3`}>
             {/* Body: controls on left, log on right */}
-            <div className="flex flex-1 min-h-0">
+            <div className="flex flex-1 min-h-0 gap-3">
 
                 {/* Left: action cards */}
-                <div className={`w-80 shrink-0 flex flex-col gap-3 overflow-y-auto p-3 border-r ${dividerBorder}`}>
+                <div className={`${outerCard} w-80 shrink-0 flex flex-col gap-3 overflow-y-auto p-3`}>
 
                     {/* Send Radio */}
-                    <div className={`${panelBackground} border ${panelBorder} rounded-lg p-3 flex flex-col gap-2`}>
-                        <span className="text-xs font-semibold text-blue-300 tracking-wide uppercase">Send Radio</span>
+                    <div className={`${innerCard} p-3 flex flex-col gap-2`}>
+                        <span className="text-xs font-semibold text-zinc-300 tracking-wide uppercase">Send Radio</span>
                         <input
                             type="text"
                             value={radioInput}
@@ -116,7 +86,7 @@ export default function RocketLinkTestScreen() {
                             onKeyDown={e => e.key === "Enter" && handleSendRadio()}
                             placeholder="hex bytes  e.g.  DE AD BE EF"
                             disabled={!connected}
-                            className={`${inputBackground} border ${inputBorder} rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 disabled:opacity-40`}
+                            className={`${inputBackground} border ${inputBorder} rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 disabled:opacity-40`}
                         />
                         <button className={`${btnBlue} px-3 py-1.5 text-xs self-start`} onClick={handleSendRadio} disabled={!connected}>
                             Send Radio
@@ -125,7 +95,7 @@ export default function RocketLinkTestScreen() {
                     </div>
 
                     {/* Send AT Command */}
-                    <div className={`${panelBackground} border ${panelBorder} rounded-lg p-3 flex flex-col gap-2`}>
+                    <div className={`${innerCard} p-3 flex flex-col gap-2`}>
                         <span className="text-xs font-semibold text-yellow-300 tracking-wide uppercase">AT Command</span>
                         <input
                             type="text"
@@ -134,7 +104,7 @@ export default function RocketLinkTestScreen() {
                             onKeyDown={e => e.key === "Enter" && handleSendAT()}
                             placeholder="e.g.  AT+VER"
                             disabled={!connected}
-                            className={`${inputBackground} border ${inputBorder} rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 disabled:opacity-40`}
+                            className={`${inputBackground} border ${inputBorder} rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 disabled:opacity-40`}
                         />
                         <button className={`${btnYellow} px-3 py-1.5 text-xs self-start`} onClick={handleSendAT} disabled={!connected}>
                             Send AT
@@ -144,72 +114,7 @@ export default function RocketLinkTestScreen() {
                 </div>
 
                 {/* Right: log */}
-                <div className="flex-1 flex flex-col min-h-0 p-3 gap-2">
-                    <div className="flex items-center justify-between shrink-0">
-                        <span className="text-xs text-slate-600 uppercase tracking-widest">Packet Log</span>
-                        <button className={`${btnGhost} px-2.5 py-1 text-xs`} onClick={() => setClearedAt(Date.now())}>
-                            Clear
-                        </button>
-                    </div>
-                    {logTypes.length > 0 && (
-                        <div className="flex flex-wrap gap-1 shrink-0">
-                            {logTypes.map(type => {
-                                const hidden = hiddenTypes.has(type);
-                                return (
-                                    <button
-                                        key={type}
-                                        onClick={() => setHiddenTypes(prev => {
-                                            const next = new Set(prev);
-                                            if (hidden) next.delete(type); else next.add(type);
-                                            return next;
-                                        })}
-                                        className={`px-2 py-0.5 text-xs rounded border font-mono transition-colors ${
-                                            hidden
-                                                ? `${mutedBorder} text-slate-600 line-through`
-                                                : `${filterBackground} ${filterBorder} text-slate-300`
-                                        }`}
-                                    >
-                                        {type}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    <div ref={logContainerRef} onScroll={handleLogScroll} className={`flex-1 min-h-0 overflow-y-auto ${logBackground} border ${panelBorder} rounded-lg p-3 flex flex-col gap-1`}>
-                        {filteredLog.length === 0 && (
-                            <span className="text-slate-600 text-xs">
-                                {visibleLog.length === 0 ? "No packets yet." : "No packets match the filter."}
-                            </span>
-                        )}
-                        {filteredLog.map((entry, i) => {
-                            const { label, detail, isText } = formatEntry(entry);
-                            const isTx = entry.direction === "send";
-                            return (
-                                <div key={i} className="flex gap-2 text-xs leading-relaxed font-mono">
-                                    <span className="text-slate-600 shrink-0 w-20">
-                                        {new Date(entry.ts).toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                                        <span className="text-slate-700">
-                                            .{String(entry.ts % 1000).padStart(3, "0")}
-                                        </span>
-                                    </span>
-                                    <span className={`shrink-0 w-5 font-semibold ${isTx ? "text-blue-400" : "text-green-400"}`}>
-                                        {isTx ? "↑" : "↓"}
-                                    </span>
-                                    <span className={`shrink-0 font-semibold ${isTx ? "text-blue-300" : "text-green-300"} min-w-[11rem]`}>
-                                        {label}
-                                    </span>
-                                    {detail && (
-                                        <span className={`break-all ${isText ? "text-yellow-200" : "text-slate-400"}`}>
-                                            {detail}
-                                        </span>
-                                    )}
-                                </div>
-                            );
-                        })}
-                        <div ref={logEndRef} />
-                    </div>
-                </div>
+                <PacketLog title="Packet Log" log={log} formatEntry={formatEntry} />
 
             </div>
         </div>
