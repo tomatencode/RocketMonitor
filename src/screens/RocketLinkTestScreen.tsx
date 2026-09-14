@@ -66,7 +66,7 @@ export default function RocketLinkTestScreen() {
     }
 
     return (
-        <div className={`flex flex-col h-full ${appBackground} text-zinc-200 font-mono text-sm overflow-hidden p-3 gap-3`}>
+        <div className={`flex flex-col h-full ${appBackground} text-zinc-200 font-mono text-sm overflow-hidden px-3 pb-3 gap-3`}>
             {/* Body: controls on left, log on right */}
             <div className="flex flex-1 min-h-0 gap-3">
 

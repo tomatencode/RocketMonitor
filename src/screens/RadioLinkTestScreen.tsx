@@ -40,7 +40,7 @@ export default function RadioLinkTestScreen() {
 	}
 
 	return (
-		<div className={`flex flex-col h-full ${appBackground} text-zinc-200 font-mono text-sm overflow-hidden p-3 gap-3`}>
+		<div className={`flex flex-col h-full ${appBackground} text-zinc-200 font-mono text-sm overflow-hidden px-3 pb-3 gap-3`}>
 			<div className="flex flex-1 min-h-0 gap-3">
 				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
 					<Card className="p-3 flex flex-col gap-2">
