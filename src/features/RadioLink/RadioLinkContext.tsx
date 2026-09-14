@@ -1,13 +1,9 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
-import { Packet, PacketType } from "./Protocol";
+import { MessageType } from "./Protocol";
+import { useMessageTransport, LogEntry } from "./useMessageTransport";
 
-type DataDirection = "send" | "receive";
-export type LogEntry = { direction: DataDirection; ts: number } & (
-    | { packet: Packet; data?: never }
-    | { data: number[]; packet?: never }
-);
-
+export type { LogEntry };
 
 interface RadioLinkContextValue {
     connected: boolean;
@@ -22,38 +18,23 @@ interface RadioLinkContextValue {
 const RadioLinkContext = createContext<RadioLinkContextValue | null>(null);
 
 export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
-    const { connected: rocketConnected, sendRadio, onReceiveRadio } = useRocketLink();
-    const [log, setLog] = useState<LogEntry[]>([]);
-
-    const addLogEntry = (entry: LogEntry) => {
-        setLog((prev) => [...prev, entry].slice(-1000));
-    };
-
-    useEffect(() => {
-        return onReceiveRadio((data) => {
-            addLogEntry({ direction: "receive", data, ts: Date.now() });
-        });
-    }, [onReceiveRadio]);
+    const { connected: rocketConnected } = useRocketLink();
+    const { log, sendAndReceiveMessage } = useMessageTransport();
 
     const setGimbalPos = async (degX: number, degY: number): Promise<void> => {
         const payload = new Uint8Array(4);
         const view = new DataView(payload.buffer);
         view.setInt16(0, degX, true);
         view.setInt16(2, degY, true);
-        addLogEntry({ direction: "send", packet: { type: PacketType.SET_GIMBAL_POS, payload }, ts: Date.now() });
-        await sendRadio([PacketType.SET_GIMBAL_POS, ...payload]);
+        await sendAndReceiveMessage({ type: MessageType.SET_GIMBAL, payload });
     }
 
     const beepBuzzer = async (): Promise<void> => {
-        const payload = new Uint8Array();
-        addLogEntry({ direction: "send", packet: { type: PacketType.BEEP_BUZZER, payload }, ts: Date.now() });
-        await sendRadio([PacketType.BEEP_BUZZER]);
+        await sendAndReceiveMessage({ type: MessageType.DO_BEEP, payload: new Uint8Array() });
     }
 
     const firePyroChanel = async (channel: number): Promise<void> => {
-        const payload = new Uint8Array([channel]);
-        addLogEntry({ direction: "send", packet: { type: PacketType.FIRE_PYRO_CHANNEL, payload }, ts: Date.now() });
-        await sendRadio([PacketType.FIRE_PYRO_CHANNEL, channel]);
+        await sendAndReceiveMessage({ type: MessageType.FIRE_PYRO, payload: new Uint8Array([channel]) });
     }
 
     return (

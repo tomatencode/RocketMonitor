@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PacketType } from "../features/RadioLink/Protocol";
+import { MessageType } from "../features/RadioLink/Protocol";
 import { useRadioLink } from "../features/RadioLink/RadioLinkContext";
 import {
 	appBackground,
@@ -16,9 +16,9 @@ function toHex(bytes: ArrayLike<number>) {
 }
 
 function formatEntry(entry: LogEntry): { label: string; detail: string } {
-	if (entry.packet) {
-		const label = PacketType[entry.packet.type] ?? `0x${entry.packet.type.toString(16).toUpperCase()}`;
-		return { label, detail: toHex(entry.packet.payload) };
+	if (entry.message) {
+		const label = MessageType[entry.message.type] ?? `0x${entry.message.type.toString(16).toUpperCase()}`;
+		return { label, detail: toHex(entry.message.payload) };
 	}
 	return { label: "RAW", detail: toHex(entry.data) };
 }
