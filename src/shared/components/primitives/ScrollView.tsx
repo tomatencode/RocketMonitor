@@ -24,6 +24,8 @@ export function ScrollView({
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true);
+    const isAutoScrollingRef = useRef(false);
+    const autoScrollFrameRef = useRef<number | null>(null);
     const [topGradientSize, setTopGradientSize] = useState(0);
     const [bottomGradientSize, setBottomGradientSize] = useState(0);
 
@@ -32,26 +34,79 @@ export function ScrollView({
         if (!el) return;
         const distanceFromTop = el.scrollTop;
         const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-        isAtBottomRef.current = distanceFromBottom < BOTTOM_THRESHOLD_PX;
+        if (!isAutoScrollingRef.current) {
+            isAtBottomRef.current = distanceFromBottom < BOTTOM_THRESHOLD_PX;
+        }
         setTopGradientSize(Math.min(distanceFromTop, MAX_GRADIENT_PX));
         setBottomGradientSize(Math.min(distanceFromBottom, MAX_GRADIENT_PX));
     }
 
+    function animateToBottom() {
+        const scroll = scrollRef.current;
+        if (!scroll || !isAutoScrollingRef.current) return;
+
+        const target = scroll.scrollHeight - scroll.clientHeight;
+        const distance = target - scroll.scrollTop;
+        if (distance <= 1) {
+            scroll.scrollTop = target;
+            isAutoScrollingRef.current = false;
+            autoScrollFrameRef.current = null;
+            updateScrollState();
+            return;
+        }
+
+        scroll.scrollTop += Math.max(distance * 0.2, 1);
+        updateScrollState();
+        autoScrollFrameRef.current = requestAnimationFrame(animateToBottom);
+    }
+
+    function startAutoScroll() {
+        isAutoScrollingRef.current = true;
+        if (autoScrollFrameRef.current === null) {
+            autoScrollFrameRef.current = requestAnimationFrame(animateToBottom);
+        }
+    }
+
     useEffect(() => {
+        const scroll = scrollRef.current;
+        if (!scroll) return;
+
+        isAutoScrollingRef.current = false;
         updateScrollState();
 
         const content = contentRef.current;
         if (!content) return;
 
+        const cancelAutoScroll = () => {
+            isAutoScrollingRef.current = false;
+            if (autoScrollFrameRef.current !== null) {
+                cancelAnimationFrame(autoScrollFrameRef.current);
+                autoScrollFrameRef.current = null;
+            }
+            updateScrollState();
+        };
+        scroll.addEventListener("wheel", cancelAutoScroll);
+        scroll.addEventListener("touchstart", cancelAutoScroll);
+        scroll.addEventListener("pointerdown", cancelAutoScroll);
+
         // Content can grow without the scroll container firing a "scroll" event, so watch its size directly
         const observer = new ResizeObserver(() => {
-            if (stickToBottom && isAtBottomRef.current) {
-                scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+            if (stickToBottom && (isAtBottomRef.current || isAutoScrollingRef.current)) {
+                startAutoScroll();
             }
             updateScrollState();
         });
         observer.observe(content);
-        return () => observer.disconnect();
+        return () => {
+            observer.disconnect();
+            if (autoScrollFrameRef.current !== null) {
+                cancelAnimationFrame(autoScrollFrameRef.current);
+                autoScrollFrameRef.current = null;
+            }
+            scroll.removeEventListener("wheel", cancelAutoScroll);
+            scroll.removeEventListener("touchstart", cancelAutoScroll);
+            scroll.removeEventListener("pointerdown", cancelAutoScroll);
+        };
     }, [stickToBottom]);
 
     return (
