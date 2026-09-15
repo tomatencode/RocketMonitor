@@ -112,6 +112,7 @@ export default function PacketLog<M extends { seqId: number }>({ title, log, for
     const virtualizer = useVirtualizer({
         count: displayBlocks.length,
         getScrollElement: () => scrollElementRef.current,
+        getItemKey: index => displayBlocks[index].key,
         estimateSize: () => 100,
         overscan: 5,
     });
