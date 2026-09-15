@@ -2,12 +2,15 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef } from "react";
 import { appBackground, dividerBorder, radius } from "../../../shared/styles";
 import { Button } from "../../../shared/components/primitives/Button";
+import { Card } from "../../../shared/components/primitives/Card";
 
 export function LogWindow({ title, titleButtons, children }: { title: string; titleButtons: { label: string; onClick: () => void }[]; children: React.ReactNode }) {
     return (
-        <div className={`flex h-screen flex-col overflow-hidden border border-zinc-600/50 ${radius} ${appBackground} text-zinc-200 font-mono text-sm`}>
-            <LogTitleBar title={title} buttons={titleButtons} />
-            <div className="flex flex-1 flex-col min-h-0 bg-zinc-700/20">{children}</div>
+        <div className={`flex h-screen flex-col overflow-hidden ${radius} ${appBackground}`}>
+            <Card className="flex flex-1 flex-col overflow-hidden text-zinc-200 font-mono text-sm">
+                <LogTitleBar title={title} buttons={titleButtons} />
+                <div className="flex flex-1 flex-col min-h-0 bg-zinc-700/20">{children}</div>
+            </Card>
         </div>
     );
 }
