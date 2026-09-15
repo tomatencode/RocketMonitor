@@ -7,10 +7,16 @@ export type { LogEntry };
 
 interface RadioLinkContextValue {
     connected: boolean;
-    
+
+    queueSetGimbalPos: (degX: number, degY: number) => Promise<void>;
+    queueBeepBuzzer: () => Promise<void>;
+    queueFirePyroChanel: (channel: number) => Promise<void>;
+
     setGimbalPos: (degX: number, degY: number) => Promise<void>;
     beepBuzzer: () => Promise<void>;
     firePyroChanel: (channel: number) => Promise<void>;
+
+    sendQueuedCommands: () => void;
 
     log: LogEntry[];
 }
@@ -19,30 +25,57 @@ const RadioLinkContext = createContext<RadioLinkContextValue | null>(null);
 
 export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     const { connected: rocketConnected } = useRocketLink();
-    const { log, queueCommand } = useMessageTransport();
+    const { log, queueMessage, sendFrame } = useMessageTransport();
 
-    const setGimbalPos = async (degX: number, degY: number): Promise<void> => {
+    const queueSetGimbalPos = async (degX: number, degY: number): Promise<void> => {
         const payload = new Uint8Array(4);
         const view = new DataView(payload.buffer);
         view.setInt16(0, degX, true);
         view.setInt16(2, degY, true);
-        await queueCommand({ type: MessageType.SET_GIMBAL, payload });
+        await queueMessage({ type: MessageType.SET_GIMBAL, payload });
+    }
+
+    const setGimbalPos = async (degX: number, degY: number): Promise<void> => {
+        await queueSetGimbalPos(degX, degY);
+        sendQueuedCommands();
+    }
+
+    const queueBeepBuzzer = async (): Promise<void> => {
+        await queueMessage({ type: MessageType.DO_BEEP, payload: new Uint8Array() });
     }
 
     const beepBuzzer = async (): Promise<void> => {
-        await queueCommand({ type: MessageType.DO_BEEP, payload: new Uint8Array() });
+        await queueBeepBuzzer();
+        sendQueuedCommands();
+    }
+
+    const queueFirePyroChanel = async (channel: number): Promise<void> => {
+        await queueMessage({ type: MessageType.FIRE_PYRO, payload: new Uint8Array([channel]) });
     }
 
     const firePyroChanel = async (channel: number): Promise<void> => {
-        await queueCommand({ type: MessageType.FIRE_PYRO, payload: new Uint8Array([channel]) });
+        await queueFirePyroChanel(channel);
+        sendQueuedCommands();
+    }
+
+    const sendQueuedCommands = () => {
+        sendFrame();
     }
 
     return (
         <RadioLinkContext.Provider value={{
             connected: rocketConnected,
+
+            queueSetGimbalPos: queueSetGimbalPos,
+            queueBeepBuzzer: queueBeepBuzzer,
+            queueFirePyroChanel: queueFirePyroChanel,
+
             setGimbalPos: setGimbalPos,
             beepBuzzer: beepBuzzer,
             firePyroChanel: firePyroChanel,
+
+            sendQueuedCommands: sendQueuedCommands,
+
             log,
         }}>
             {children}

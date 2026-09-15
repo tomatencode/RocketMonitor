@@ -108,7 +108,7 @@ export function useMessageTransport() {
         });
     }, [onReceiveRadio]);
 
-    const queueCommand = (partial: Pick<Message, "type" | "payload">, timeout_ms = 500, retrys = 3): Promise<{ status: ResponseStatus; payload?: any }> => {
+    const queueMessage = (partial: Pick<Message, "type" | "payload">, timeout_ms = 500, retrys = 3): Promise<{ status: ResponseStatus; payload?: any }> => {
         const seqId = (nextSeqId.current = (nextSeqId.current + 1) & 0xFF);
         const message: Message = { ...partial, seqId, status: JobStatus.BUSY };
 
@@ -148,5 +148,5 @@ export function useMessageTransport() {
         sendDeadline.current = Date.now() + SEND_TIMEOUT_MS;
     };
 
-    return { log, queueCommand, sendFrame };
+    return { log, queueMessage, sendFrame };
 }
