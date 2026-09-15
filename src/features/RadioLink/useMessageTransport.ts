@@ -21,7 +21,7 @@ interface PendingResponses {
     message: Message;
 }
 
-export function useMessageTransport() {
+export function useMessageTransport(onResponse?: () => void) {
     const { sendRadio, onReceiveRadio } = useRocketLink();
     const { log, addLogEntry } = useFrameLog();
 
@@ -73,6 +73,8 @@ export function useMessageTransport() {
                 for (const message of frame.messages) {
                     const pending = pendingResponses.current.get(message.seqId);
                     if (!pending) continue;
+
+                    onResponse?.();
 
                     // BUSY means the firmware job is still running; extend the timeout and keep waiting
                     if (message.status === JobStatus.BUSY) {

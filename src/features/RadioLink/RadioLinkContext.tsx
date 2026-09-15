@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { MessageType } from "./Protocol";
 import { useMessageTransport, LogEntry } from "./useMessageTransport";
@@ -27,14 +27,23 @@ const RadioLinkContext = createContext<RadioLinkContextValue | null>(null);
 
 export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     const { connected: usbConnected } = useRocketLink();
-    const { log, queueMessage, sendFrame } = useMessageTransport();
-
     const [connected, setConnected] = useState(true);
+    const resetPingTimer = useRef<() => void>(() => {});
+    const { log, queueMessage, sendFrame } = useMessageTransport(() => {
+        setConnected(true);
+        resetPingTimer.current();
+    });
 
     useEffect(() => {
         let pingInFlight = false;
+        let timeoutId: ReturnType<typeof setTimeout>;
 
-        const intervalId = setInterval(async () => {
+        const schedulePing = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(sendPing, PING_INTERVAL_MS);
+        };
+
+        const sendPing = async () => {
             if (pingInFlight) return; // avoid overlapping pings if one is slow
             pingInFlight = true;
             try {
@@ -46,10 +55,17 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
                 setConnected(false);
             } finally {
                 pingInFlight = false;
+                schedulePing();
             }
-        }, PING_INTERVAL_MS);
+        };
 
-        return () => clearInterval(intervalId);
+        resetPingTimer.current = schedulePing;
+        schedulePing();
+
+        return () => {
+            clearTimeout(timeoutId);
+            resetPingTimer.current = () => {};
+        };
     }, []);
 
     const queueSetGimbalPos = async (degX: number, degY: number): Promise<void> => {
