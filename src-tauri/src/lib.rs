@@ -137,13 +137,20 @@ fn open_log_window(app: tauri::AppHandle, window: String) -> Result<(), String> 
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(&app, label, WebviewUrl::App(path.into()))
+    let main_window = app.get_webview_window("main");
+    let mut builder = WebviewWindowBuilder::new(&app, label, WebviewUrl::App(path.into()))
         .title(title)
-        .inner_size(900.0, 700.0)
-        .min_inner_size(500.0, 400.0)
+        .inner_size(500.0, 600.0)
+        .min_inner_size(300.0, 300.0)
+        .always_on_top(true)
         .transparent(true)
-        .decorations(false)
-        .build()
+        .decorations(false);
+
+    if let Some(main_window) = main_window.as_ref() {
+        builder = builder.parent(main_window).map_err(|error| error.to_string())?;
+    }
+
+    builder.build()
         .map_err(|error| error.to_string())?;
     Ok(())
 }
