@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
     filterBackground,
     filterBorder,
@@ -7,6 +7,8 @@ import {
 } from "../../../shared/styles";
 import { Button } from "../../../shared/components/primitives/Button";
 import { Card } from "../../../shared/components/primitives/Card";
+import { AccentRow } from "../../../shared/components/primitives/AccentRow";
+import { ScrollView } from "../../../shared/components/primitives/ScrollView";
 
 export type PacketLogEntry = { direction: "send" | "receive"; ts: number; frameId: number };
 
@@ -49,9 +51,6 @@ const NO_RESPONSE_CONNECTOR_COLOR = "border-red-500";
 export default function PacketLog<T extends PacketLogEntry>({ title, log, formatEntry }: PacketLogProps<T>) {
     const [clearedAt, setClearedAt] = useState(0);
     const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
-    const logEndRef = useRef<HTMLDivElement>(null);
-    const logContainerRef = useRef<HTMLDivElement>(null);
-    const isAtBottomRef = useRef(true);
 
     const visibleLog = useMemo(() => log.filter(entry => entry.ts > clearedAt), [log, clearedAt]);
     const logTypes = useMemo(() => [...new Set(visibleLog.map(formatEntry).map(entry => entry.label))], [visibleLog, formatEntry]);
@@ -119,15 +118,6 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
         return blocks;
     }, [frameGroups, formatEntry]);
 
-    useEffect(() => {
-        if (isAtBottomRef.current) logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [filteredLog.length]);
-
-    function handleLogScroll() {
-        const element = logContainerRef.current;
-        if (element) isAtBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 32;
-    }
-
     function toggleType(type: string) {
         setHiddenTypes(previous => {
             const next = new Set(previous);
@@ -164,13 +154,14 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
                 </div>
             )}
 
-            <Card variant="inner" ref={logContainerRef} onScroll={handleLogScroll} className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2">
-                {filteredLog.length === 0 && (
-                    <span className="text-zinc-600 text-xs">
-                        {visibleLog.length === 0 ? "No packets yet." : "No packets match the filter."}
-                    </span>
-                )}
-                {displayBlocks.map(block => (
+            <Card variant="inner" className="flex-1 min-h-0 overflow-hidden">
+                <ScrollView stickToBottom blurEdges className="p-3 flex flex-col gap-2">
+                    {filteredLog.length === 0 && (
+                        <span className="text-zinc-600 text-xs">
+                            {visibleLog.length === 0 ? "No packets yet." : "No packets match the filter."}
+                        </span>
+                    )}
+                    {displayBlocks.map(block => (
                     <div key={block.key} className={`flex flex-col gap-2 border-l-2 pl-2 ${block.color}`}>
                         {block.frames.map(group => {
                             const isTx = group.direction === "send";
@@ -198,9 +189,10 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
                                         {group.entries.map((entry, index) => {
                                             const { label, detail, isText, seqId, status } = formatEntry(entry);
                                             return (
-                                                <div
+                                                <AccentRow
                                                     key={index}
-                                                    className={`flex gap-2 text-xs leading-relaxed font-mono px-1.5 py-0.5 ${radius} border-l-2 ${seqColor(seqId)}`}
+                                                    accent={seqColor(seqId)}
+                                                    className="flex gap-2 text-xs leading-relaxed font-mono px-1.5 py-0.5"
                                                 >
                                                     {seqId !== undefined && (
                                                         <span className="shrink-0 w-8 text-zinc-500">#{seqId}</span>
@@ -214,7 +206,7 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
                                                         </span>
                                                     )}
                                                     {detail && <span className={`break-all ${isText ? "text-yellow-200" : "text-zinc-400"}`}>{detail}</span>}
-                                                </div>
+                                                </AccentRow>
                                             );
                                         })}
                                     </div>
@@ -222,8 +214,8 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
                             );
                         })}
                     </div>
-                ))}
-                <div ref={logEndRef} />
+                    ))}
+                </ScrollView>
             </Card>
         </Card>
     );
