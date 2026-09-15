@@ -4,9 +4,9 @@ import {
     filterBorder,
     mutedBorder,
     radius,
-} from "../styles";
-import { Button } from "./primitives/Button";
-import { Card } from "./primitives/Card";
+} from "../../../shared/styles";
+import { Button } from "../../../shared/components/primitives/Button";
+import { Card } from "../../../shared/components/primitives/Card";
 
 export type PacketLogEntry = { direction: "send" | "receive"; ts: number };
 
@@ -92,8 +92,8 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
                                 {new Date(entry.ts).toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                                 <span className="text-zinc-700">.{String(entry.ts % 1000).padStart(3, "0")}</span>
                             </span>
-                            <span className={`shrink-0 w-5 font-semibold ${isTx ? "text-zinc-400" : "text-green-400"}`}>
-                                {isTx ? "↑" : "↓"}
+                            <span className={`shrink-0 font-semibold ${isTx ? "text-zinc-400" : "text-green-400"}`}>
+                                {isTx ? " ↑" : " ↓"}
                             </span>
                             <span className={`shrink-0 font-semibold min-w-[11rem] ${isTx ? "text-zinc-300" : "text-green-300"}`}>
                                 {label}

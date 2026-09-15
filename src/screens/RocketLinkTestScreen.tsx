@@ -4,7 +4,7 @@ import { PacketType } from "../features/RocketLink/Protocol";
 import {
     appBackground,
 } from "../shared/styles";
-import PacketLog from "../shared/components/PacketLog";
+import PacketLog from "../features/RocketLink/components/PacketLog";
 import { Button } from "../shared/components/primitives/Button";
 import { Card } from "../shared/components/primitives/Card";
 import { Input } from "../shared/components/primitives/Input";

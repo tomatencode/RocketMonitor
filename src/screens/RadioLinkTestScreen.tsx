@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { MessageType } from "../features/RadioLink/Protocol";
+import { JobStatus, MessageType } from "../features/RadioLink/Protocol";
 import { useRadioLink } from "../features/RadioLink/RadioLinkContext";
 import {
 	appBackground,
 } from "../shared/styles";
-import PacketLog from "../shared/components/PacketLog";
+import PacketLog, { FormattedEntry } from "../features/RadioLink/components/PacketLog";
 import { Button } from "../shared/components/primitives/Button";
 import { Card } from "../shared/components/primitives/Card";
 import { Input } from "../shared/components/primitives/Input";
@@ -15,13 +15,24 @@ function toHex(bytes: ArrayLike<number>) {
 	return Array.from(bytes).map(b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
 }
 
-function formatEntry(entry: LogEntry): { label: string; detail: string } {
-	if (entry.message) {
-		const label = MessageType[entry.message.type] ?? `0x${entry.message.type.toString(16).toUpperCase()}`;
-		return { label, detail: toHex(entry.message.payload) };
+function statusBadge(status: JobStatus): { text: string; className: string } {
+	switch (status) {
+		case JobStatus.SUCCESS: return { text: "OK", className: "text-green-300 border-green-700/50" };
+		case JobStatus.FAILURE: return { text: "FAIL", className: "text-red-300 border-red-700/50" };
+		default: return { text: "BUSY", className: "text-yellow-300 border-yellow-700/50" };
 	}
-	return { label: "RAW", detail: toHex(entry.data) };
 }
+
+function formatEntry(entry: LogEntry): FormattedEntry {
+	const label = MessageType[entry.message.type] ?? `0x${entry.message.type.toString(16).toUpperCase()}`;
+	return {
+		label,
+		detail: toHex(entry.message.payload),
+		seqId: entry.message.seqId,
+		status: entry.direction === "receive" ? statusBadge(entry.message.status) : undefined,
+	};
+}
+
 
 export default function RadioLinkTestScreen() {
 	const { connected, setGimbalPos, beepBuzzer, firePyroChanel, log } = useRadioLink();
