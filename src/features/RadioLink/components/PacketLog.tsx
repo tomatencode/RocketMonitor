@@ -155,7 +155,7 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
             )}
 
             <Card variant="inner" className="flex-1 min-h-0 overflow-hidden">
-                <ScrollView stickToBottom gradientEdges className="p-3 flex flex-col gap-2">
+                <ScrollView stickToBottom className="p-3 flex flex-col gap-2">
                     {filteredLog.length === 0 && (
                         <span className="text-zinc-600 text-xs">
                             {visibleLog.length === 0 ? "No packets yet." : "No packets match the filter."}
