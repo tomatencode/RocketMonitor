@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageType } from "../features/RadioLink/Protocol";
+import { JobStatus, Message, MessageType } from "../features/RadioLink/Protocol";
 import { useRadioLink } from "../features/RadioLink/RadioLinkContext";
 import {
 	appBackground,
@@ -9,23 +9,25 @@ import { Button } from "../shared/components/primitives/Button";
 import { Card } from "../shared/components/primitives/Card";
 import { Input } from "../shared/components/primitives/Input";
 
-type LogEntry = ReturnType<typeof useRadioLink>["log"][number];
-
 function toHex(bytes: ArrayLike<number>) {
 	return Array.from(bytes).map(b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
 }
 
-function formatEntry(entry: LogEntry): { label: string; detail: string } {
-	const messages = entry.messages ?? [];
-	if (messages.length > 0) {
-		const message = messages[0];
-		const label = MessageType[message.type] ?? `0x${message.type.toString(16).toUpperCase()}`;
-		const detail = messages.length === 1
-			? toHex(message.payload)
-			: messages.map(m => `${MessageType[m.type] ?? `0x${m.type.toString(16).toUpperCase()}`}: ${toHex(m.payload)}`).join(" | ");
-		return { label: messages.length > 1 ? "FRAME" : label, detail };
+function statusBadge(status: JobStatus): { text: string; className: string } {
+	switch (status) {
+		case JobStatus.SUCCESS: return { text: "OK", className: "text-green-300 border-green-700/50" };
+		case JobStatus.FAILURE: return { text: "FAIL", className: "text-red-300 border-red-700/50" };
+		default: return { text: "BUSY", className: "text-yellow-300 border-yellow-700/50" };
 	}
-	return { label: "FRAME", detail: "" };
+}
+
+function formatMessage(message: Message, direction: "send" | "receive") {
+	const label = MessageType[message.type] ?? `0x${message.type.toString(16).toUpperCase()}`;
+	return {
+		label,
+		detail: toHex(message.payload),
+		status: direction === "receive" ? statusBadge(message.status) : undefined,
+	};
 }
 
 export default function RadioLinkTestScreen() {
@@ -72,7 +74,7 @@ export default function RadioLinkTestScreen() {
 					}
 				</div>
 
-				<PacketLog title="Radio Packet Log" log={log} formatEntry={formatEntry} />
+				<PacketLog title="Radio Packet Log" log={log} formatMessage={formatMessage} />
 			</div>
 		</div>
 	);
