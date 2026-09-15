@@ -18,6 +18,8 @@ interface PendingResponses {
     reject: (err: Error) => void;
     timer: ReturnType<typeof setTimeout>;
     timeout_ms: number;
+    remainingRetries: number;
+    message: Message;
 }
 
 export function useMessageTransport() {
@@ -43,10 +45,20 @@ export function useMessageTransport() {
         });
     };
 
-    const armTimeout = (seqId: number, timeout_ms: number, reject: (err: Error) => void) => {
+    const armTimeout = (seqId: number, timeout_ms: number) => {
         return setTimeout(() => {
-            pendingResponses.current.delete(seqId);
-            reject(new Error("Timeout"));
+            const pending = pendingResponses.current.get(seqId);
+            if (!pending) return;
+
+            if (pending.remainingRetries > 0) {
+                pending.remainingRetries -= 1;
+                sceduledMessages.current.push(pending.message);
+                pending.timer = armTimeout(seqId, timeout_ms);
+                sendFrame();
+            } else {
+                pendingResponses.current.delete(seqId);
+                pending.reject(new Error("Timeout"));
+            }
         }, timeout_ms);
     };
 
@@ -74,7 +86,7 @@ export function useMessageTransport() {
                     // BUSY means the firmware job is still running; extend the timeout and keep waiting
                     if (message.status === JobStatus.BUSY) {
                         clearTimeout(pending.timer);
-                        pending.timer = armTimeout(message.seqId, pending.timeout_ms, pending.reject);
+                        pending.timer = armTimeout(message.seqId, pending.timeout_ms);
                         doPing = true;
                         continue;
                     }
@@ -97,13 +109,13 @@ export function useMessageTransport() {
         });
     }, [onReceiveRadio]);
 
-    const queueCommand = (partial: Pick<Message, "type" | "payload">, timeout_ms = 500): Promise<{ status: ResponseStatus; payload?: any }> => {
+    const queueCommand = (partial: Pick<Message, "type" | "payload">, timeout_ms = 500, retrys = 3): Promise<{ status: ResponseStatus; payload?: any }> => {
         const seqId = (nextSeqId.current = (nextSeqId.current + 1) & 0xFF);
         const message: Message = { ...partial, seqId, status: JobStatus.BUSY };
 
         const result = new Promise<{ status: ResponseStatus; payload?: any }>((resolve, reject) => {
-            const timer = armTimeout(seqId, timeout_ms, reject);
-            pendingResponses.current.set(seqId, { resolve, reject, timer, timeout_ms });
+            const timer = armTimeout(seqId, timeout_ms);
+            pendingResponses.current.set(seqId, { resolve, reject, timer, timeout_ms, remainingRetries: retrys, message });
 
             sceduledMessages.current.push(message);
         });
