@@ -14,6 +14,12 @@ interface ScrollViewProps extends ComponentPropsWithRef<"div"> {
 
 const BOTTOM_THRESHOLD_PX = 32;
 const MAX_GRADIENT_PX = 48;
+// Time constant for the catch-up ease; smaller = snappier. Frame-rate independent so bursts of
+// fast-growing content can't outrun it the way a fixed per-frame percentage would.
+const CATCH_UP_TAU_MS = 80;
+// If the gap grows beyond this many viewport heights (e.g. a huge chunk of content lands at once),
+// snap straight to the bottom instead of easing, so we never visibly trail behind while pinned.
+const SNAP_THRESHOLD_VIEWPORTS = 2;
 
 export function ScrollView({
     children,
@@ -29,6 +35,7 @@ export function ScrollView({
     const isAtBottomRef = useRef(true);
     const isAutoScrollingRef = useRef(false);
     const autoScrollFrameRef = useRef<number | null>(null);
+    const lastAutoScrollFrameTimeRef = useRef<number | null>(null);
     const [topGradientSize, setTopGradientSize] = useState(0);
     const [bottomGradientSize, setBottomGradientSize] = useState(0);
 
@@ -44,7 +51,7 @@ export function ScrollView({
         setBottomGradientSize(Math.min(distanceFromBottom, MAX_GRADIENT_PX));
     }
 
-    function animateToBottom() {
+    function animateToBottom(timestamp: number) {
         const scroll = scrollRef.current;
         if (!scroll || !isAutoScrollingRef.current) return;
 
@@ -54,11 +61,21 @@ export function ScrollView({
             scroll.scrollTop = target;
             isAutoScrollingRef.current = false;
             autoScrollFrameRef.current = null;
+            lastAutoScrollFrameTimeRef.current = null;
             updateScrollState();
             return;
         }
 
-        scroll.scrollTop += Math.max(distance * 0.2, 1);
+        const lastTime = lastAutoScrollFrameTimeRef.current;
+        lastAutoScrollFrameTimeRef.current = timestamp;
+        const dt = lastTime === null ? 16 : Math.min(timestamp - lastTime, 100);
+
+        if (distance > scroll.clientHeight * SNAP_THRESHOLD_VIEWPORTS) {
+            scroll.scrollTop = target;
+        } else {
+            const catchUpFraction = 1 - Math.exp(-dt / CATCH_UP_TAU_MS);
+            scroll.scrollTop += Math.max(distance * catchUpFraction, 1);
+        }
         updateScrollState();
         autoScrollFrameRef.current = requestAnimationFrame(animateToBottom);
     }
@@ -66,6 +83,7 @@ export function ScrollView({
     function startAutoScroll() {
         isAutoScrollingRef.current = true;
         if (autoScrollFrameRef.current === null) {
+            lastAutoScrollFrameTimeRef.current = null;
             autoScrollFrameRef.current = requestAnimationFrame(animateToBottom);
         }
     }
@@ -87,6 +105,7 @@ export function ScrollView({
                 cancelAnimationFrame(autoScrollFrameRef.current);
                 autoScrollFrameRef.current = null;
             }
+            lastAutoScrollFrameTimeRef.current = null;
             updateScrollState();
         };
         scroll.addEventListener("wheel", cancelAutoScroll);
