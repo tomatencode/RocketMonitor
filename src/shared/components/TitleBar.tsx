@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useRocketLink } from "../../features/RocketLink/RocketLinkContext";
 import { appBackground, dividerBorder } from "../styles";
+import { useRadioLink } from "../../features/RadioLink/RadioLinkContext";
 
 export default function TitleBar() {
   const appWindow = useRef(getCurrentWindow());
   const [isMaximized, setIsMaximized] = useState(false);
-  const { connected, portName } = useRocketLink();
+  const { connected: usbConnected, portName } = useRocketLink();
+  const { connected: rocketConnected } = useRadioLink();
 
   useEffect(() => {
     const win = appWindow.current;
@@ -44,27 +46,50 @@ export default function TitleBar() {
         </span>
       </div>
 
-      {/* Top-left USB status — above drag region */}
-      <div
-        className="relative z-10 flex items-center gap-1.5 px-3"
-        title={connected ? `Connected: ${portName}` : "Not connected"}
-      >
-        <svg
-          viewBox="0 0 56 40"
-          className={`w-6 ${connected ? "text-green-400" : "text-zinc-600"}`}
+      {/* Top-left status indicators — above drag region */}
+      <div className="relative z-10 flex items-center gap-2 px-3">
+        <div
+          className="flex items-center"
+          title={usbConnected ? `Connected: ${portName}` : "Not connected"}
         >
-          <g fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
-            <line x1="8" y1="20" x2="50" y2="20" />
-            <line x1="22" y1="20" x2="36" y2="7" />
-            <line x1="22" y1="20" x2="38" y2="34" />
-          </g>
-          <g fill="currentColor" stroke="none">
-            <polygon points="48,13 48,27 56,20" />
-            <circle cx="8" cy="20" r="6.5" />
-            <circle cx="36" cy="7" r="4" />
-            <rect x="34" y="30" width="7" height="7" />
-          </g>
-        </svg>
+          <svg
+            viewBox="0 0 56 40"
+            className={`w-6 ${usbConnected ? "text-green-400" : "text-zinc-600"}`}
+          >
+            <g fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+              <line x1="8" y1="20" x2="50" y2="20" />
+              <line x1="22" y1="20" x2="36" y2="7" />
+              <line x1="22" y1="20" x2="38" y2="34" />
+            </g>
+            <g fill="currentColor" stroke="none">
+              <polygon points="48,13 48,27 56,20" />
+              <circle cx="8" cy="20" r="6.5" />
+              <circle cx="36" cy="7" r="4" />
+              <rect x="34" y="30" width="7" height="7" />
+            </g>
+          </svg>
+        </div>
+
+        <div
+          className="flex items-center"
+          title={rocketConnected ? "Radio connected" : "Radio disconnected"}
+        >
+          <svg
+            viewBox="0 0 56 40"
+            className={`w-8 ${rocketConnected ? "text-green-400" : "text-zinc-600"}`}
+            aria-hidden="true"
+          >
+            <g fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+              <path d="M 15 8 A 20 20 0 0 0 15 32" />
+              <path d="M 19 14 A 15 15 0 0 0 19 26" />
+              <path d="M 41 8 A 20 20 0 0 1 41 32" />
+              <path d="M 37 14 A 15 15 0 0 1 37 26" />
+            </g>
+            <g fill="currentColor" stroke="none">
+              <circle cx="28" cy="20" r="5.5" />
+            </g>
+          </svg>
+        </div>
       </div>
 
       {/* Window controls — above drag region */}
