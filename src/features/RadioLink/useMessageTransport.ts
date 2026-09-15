@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
-import { createParser, encode, feed, take, Message, MessageType, JobStatus } from "./Protocol";
+import { createParser, encode, feed, take, Message, JobStatus } from "./Protocol";
 
 type DataDirection = "send" | "receive";
 // frameId groups messages that were carried in the same wire frame
@@ -8,8 +8,13 @@ export type LogEntry = { direction: DataDirection; ts: number; frameId: number; 
 
 const MAX_LOG_ENTRIES = 1000;
 
-interface PendingRequest {
-    resolve: (m: Message) => void;
+export enum ResponseStatus {
+    SUCCESS,
+    FAILURE,
+}
+
+interface PendingResponses {
+    resolve: (result: { status: ResponseStatus; payload?: any }) => void;
     reject: (err: Error) => void;
     timer: ReturnType<typeof setTimeout>;
     timeout_ms: number;
@@ -21,9 +26,13 @@ export function useMessageTransport() {
 
     const nextSeqId = useRef(0);
     const nextFrameId = useRef(0);
-    const typeMutexes = useRef<Map<MessageType, Promise<void>>>(new Map());
-    // Responses reuse the request's MessageType, so correlation is keyed by seqId instead
-    const pendingRequests = useRef<Map<number, PendingRequest>>(new Map());
+
+    const pendingResponses = useRef<Map<number, PendingResponses>>(new Map());
+
+    const sceduledMessages = useRef<Message[]>([]);
+
+    const didRespond = useRef(false);
+
 
     const addLogEntry = (entry: LogEntry) => {
         setLog((prev) => {
@@ -35,7 +44,7 @@ export function useMessageTransport() {
 
     const armTimeout = (seqId: number, timeout_ms: number, reject: (err: Error) => void) => {
         return setTimeout(() => {
-            pendingRequests.current.delete(seqId);
+            pendingResponses.current.delete(seqId);
             reject(new Error("Timeout"));
         }, timeout_ms);
     };
@@ -49,11 +58,13 @@ export function useMessageTransport() {
                 const frame = take(parser);
                 if (!frame) continue;
 
+                didRespond.current = true;
+
                 const frameId = nextFrameId.current++;
                 for (const message of frame.messages) {
                     addLogEntry({ direction: "receive", message, frameId, ts: Date.now() });
 
-                    const pending = pendingRequests.current.get(message.seqId);
+                    const pending = pendingResponses.current.get(message.seqId);
                     if (!pending) continue;
 
                     // BUSY means the firmware job is still running; extend the timeout and keep waiting
@@ -64,40 +75,52 @@ export function useMessageTransport() {
                     }
 
                     clearTimeout(pending.timer);
-                    pendingRequests.current.delete(message.seqId);
-                    if (message.status === JobStatus.SUCCESS) {
-                        pending.resolve(message);
+                    pendingResponses.current.delete(message.seqId);
+                    const status: ResponseStatus = message.status === JobStatus.SUCCESS ? ResponseStatus.SUCCESS : ResponseStatus.FAILURE;
+                    const payload = message.payload;
+                    if (payload.length > 0) {
+                        pending.resolve({ status, payload });
                     } else {
-                        pending.reject(new Error(`Job failed for message type ${message.type}`));
+                        pending.resolve({ status });
                     }
                 }
             }
         });
     }, [onReceiveRadio]);
 
-    const sendMessage = async (message: Message): Promise<void> => {
-        addLogEntry({ direction: "send", message, frameId: nextFrameId.current++, ts: Date.now() });
-        await sendRadio(Array.from(encode({ messages: [message] })));
-    };
-
-    const sendAndReceiveMessage = (partial: Pick<Message, "type" | "payload">, timeout_ms = 500): Promise<Message> => {
+    const sceduleSendAndReceiveMessage = (partial: Pick<Message, "type" | "payload">, timeout_ms = 500): Promise<{ status: ResponseStatus; payload?: any }> => {
         const seqId = (nextSeqId.current = (nextSeqId.current + 1) & 0xFF);
         const message: Message = { ...partial, seqId, status: JobStatus.BUSY };
 
-        const prev = typeMutexes.current.get(partial.type) ?? Promise.resolve();
-        const result = prev.then(() => new Promise<Message>((resolve, reject) => {
+        const result = new Promise<{ status: ResponseStatus; payload?: any }>((resolve, reject) => {
             const timer = armTimeout(seqId, timeout_ms, reject);
-            pendingRequests.current.set(seqId, { resolve, reject, timer, timeout_ms });
+            pendingResponses.current.set(seqId, { resolve, reject, timer, timeout_ms });
 
-            sendMessage(message).catch((err) => {
-                clearTimeout(timer);
-                pendingRequests.current.delete(seqId);
-                reject(err);
-            });
-        }));
-        typeMutexes.current.set(partial.type, result.then(() => {}, () => {}));
+            sceduledMessages.current.push(message);
+        });
         return result;
     };
 
-    return { log, sendMessage, sendAndReceiveMessage };
+    const update = () => {
+
+        if (!didRespond.current) return; // do nothing if the rocket is responding
+        if (pendingResponses.current.size === 0) return; // do nothing if there are no pending responses
+
+        const messages = sceduledMessages.current.splice(0, 16); // even send an empty batch if there are no new messages to allow the rocket to respond
+        sendRadio(Array.from(encode({ messages: messages }))).catch((err) => {
+                for (const message of messages) {
+                    const pending = pendingResponses.current.get(message.seqId);
+                    if (pending) {
+                        clearTimeout(pending.timer);
+                        pendingResponses.current.delete(message.seqId);
+                        pending.reject(err);
+                    }
+                }
+            });
+
+        didRespond.current = false;
+
+    };
+
+    return { log, sendAndReceiveMessage: sceduleSendAndReceiveMessage, update };
 }
