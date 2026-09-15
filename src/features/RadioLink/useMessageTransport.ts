@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { createParser, encode, feed, take, Message, JobStatus } from "./Protocol";
+import { useFrameLog } from "./useFrameLog";
 
-type DataDirection = "send" | "receive";
-export type LogEntry = { direction: DataDirection; ts: number; frameId: number; message: Message };
+export type { LogEntry } from "./useFrameLog";
 
-const MAX_LOG_ENTRIES = 1000;
 const SEND_TIMEOUT_MS = 500;
 
 export enum ResponseStatus {
@@ -24,7 +23,7 @@ interface PendingResponses {
 
 export function useMessageTransport() {
     const { sendRadio, onReceiveRadio } = useRocketLink();
-    const [log, setLog] = useState<LogEntry[]>([]);
+    const { log, addLogEntry } = useFrameLog();
 
     const nextSeqId = useRef(0);
     const nextFrameId = useRef(0);
@@ -36,14 +35,6 @@ export function useMessageTransport() {
     const sendInFlight = useRef(false);
     const sendDeadline = useRef(0);
 
-
-    const addLogEntry = (entry: LogEntry) => {
-        setLog((prev) => {
-            const newLog = [...prev, entry];
-            if (newLog.length > MAX_LOG_ENTRIES) newLog.shift();
-            return newLog;
-        });
-    };
 
     const armTimeout = (seqId: number, timeout_ms: number) => {
         return setTimeout(() => {
@@ -76,9 +67,9 @@ export function useMessageTransport() {
                 sendInFlight.current = false;
 
                 const frameId = nextFrameId.current++;
-                for (const message of frame.messages) {
-                    addLogEntry({ direction: "receive", message, frameId, ts: Date.now() });
+                addLogEntry({ direction: "receive", frameId, ts: Date.now(), messages: frame.messages });
 
+                for (const message of frame.messages) {
                     const pending = pendingResponses.current.get(message.seqId);
                     if (!pending) continue;
 
@@ -127,13 +118,15 @@ export function useMessageTransport() {
 
         const messages = sceduledMessages.current.splice(0, 16); // even send an empty frame if there are no new messages to allow the rocket to respond
         const frameId = nextFrameId.current++;
+        if (messages.length > 0) {
+            addLogEntry({ direction: "send", frameId, ts: Date.now(), messages });
+        }
+        const encodedFrame = Array.from(encode({ messages }));
         messages.forEach((message) => {
-            addLogEntry({ direction: "send", message, frameId, ts: Date.now() });
-
             const pending = pendingResponses.current.get(message.seqId);
             if (pending) pending.timer = armTimeout(message.seqId, pending.timeout_ms);
         });
-        sendRadio(Array.from(encode({ messages: messages }))).catch((err) => {
+        sendRadio(encodedFrame).catch((err) => {
                 for (const message of messages) {
                     const pending = pendingResponses.current.get(message.seqId);
                     if (pending) {

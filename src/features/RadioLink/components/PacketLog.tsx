@@ -10,7 +10,7 @@ import { Card } from "../../../shared/components/primitives/Card";
 import { AccentRow } from "../../../shared/components/primitives/AccentRow";
 import { ScrollView } from "../../../shared/components/primitives/ScrollView";
 
-export type PacketLogEntry = { direction: "send" | "receive"; ts: number; frameId: number };
+export type PacketLogEntry = { direction: "send" | "receive"; ts: number; frameId: number; messages?: unknown[] };
 
 export type FormattedEntry = {
     label: string;

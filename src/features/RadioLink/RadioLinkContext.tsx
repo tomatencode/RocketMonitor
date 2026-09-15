@@ -36,8 +36,9 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     }
 
     const setGimbalPos = async (degX: number, degY: number): Promise<void> => {
-        await queueSetGimbalPos(degX, degY);
+        const pending = queueSetGimbalPos(degX, degY);
         sendQueuedCommands();
+        await pending;
     }
 
     const queueBeepBuzzer = async (): Promise<void> => {
@@ -45,8 +46,9 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     }
 
     const beepBuzzer = async (): Promise<void> => {
-        await queueBeepBuzzer();
+        const pending = queueBeepBuzzer();
         sendQueuedCommands();
+        await pending;
     }
 
     const queueFirePyroChanel = async (channel: number): Promise<void> => {
@@ -54,8 +56,9 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     }
 
     const firePyroChanel = async (channel: number): Promise<void> => {
-        await queueFirePyroChanel(channel);
+        const pending = queueFirePyroChanel(channel);
         sendQueuedCommands();
+        await pending;
     }
 
     const sendQueuedCommands = () => {
