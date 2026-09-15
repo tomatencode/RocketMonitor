@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, type ComponentPropsWithRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentPropsWithRef, type ReactNode, type RefObject } from "react";
 
 interface ScrollViewProps extends ComponentPropsWithRef<"div"> {
     children: ReactNode;
+    /** Receives the element that owns scrolling. */
+    scrollElementRef?: RefObject<HTMLDivElement | null>;
     /** Auto-scroll to the bottom when content grows, but only if already scrolled to the bottom */
     stickToBottom?: boolean;
     /** Where the view is scrolled to on mount */
@@ -23,6 +25,7 @@ const SNAP_THRESHOLD_VIEWPORTS = 2;
 
 export function ScrollView({
     children,
+    scrollElementRef,
     stickToBottom = false,
     initialScrollPosition = "top",
     gradientEdges = false,
@@ -134,7 +137,15 @@ export function ScrollView({
 
     return (
         <div className="relative h-full min-h-0">
-            <div ref={scrollRef} onScroll={updateScrollState} className="h-full overflow-y-auto" {...props}>
+            <div
+                ref={(element) => {
+                    scrollRef.current = element;
+                    if (scrollElementRef) scrollElementRef.current = element;
+                }}
+                onScroll={updateScrollState}
+                className="h-full overflow-y-auto"
+                {...props}
+            >
                 <div ref={contentRef} className={className}>{children}</div>
             </div>
             {gradientEdges && topGradientSize > 0 && (
