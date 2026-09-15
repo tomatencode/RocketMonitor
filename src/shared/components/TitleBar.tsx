@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import { useRocketLink } from "../../features/RocketLink/RocketLinkContext";
 import { appBackground, dividerBorder } from "../styles";
 import { useRadioLink } from "../../features/RadioLink/RadioLinkContext";
@@ -33,6 +34,10 @@ export default function TitleBar() {
     await appWindow.current.close();
   }
 
+  async function handleOpenLog(window: "rocket" | "radio") {
+    await invoke("open_log_window", { window });
+  }
+
   return (
     <div className={`relative flex items-center h-9 ${appBackground} border-b ${dividerBorder} select-none shrink-0`}>
 
@@ -48,7 +53,8 @@ export default function TitleBar() {
 
       {/* Top-left status indicators — above drag region */}
       <div className="relative z-10 flex items-center gap-2 px-3">
-        <div
+        <button
+          onClick={() => handleOpenLog("rocket")}
           className="flex items-center"
           title={usbConnected ? `Connected: ${portName}` : "Not connected"}
         >
@@ -68,9 +74,10 @@ export default function TitleBar() {
               <rect x="34" y="30" width="7" height="7" />
             </g>
           </svg>
-        </div>
+        </button>
 
-        <div
+        <button
+          onClick={() => handleOpenLog("radio")}
           className="flex items-center"
           title={rocketConnected ? "Radio connected" : "Radio disconnected"}
         >
@@ -89,7 +96,7 @@ export default function TitleBar() {
               <circle cx="28" cy="20" r="5.5" />
             </g>
           </svg>
-        </div>
+        </button>
       </div>
 
       {/* Window controls — above drag region */}

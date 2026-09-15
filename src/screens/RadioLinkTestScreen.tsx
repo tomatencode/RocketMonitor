@@ -1,41 +1,30 @@
 import { useState } from "react";
-import { JobStatus, Message, MessageType } from "../features/RadioLink/Protocol";
 import { useRadioLink } from "../features/RadioLink/RadioLinkContext";
+import { useRocketLink } from "../features/RocketLink/RocketLinkContext";
 import {
 	appBackground,
 } from "../shared/styles";
-import PacketLog from "../features/RadioLink/components/PacketLog";
 import { Button } from "../shared/components/primitives/Button";
 import { Card } from "../shared/components/primitives/Card";
 import { Input } from "../shared/components/primitives/Input";
 
-function toHex(bytes: ArrayLike<number>) {
-	return Array.from(bytes).map(b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
-}
-
-function statusBadge(status: JobStatus): { text: string; className: string } {
-	switch (status) {
-		case JobStatus.SUCCESS: return { text: "OK", className: "text-green-300 border-green-700/50" };
-		case JobStatus.FAILURE: return { text: "FAIL", className: "text-red-300 border-red-700/50" };
-		default: return { text: "BUSY", className: "text-yellow-300 border-yellow-700/50" };
-	}
-}
-
-function formatMessage(message: Message, direction: "send" | "receive") {
-	const label = MessageType[message.type] ?? `0x${message.type.toString(16).toUpperCase()}`;
-	return {
-		label,
-		detail: toHex(message.payload),
-		status: direction === "receive" ? statusBadge(message.status) : undefined,
-	};
+function parseHex(input: string): number[] | null {
+	const tokens = input.trim().split(/\s+/);
+	if (tokens.length === 0 || (tokens.length === 1 && tokens[0] === "")) return [];
+	const bytes = tokens.map(token => parseInt(token, 16));
+	return bytes.some(byte => isNaN(byte) || byte < 0 || byte > 255) ? null : bytes;
 }
 
 export default function RadioLinkTestScreen() {
-	const { connected, setGimbalPos, beepBuzzer, firePyroChanel, log } = useRadioLink();
+	const { connected, setGimbalPos, beepBuzzer, firePyroChanel } = useRadioLink();
+	const { connected: usbConnected, sendRadio, sendAT } = useRocketLink();
 	const [gimbalX, setGimbalX] = useState("0");
 	const [gimbalY, setGimbalY] = useState("0");
 	const [channel, setChannel] = useState("1");
 	const [error, setError] = useState<string | null>(null);
+	const [radioInput, setRadioInput] = useState("DE AD BE EF");
+	const [atCommand, setAtCommand] = useState("AT+VER");
+	const [rocketError, setRocketError] = useState<string | null>(null);
 
 	async function run(action: () => Promise<void>) {
 		setError(null);
@@ -46,10 +35,32 @@ export default function RadioLinkTestScreen() {
 		}
 	}
 
+	async function handleSendRadio() {
+		setRocketError(null);
+		const bytes = parseHex(radioInput);
+		if (bytes === null) { setRocketError("Invalid hex bytes"); return; }
+		try { await sendRadio(bytes); } catch (e) { setRocketError(String(e)); }
+	}
+
+	async function handleSendAT() {
+		setRocketError(null);
+		try { await sendAT(atCommand); } catch (e) { setRocketError(String(e)); }
+	}
+
 	return (
 		<div className={`flex flex-col h-full ${appBackground} text-zinc-200 font-mono text-sm overflow-hidden px-3 pb-3 gap-3`}>
-			<div className="flex flex-1 min-h-0 gap-3">
+			<div className="flex flex-1 min-h-0 gap-3 overflow-y-auto">
 				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
+					<Card className="p-3 flex flex-col gap-2">
+						<span className="text-xs font-semibold text-zinc-300 tracking-wide uppercase">Send Radio</span>
+						<Input type="text" value={radioInput} onChange={e => setRadioInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSendRadio()} disabled={!usbConnected} />
+						<Button variant="primary" className="px-3 py-1.5 text-xs self-start" disabled={!usbConnected} onClick={handleSendRadio}>Send Radio</Button>
+					</Card>
+					<Card className="p-3 flex flex-col gap-2">
+						<span className="text-xs font-semibold text-yellow-300 tracking-wide uppercase">AT Command</span>
+						<Input type="text" value={atCommand} onChange={e => setAtCommand(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSendAT()} disabled={!usbConnected} />
+						<Button variant="warning" className="px-3 py-1.5 text-xs self-start" disabled={!usbConnected} onClick={handleSendAT}>Send AT</Button>
+					</Card>
 					<Card className="p-3 flex flex-col gap-2">
 						<span className="text-xs font-semibold text-zinc-300 tracking-wide uppercase">Set Gimbal Position</span>
 						<div className="flex gap-2">
@@ -72,9 +83,12 @@ export default function RadioLinkTestScreen() {
 						<span className="text-xs text-red-400 break-all">{error}</span>
 					</Card>
 					}
+					{rocketError &&
+					<Card variant="error" className="p-3 flex flex-col gap-2">
+						<span className="text-xs text-red-400 break-all">{rocketError}</span>
+					</Card>
+					}
 				</div>
-
-				<PacketLog title="Radio Packet Log" log={log} formatMessage={formatMessage} />
 			</div>
 		</div>
 	);

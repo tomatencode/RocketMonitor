@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useState } from "react";
 import { Message } from "./Protocol";
 
@@ -19,6 +20,15 @@ export function useFrameLog() {
             const newLog = [...prev, entry];
             if (newLog.length > MAX_LOG_ENTRIES) newLog.shift();
             return newLog;
+        });
+        void invoke("broadcast_radio_log", {
+            entry: {
+                ...entry,
+                messages: entry.messages.map((message) => ({
+                    ...message,
+                    payload: Array.from(message.payload),
+                })),
+            },
         });
     }, []);
 

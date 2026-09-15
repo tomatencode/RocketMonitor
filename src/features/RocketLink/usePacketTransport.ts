@@ -24,6 +24,15 @@ export function usePacketTransport() {
             if (newLog.length > MAX_LOG_ENTRIES) newLog.shift();
             return newLog;
         });
+        void invoke("broadcast_rocket_log", {
+            entry: {
+                ...entry,
+                packet: entry.packet && {
+                    type: entry.packet.type,
+                    payload: Array.from(entry.packet.payload),
+                },
+            },
+        });
     };
 
     useEffect(() => {

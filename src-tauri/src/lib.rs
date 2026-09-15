@@ -1,16 +1,30 @@
 use serialport::SerialPort;
 use std::io::{Read, Write};
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 const HANDSHAKE_SEND: &[u8] = &[0xAA, 0x01, 0x00, 0x00, 0x6B];
 const HANDSHAKE_RESPONSE: &[u8] = &[0xAA, 0x02, 0x00, 0x00, 0xD6];
 const BAUD_RATE: u32 = 115200;
+const LOG_HISTORY_LIMIT: usize = 100;
 
 struct RocketLinkState(Mutex<Option<Box<dyn SerialPort + Send>>>);
 struct SearchActive(Arc<AtomicBool>);
+struct LogHistory {
+    rocket: Mutex<VecDeque<serde_json::Value>>,
+    radio: Mutex<VecDeque<serde_json::Value>>,
+}
+
+fn retain_log_entry(history: &Mutex<VecDeque<serde_json::Value>>, entry: serde_json::Value) {
+    let mut entries = history.lock().unwrap_or_else(|error| error.into_inner());
+    entries.push_back(entry);
+    if entries.len() > LOG_HISTORY_LIMIT {
+        entries.pop_front();
+    }
+}
 
 fn try_connect(port_name: &str) -> Option<Box<dyn SerialPort + Send>> {
     let mut port = serialport::new(port_name, BAUD_RATE)
@@ -109,6 +123,51 @@ fn rocket_link_get_port_name(state: tauri::State<RocketLinkState>) -> Option<Str
     guard.as_ref().map(|port| port.name().unwrap_or_default())
 }
 
+#[tauri::command]
+fn open_log_window(app: tauri::AppHandle, window: String) -> Result<(), String> {
+    let (label, title, path) = match window.as_str() {
+        "rocket" => ("rocket-log", "Rocket Link Log", "#/rocket-log"),
+        "radio" => ("radio-log", "Radio Link Log", "#/radio-log"),
+        _ => return Err("Unknown log window".into()),
+    };
+
+    if let Some(existing) = app.get_webview_window(label) {
+        existing.show().map_err(|error| error.to_string())?;
+        existing.set_focus().map_err(|error| error.to_string())?;
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(&app, label, WebviewUrl::App(path.into()))
+        .title(title)
+        .inner_size(900.0, 700.0)
+        .min_inner_size(500.0, 400.0)
+        .build()
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn broadcast_rocket_log(app: tauri::AppHandle, history: tauri::State<LogHistory>, entry: serde_json::Value) -> Result<(), String> {
+    retain_log_entry(&history.rocket, entry.clone());
+    app.emit("rocket-log-entry", entry).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn broadcast_radio_log(app: tauri::AppHandle, history: tauri::State<LogHistory>, entry: serde_json::Value) -> Result<(), String> {
+    retain_log_entry(&history.radio, entry.clone());
+    app.emit("radio-log-entry", entry).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn get_rocket_log_history(history: tauri::State<LogHistory>) -> Vec<serde_json::Value> {
+    history.rocket.lock().unwrap_or_else(|error| error.into_inner()).iter().cloned().collect()
+}
+
+#[tauri::command]
+fn get_radio_log_history(history: tauri::State<LogHistory>) -> Vec<serde_json::Value> {
+    history.radio.lock().unwrap_or_else(|error| error.into_inner()).iter().cloned().collect()
+}
+
 /// Sends raw bytes to the connected RocketLink.
 #[tauri::command]
 fn rocket_link_send(
@@ -136,12 +195,21 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(RocketLinkState(Mutex::new(None)))
         .manage(SearchActive(Arc::new(AtomicBool::new(false))))
+        .manage(LogHistory {
+            rocket: Mutex::new(VecDeque::with_capacity(LOG_HISTORY_LIMIT)),
+            radio: Mutex::new(VecDeque::with_capacity(LOG_HISTORY_LIMIT)),
+        })
         .invoke_handler(tauri::generate_handler![
             rocket_link_start_search,
             rocket_link_stop_search,
             rocket_link_is_connected,
             rocket_link_get_port_name,
             rocket_link_send,
+            open_log_window,
+            broadcast_rocket_log,
+            broadcast_radio_log,
+            get_rocket_log_history,
+            get_radio_log_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
