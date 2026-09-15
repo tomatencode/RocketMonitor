@@ -57,8 +57,8 @@ export function RocketLogMonitor() {
     }, []);
 
     return (
-        <LogWindow title="Rocket Link Log">
-            <RocketPacketLog title="Rocket Link Packet Log" log={log} formatEntry={formatRocketEntry} />
+        <LogWindow title="Rocket Link Log" titleButtons={[{ label: "Clear", onClick: () => setLog([]) }]}>
+            <RocketPacketLog log={log} formatEntry={formatRocketEntry} />
         </LogWindow>
     );
 }

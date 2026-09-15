@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { AccentRow } from "../../../shared/components/primitives/AccentRow";
 import { ScrollView } from "../../../shared/components/primitives/ScrollView";
@@ -21,7 +21,6 @@ export type FormattedEntry = {
 };
 
 interface PacketLogProps<M extends { seqId: number }> {
-    title: string;
     log: PacketLogEntry<M>[];
     formatMessage: (message: M, direction: DataDirection) => FormattedEntry;
 }
@@ -50,35 +49,21 @@ const NO_RESPONSE_CONNECTOR_COLOR = "border-red-500";
 // A message paired with its formatted output, computed once and reused across the filter/render passes below
 type FormattedMessage<M> = { message: M; formatted: FormattedEntry };
 
-export default function PacketLog<M extends { seqId: number }>({ title, log, formatMessage }: PacketLogProps<M>) {
-    const [clearedAt, setClearedAt] = useState(0);
-    const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
-
-    const visibleLog = useMemo(() => log.filter(entry => entry.ts > clearedAt), [log, clearedAt]);
+export default function PacketLog<M extends { seqId: number }>({ log, formatMessage }: PacketLogProps<M>) {
 
     // formatMessage runs once per message here instead of being re-invoked in every later pass
     const formattedLog = useMemo(() => {
-        return visibleLog.map(entry => ({
+        return log.map(entry => ({
             ...entry,
             messages: entry.messages.map((message): FormattedMessage<M> => ({ message, formatted: formatMessage(message, entry.direction) })),
         }));
-    }, [visibleLog, formatMessage]);
-
-    // Entries with every message hidden by the type filter are dropped entirely
-    const filteredLog = useMemo(() => {
-        return formattedLog
-            .map(entry => ({
-                ...entry,
-                messages: entry.messages.filter(({ formatted }) => !hiddenTypes.has(formatted.label)),
-            }))
-            .filter(entry => entry.messages.length > 0);
-    }, [formattedLog, hiddenTypes]);
+    }, [log, formatMessage]);
 
     const displayBlocks = useMemo(() => {
-        const blocks: { key: number; frames: (typeof filteredLog)[number][]; color: string }[] = [];
-        for (let index = 0; index < filteredLog.length; index++) {
-            const entry = filteredLog[index];
-            const response = filteredLog[index + 1];
+        const blocks: { key: number; frames: (typeof formattedLog)[number][]; color: string }[] = [];
+        for (let index = 0; index < formattedLog.length; index++) {
+            const entry = formattedLog[index];
+            const response = formattedLog[index + 1];
 
             if (entry.direction === "send" && response?.direction === "receive") {
                 blocks.push({ key: entry.frameId, frames: [entry, response], color: CONNECTOR_COLOR });
@@ -90,7 +75,7 @@ export default function PacketLog<M extends { seqId: number }>({ title, log, for
             }
         }
         return blocks;
-    }, [filteredLog]);
+    }, [formattedLog]);
 
     const scrollElementRef = useRef<HTMLDivElement>(null);
     const virtualizer = useVirtualizer({
@@ -108,9 +93,9 @@ export default function PacketLog<M extends { seqId: number }>({ title, log, for
             scrollElementRef={scrollElementRef}
             className="p-3"
         >
-            {filteredLog.length === 0 && (
+            {formattedLog.length === 0 && (
                 <span className="text-zinc-600 text-xs">
-                    {visibleLog.length === 0 ? "No packets yet." : "No packets match the filter."}
+                    {log.length === 0 ? "No packets yet." : "No packets match the filter."}
                 </span>
             )}
             {displayBlocks.length > 0 && (

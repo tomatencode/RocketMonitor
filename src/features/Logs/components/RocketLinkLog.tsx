@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ScrollView } from "../../../shared/components/primitives/ScrollView";
 
 export type PacketLogEntry = { direction: "send" | "receive"; ts: number };
@@ -6,37 +6,26 @@ export type PacketLogEntry = { direction: "send" | "receive"; ts: number };
 type FormattedEntry = { label: string; detail: string; isText?: boolean };
 
 interface PacketLogProps<T extends PacketLogEntry> {
-    title: string;
     log: T[];
     formatEntry: (entry: T) => FormattedEntry;
 }
 
-export default function PacketLog<T extends PacketLogEntry>({ title, log, formatEntry }: PacketLogProps<T>) {
-    const [clearedAt, setClearedAt] = useState(0);
-    const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
-
-    const visibleLog = useMemo(() => log.filter(entry => entry.ts > clearedAt), [log, clearedAt]);
+export default function PacketLog<T extends PacketLogEntry>({ log, formatEntry }: PacketLogProps<T>) {
 
     // formatEntry runs once per entry here instead of being re-invoked in every later pass
     const formattedLog = useMemo(
-        () => visibleLog.map(entry => ({ entry, formatted: formatEntry(entry) })),
-        [visibleLog, formatEntry]
-    );
-
-
-    const filteredLog = useMemo(
-        () => formattedLog.filter(({ formatted }) => !hiddenTypes.has(formatted.label)),
-        [formattedLog, hiddenTypes]
+        () => log.map(entry => ({ entry, formatted: formatEntry(entry) })),
+        [log, formatEntry]
     );
 
     return (
         <ScrollView stickToBottom initialScrollPosition="bottom" className="p-3 flex flex-col gap-1">
-            {filteredLog.length === 0 && (
+            {formattedLog.length === 0 && (
                 <span className="text-zinc-600 text-xs">
-                    {visibleLog.length === 0 ? "No packets yet." : "No packets match the filter."}
+                    {log.length === 0 ? "No packets yet." : "No packets match the filter."}
                 </span>
             )}
-            {filteredLog.map(({ entry, formatted: { label, detail, isText } }, index) => {
+            {formattedLog.map(({ entry, formatted: { label, detail, isText } }, index) => {
                 const isTx = entry.direction === "send";
                 return (
                     <div key={index} className="flex gap-2 text-xs leading-relaxed font-mono">

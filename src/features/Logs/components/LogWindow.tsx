@@ -1,17 +1,23 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef, useState } from "react";
 import { appBackground, dividerBorder, radius } from "../../../shared/styles";
+import { Button } from "../../../shared/components/primitives/Button";
 
-export function LogWindow({ title, children }: { title: string; children: React.ReactNode }) {
+export function LogWindow({ title, titleButtons, children }: { title: string; titleButtons: { label: string; onClick: () => void }[]; children: React.ReactNode }) {
     return (
         <div className={`flex h-screen flex-col overflow-hidden ${radius} ${appBackground} text-zinc-200 font-mono text-sm`}>
-            <LogTitleBar title={title} />
+            <LogTitleBar title={title} buttons={titleButtons} />
             <div className="flex flex-1 flex-col min-h-0 bg-zinc-700/20">{children}</div>
         </div>
     );
 }
 
-function LogTitleBar({ title }: { title: string }) {
+interface LogTitleBarProps {
+    title: string;
+    buttons: { label: string; onClick: () => void }[];
+}
+
+function LogTitleBar({ title, buttons }: LogTitleBarProps) {
     const appWindow = useRef(getCurrentWindow());
     const [isMaximized, setIsMaximized] = useState(false);
 
@@ -26,6 +32,13 @@ function LogTitleBar({ title }: { title: string }) {
     return (
         <div className={`relative flex h-9 items-center bg-zinc-700/20 border-b ${dividerBorder} select-none shrink-0`}>
             <div data-tauri-drag-region className="absolute inset-0" />
+            
+            <div className="relative z-10 mr-auto flex items-center gap-1.5 px-2">
+                {buttons.map(({ label, onClick }, index) => (
+                    <Button key={index} variant="ghost" className="px-2.5 py-1 text-xs" onClick={onClick}>{label}</Button>
+                ))}
+            </div>
+
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span className="text-xs font-semibold tracking-widest text-zinc-500 uppercase">{title}</span>
             </div>

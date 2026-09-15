@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LogWindow } from "../../features/Logs/components/LogWindow";
 import { JobStatus, Message, MessageType } from "../../features/RadioLink/Protocol";
 import RadioPacketLog, { PacketLogEntry as RadioLogEntry } from "../../features/Logs/components/RadioLog";
@@ -58,9 +58,13 @@ export function RadioLogMonitor() {
         return () => { active = false; cleanup?.(); };
     }, []);
 
+    const [hidePings, setHidePings] = useState(false);
+
+    const filteredLog = useMemo(() => hidePings ? log.filter(entry => entry.messages.every(message => message.type !== MessageType.PING)) : log, [log, hidePings]);
+
     return (
-        <LogWindow title="Radio Link Log">
-            <RadioPacketLog title="Radio Packet Log" log={log} formatMessage={formatRadioMessage} />
+        <LogWindow title="Radio Link Log" titleButtons={[{ label: "Clear", onClick: () => setLog([]) }, { label: hidePings ? "Show Pings" : "Hide Pings", onClick: () => setHidePings(prev => !prev)    }]}>
+            <RadioPacketLog log={filteredLog} formatMessage={formatRadioMessage} />
         </LogWindow>
     );
 
