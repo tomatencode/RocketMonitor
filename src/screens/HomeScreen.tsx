@@ -15,7 +15,7 @@ function parseHex(input: string): number[] | null {
 	return bytes.some(byte => isNaN(byte) || byte < 0 || byte > 255) ? null : bytes;
 }
 
-export default function RadioLinkTestScreen() {
+export default function HomeScreen() {
 	const { connected, setGimbalPos, beepBuzzer, firePyroChanel } = useRadioLink();
 	const { connected: usbConnected, sendRadio, sendAT } = useRocketLink();
 	const [gimbalX, setGimbalX] = useState("0");
@@ -48,8 +48,8 @@ export default function RadioLinkTestScreen() {
 	}
 
 	return (
-		<div className={`flex flex-col h-full ${appBackground} text-zinc-200 font-mono text-sm overflow-hidden px-3 pb-3 gap-3`}>
-			<div className="flex flex-1 min-h-0 gap-3 overflow-y-auto">
+		<div className={`flex flex-col h-full ${appBackground} text-zinc-200 font-mono text-sm overflow-hidden p-3 gap-3`}>
+			<div className="flex flex-row min-h-0 gap-3 overflow-x-auto">
 				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
 					<Card className="p-3 flex flex-col gap-2">
 						<span className="text-xs font-semibold text-zinc-300 tracking-wide uppercase">Send Radio</span>
@@ -61,6 +61,8 @@ export default function RadioLinkTestScreen() {
 						<Input type="text" value={atCommand} onChange={e => setAtCommand(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSendAT()} disabled={!usbConnected} />
 						<Button variant="warning" className="px-3 py-1.5 text-xs self-start" disabled={!usbConnected} onClick={handleSendAT}>Send AT</Button>
 					</Card>
+				</div>
+				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
 					<Card className="p-3 flex flex-col gap-2">
 						<span className="text-xs font-semibold text-zinc-300 tracking-wide uppercase">Set Gimbal Position</span>
 						<div className="flex gap-2">

@@ -141,6 +141,8 @@ fn open_log_window(app: tauri::AppHandle, window: String) -> Result<(), String> 
         .title(title)
         .inner_size(900.0, 700.0)
         .min_inner_size(500.0, 400.0)
+        .transparent(true)
+        .decorations(false)
         .build()
         .map_err(|error| error.to_string())?;
     Ok(())
