@@ -3,10 +3,10 @@ import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { createParser, encode, feed, take, Message, JobStatus } from "./Protocol";
 
 type DataDirection = "send" | "receive";
-// frameId groups messages that were carried in the same wire frame
 export type LogEntry = { direction: DataDirection; ts: number; frameId: number; message: Message };
 
 const MAX_LOG_ENTRIES = 1000;
+const SEND_TIMEOUT_MS = 500;
 
 export enum ResponseStatus {
     SUCCESS,
@@ -31,7 +31,8 @@ export function useMessageTransport() {
 
     const sceduledMessages = useRef<Message[]>([]);
 
-    const didRespond = useRef(false);
+    const sendInFlight = useRef(false);
+    const sendDeadline = useRef(0);
 
 
     const addLogEntry = (entry: LogEntry) => {
@@ -58,7 +59,7 @@ export function useMessageTransport() {
                 const frame = take(parser);
                 if (!frame) continue;
 
-                didRespond.current = true;
+                sendInFlight.current = false;
 
                 const frameId = nextFrameId.current++;
                 for (const message of frame.messages) {
@@ -88,7 +89,7 @@ export function useMessageTransport() {
         });
     }, [onReceiveRadio]);
 
-    const sceduleSendAndReceiveMessage = (partial: Pick<Message, "type" | "payload">, timeout_ms = 500): Promise<{ status: ResponseStatus; payload?: any }> => {
+    const queueCommand = (partial: Pick<Message, "type" | "payload">, timeout_ms = 500): Promise<{ status: ResponseStatus; payload?: any }> => {
         const seqId = (nextSeqId.current = (nextSeqId.current + 1) & 0xFF);
         const message: Message = { ...partial, seqId, status: JobStatus.BUSY };
 
@@ -101,12 +102,12 @@ export function useMessageTransport() {
         return result;
     };
 
-    const update = () => {
+    const sendFrame = () => {
 
-        if (!didRespond.current) return; // do nothing if the rocket is responding
+        if (sendInFlight.current && Date.now() < sendDeadline.current) return; // still waiting on this frame
         if (pendingResponses.current.size === 0) return; // do nothing if there are no pending responses
 
-        const messages = sceduledMessages.current.splice(0, 16); // even send an empty batch if there are no new messages to allow the rocket to respond
+        const messages = sceduledMessages.current.splice(0, 16); // even send an empty frame if there are no new messages to allow the rocket to respond
         sendRadio(Array.from(encode({ messages: messages }))).catch((err) => {
                 for (const message of messages) {
                     const pending = pendingResponses.current.get(message.seqId);
@@ -117,10 +118,10 @@ export function useMessageTransport() {
                     }
                 }
             });
-
-        didRespond.current = false;
-
+        
+        sendInFlight.current = true;
+        sendDeadline.current = Date.now() + SEND_TIMEOUT_MS;
     };
 
-    return { log, sendAndReceiveMessage: sceduleSendAndReceiveMessage, update };
+    return { log, queueCommand, sendFrame };
 }

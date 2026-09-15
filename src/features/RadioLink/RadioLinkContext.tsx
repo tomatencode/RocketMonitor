@@ -19,22 +19,22 @@ const RadioLinkContext = createContext<RadioLinkContextValue | null>(null);
 
 export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     const { connected: rocketConnected } = useRocketLink();
-    const { log, sendAndReceiveMessage } = useMessageTransport();
+    const { log, queueCommand } = useMessageTransport();
 
     const setGimbalPos = async (degX: number, degY: number): Promise<void> => {
         const payload = new Uint8Array(4);
         const view = new DataView(payload.buffer);
         view.setInt16(0, degX, true);
         view.setInt16(2, degY, true);
-        await sendAndReceiveMessage({ type: MessageType.SET_GIMBAL, payload });
+        await queueCommand({ type: MessageType.SET_GIMBAL, payload });
     }
 
     const beepBuzzer = async (): Promise<void> => {
-        await sendAndReceiveMessage({ type: MessageType.DO_BEEP, payload: new Uint8Array() });
+        await queueCommand({ type: MessageType.DO_BEEP, payload: new Uint8Array() });
     }
 
     const firePyroChanel = async (channel: number): Promise<void> => {
-        await sendAndReceiveMessage({ type: MessageType.FIRE_PYRO, payload: new Uint8Array([channel]) });
+        await queueCommand({ type: MessageType.FIRE_PYRO, payload: new Uint8Array([channel]) });
     }
 
     return (
