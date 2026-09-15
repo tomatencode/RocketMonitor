@@ -54,6 +54,9 @@ export function useMessageTransport() {
         const parser = createParser();
 
         return onReceiveRadio((data) => {
+
+            let doPing = false;
+
             for (const byte of data) {
                 feed(parser, byte);
                 const frame = take(parser);
@@ -72,6 +75,7 @@ export function useMessageTransport() {
                     if (message.status === JobStatus.BUSY) {
                         clearTimeout(pending.timer);
                         pending.timer = armTimeout(message.seqId, pending.timeout_ms, pending.reject);
+                        doPing = true;
                         continue;
                     }
 
@@ -85,6 +89,10 @@ export function useMessageTransport() {
                         pending.resolve({ status });
                     }
                 }
+            }
+
+            if (doPing) {
+                sendFrame(); // send a ping frame if any pending responses are still busy to receive the final response
             }
         });
     }, [onReceiveRadio]);
