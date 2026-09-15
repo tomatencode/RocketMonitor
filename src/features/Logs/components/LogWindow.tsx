@@ -6,7 +6,7 @@ export function LogWindow({ title, children }: { title: string; children: React.
     return (
         <div className={`flex h-screen flex-col overflow-hidden ${radius} ${appBackground} text-zinc-200 font-mono text-sm`}>
             <LogTitleBar title={title} />
-            <div className="flex flex-1 min-h-0 p-3">{children}</div>
+            <div className="flex flex-1 flex-col min-h-0 bg-zinc-700/20">{children}</div>
         </div>
     );
 }
@@ -24,7 +24,7 @@ function LogTitleBar({ title }: { title: string }) {
     }, []);
 
     return (
-        <div className={`relative flex h-9 items-center ${appBackground} border-b ${dividerBorder} select-none shrink-0`}>
+        <div className={`relative flex h-9 items-center bg-zinc-700/20 border-b ${dividerBorder} select-none shrink-0`}>
             <div data-tauri-drag-region className="absolute inset-0" />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span className="text-xs font-semibold tracking-widest text-zinc-500 uppercase">{title}</span>

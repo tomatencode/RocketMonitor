@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { LogWindow } from "../../features/Logs/components/LogWindow";
 import { JobStatus, Message, MessageType } from "../../features/RadioLink/Protocol";
-import RadioPacketLog, { PacketLogEntry as RadioLogEntry } from "../../features/RadioLink/components/PacketLog";
+import RadioPacketLog, { PacketLogEntry as RadioLogEntry } from "../../features/Logs/components/RadioLog";
 
 const MAX_LOG_ENTRIES = 1000;
 
