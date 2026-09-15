@@ -116,13 +116,12 @@ export function useMessageTransport(onResponse?: () => void) {
     };
 
     const sendFrame = async () => {
-
-        if (pendingResponses.current.size === 0 && sceduledMessages.current.length === 0) return;
-
         // wait out any cooldown instead of dropping the messages that were counting on this call to flush them
         while (sendInFlight.current && Date.now() < sendDeadline.current) {
             await delay(sendDeadline.current - Date.now());
         }
+
+        if (pendingResponses.current.size === 0 && sceduledMessages.current.length === 0) return;
 
         const messages = sceduledMessages.current.splice(0, 16); // even send an empty frame if there are no new messages to allow the rocket to respond
         const frameId = nextFrameId.current++;
