@@ -19,7 +19,12 @@ export default function PacketLog<T extends PacketLogEntry>({ log, formatEntry }
     );
 
     return (
-        <ScrollView stickToBottom initialScrollPosition="bottom" className="p-3 flex flex-col gap-1">
+        <ScrollView
+            stickToBottom
+            blurEdges
+            initialScrollPosition="bottom"
+            className="p-3 flex flex-col gap-1"
+        >
             {formattedLog.length === 0 && (
                 <span className="text-zinc-600 text-xs">
                     {log.length === 0 ? "No packets yet." : "No packets match the filter."}

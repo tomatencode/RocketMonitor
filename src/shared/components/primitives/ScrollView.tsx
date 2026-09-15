@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ComponentPropsWithRef, type ReactNode, type RefObject } from "react";
 
-interface ScrollViewProps extends ComponentPropsWithRef<"div"> {
+interface BaseScrollViewProps extends ComponentPropsWithRef<"div"> {
     children: ReactNode;
     /** Receives the element that owns scrolling. */
     scrollElementRef?: RefObject<HTMLDivElement | null>;
@@ -8,11 +8,27 @@ interface ScrollViewProps extends ComponentPropsWithRef<"div"> {
     stickToBottom?: boolean;
     /** Where the view is scrolled to on mount */
     initialScrollPosition?: "top" | "bottom";
+}
+
+type GradientEdgeProps = {
     /** Fade the top or bottom edge while there's more content to scroll to in that direction */
     gradientEdges?: boolean;
     /** CSS color the edge gradient fully transitions to at the very edge */
     gradientColor?: string;
-}
+    blurEdges?: never;
+    blurRadius?: never;
+};
+
+type BlurEdgeProps = {
+    gradientEdges?: never;
+    gradientColor?: never;
+    /** Blur the top or bottom edge while there's more content to scroll to in that direction */
+    blurEdges?: boolean;
+    /** CSS blur radius for the blurred edge (default: "8px") */
+    blurRadius?: string;
+};
+
+export type ScrollViewProps = BaseScrollViewProps & (GradientEdgeProps | BlurEdgeProps);
 
 const BOTTOM_THRESHOLD_PX = 32;
 const MAX_GRADIENT_PX = 48;
@@ -30,15 +46,23 @@ export function ScrollView({
     initialScrollPosition = "top",
     gradientEdges = false,
     gradientColor = "#18181b",
+    blurEdges = false,
+    blurRadius = "8px",
     className = "",
     ...props
 }: ScrollViewProps) {
+    if (gradientEdges && blurEdges) {
+        throw new Error("ScrollView cannot use both gradientEdges and blurEdges at the same time.");
+    }
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true);
     const isAutoScrollingRef = useRef(false);
     const autoScrollFrameRef = useRef<number | null>(null);
     const lastAutoScrollFrameTimeRef = useRef<number | null>(null);
+
+    const isPinnedToBottom = stickToBottom && (isAtBottomRef.current || isAutoScrollingRef.current);
+    
     const [topGradientSize, setTopGradientSize] = useState(0);
     const [bottomGradientSize, setBottomGradientSize] = useState(0);
 
@@ -159,12 +183,36 @@ export function ScrollView({
                     }}
                 />
             )}
-            {gradientEdges && bottomGradientSize > 0 && (
+            {gradientEdges && !isPinnedToBottom && bottomGradientSize > 0 && (
                 <div
                     className="pointer-events-none absolute inset-x-0 bottom-0"
                     style={{
                         height: bottomGradientSize,
                         backgroundImage: `linear-gradient(to top, ${gradientColor}, transparent)`,
+                        maskImage: "linear-gradient(to top, black, transparent)",
+                        WebkitMaskImage: "linear-gradient(to top, black, transparent)",
+                    }}
+                />
+            )}
+            {blurEdges && topGradientSize > 0 && (
+                <div
+                    className="pointer-events-none absolute inset-x-0 top-0"
+                    style={{
+                        height: topGradientSize,
+                        backdropFilter: `blur(${blurRadius})`,
+                        WebkitBackdropFilter: `blur(${blurRadius})`,
+                        maskImage: "linear-gradient(to bottom, black, transparent)",
+                        WebkitMaskImage: "linear-gradient(to bottom, black, transparent)",
+                    }}
+                />
+            )}
+            {blurEdges && !isPinnedToBottom && bottomGradientSize > 0 && (
+                <div
+                    className="pointer-events-none absolute inset-x-0 bottom-0"
+                    style={{
+                        height: bottomGradientSize,
+                        backdropFilter: `blur(${blurRadius})`,
+                        WebkitBackdropFilter: `blur(${blurRadius})`,
                         maskImage: "linear-gradient(to top, black, transparent)",
                         WebkitMaskImage: "linear-gradient(to top, black, transparent)",
                     }}
