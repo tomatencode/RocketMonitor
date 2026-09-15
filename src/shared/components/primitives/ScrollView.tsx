@@ -4,28 +4,28 @@ interface ScrollViewProps extends ComponentPropsWithRef<"div"> {
     children: ReactNode;
     /** Auto-scroll to the bottom when content grows, but only if already scrolled to the bottom */
     stickToBottom?: boolean;
-    /** Fade/blur the top or bottom edge while there's more content to scroll to in that direction */
-    blurEdges?: boolean;
-    /** CSS color the edge blur fully transitions to at the very edge */
-    blurColor?: string;
+    /** Fade the top or bottom edge while there's more content to scroll to in that direction */
+    gradientEdges?: boolean;
+    /** CSS color the edge gradient fully transitions to at the very edge */
+    gradientColor?: string;
 }
 
 const BOTTOM_THRESHOLD_PX = 32;
-const MAX_BLUR_PX = 48;
+const MAX_GRADIENT_PX = 48;
 
 export function ScrollView({
     children,
     stickToBottom = false,
-    blurEdges = false,
-    blurColor = "#18181b",
+    gradientEdges = false,
+    gradientColor = "#18181b",
     className = "",
     ...props
 }: ScrollViewProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true);
-    const [topBlurSize, setTopBlurSize] = useState(0);
-    const [bottomBlurSize, setBottomBlurSize] = useState(0);
+    const [topGradientSize, setTopGradientSize] = useState(0);
+    const [bottomGradientSize, setBottomGradientSize] = useState(0);
 
     function updateScrollState() {
         const el = scrollRef.current;
@@ -33,8 +33,8 @@ export function ScrollView({
         const distanceFromTop = el.scrollTop;
         const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
         isAtBottomRef.current = distanceFromBottom < BOTTOM_THRESHOLD_PX;
-        setTopBlurSize(Math.min(distanceFromTop, MAX_BLUR_PX));
-        setBottomBlurSize(Math.min(distanceFromBottom, MAX_BLUR_PX));
+        setTopGradientSize(Math.min(distanceFromTop, MAX_GRADIENT_PX));
+        setBottomGradientSize(Math.min(distanceFromBottom, MAX_GRADIENT_PX));
     }
 
     useEffect(() => {
@@ -59,23 +59,23 @@ export function ScrollView({
             <div ref={scrollRef} onScroll={updateScrollState} className="h-full overflow-y-auto" {...props}>
                 <div ref={contentRef} className={className}>{children}</div>
             </div>
-            {blurEdges && topBlurSize > 0 && (
+            {gradientEdges && topGradientSize > 0 && (
                 <div
-                    className="pointer-events-none absolute inset-x-0 top-0 backdrop-blur-lg"
+                    className="pointer-events-none absolute inset-x-0 top-0"
                     style={{
-                        height: topBlurSize,
-                        backgroundImage: `linear-gradient(to bottom, ${blurColor}, transparent)`,
+                        height: topGradientSize,
+                        backgroundImage: `linear-gradient(to bottom, ${gradientColor}, transparent)`,
                         maskImage: "linear-gradient(to bottom, black, transparent)",
                         WebkitMaskImage: "linear-gradient(to bottom, black, transparent)",
                     }}
                 />
             )}
-            {blurEdges && bottomBlurSize > 0 && (
+            {gradientEdges && bottomGradientSize > 0 && (
                 <div
-                    className="pointer-events-none absolute inset-x-0 bottom-0 backdrop-blur-lg"
+                    className="pointer-events-none absolute inset-x-0 bottom-0"
                     style={{
-                        height: bottomBlurSize,
-                        backgroundImage: `linear-gradient(to top, ${blurColor}, transparent)`,
+                        height: bottomGradientSize,
+                        backgroundImage: `linear-gradient(to top, ${gradientColor}, transparent)`,
                         maskImage: "linear-gradient(to top, black, transparent)",
                         WebkitMaskImage: "linear-gradient(to top, black, transparent)",
                     }}
