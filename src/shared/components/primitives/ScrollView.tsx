@@ -4,6 +4,8 @@ interface ScrollViewProps extends ComponentPropsWithRef<"div"> {
     children: ReactNode;
     /** Auto-scroll to the bottom when content grows, but only if already scrolled to the bottom */
     stickToBottom?: boolean;
+    /** Where the view is scrolled to on mount */
+    initialScrollPosition?: "top" | "bottom";
     /** Fade the top or bottom edge while there's more content to scroll to in that direction */
     gradientEdges?: boolean;
     /** CSS color the edge gradient fully transitions to at the very edge */
@@ -16,6 +18,7 @@ const MAX_GRADIENT_PX = 48;
 export function ScrollView({
     children,
     stickToBottom = false,
+    initialScrollPosition = "top",
     gradientEdges = false,
     gradientColor = "#18181b",
     className = "",
@@ -72,6 +75,7 @@ export function ScrollView({
         if (!scroll) return;
 
         isAutoScrollingRef.current = false;
+        if (initialScrollPosition === "bottom") scroll.scrollTop = scroll.scrollHeight;
         updateScrollState();
 
         const content = contentRef.current;
