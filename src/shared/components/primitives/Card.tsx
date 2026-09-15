@@ -9,7 +9,7 @@ interface CardProps extends ComponentPropsWithRef<"div"> {
 }
 
 const variantStyles: Record<CardVariant, string> = {
-    outer: `bg-zinc-800/20 border border-zinc-700/50 ${radius}`,
+    outer: `bg-zinc-700/20 border border-zinc-600/50 ${radius}`,
     inner: `bg-zinc-800/50 ${radius}`,
     ghost: `${appBackground} border border-zinc-700/50 ${radius}`,
     warning: `bg-yellow-800/20 border border-yellow-700/50 ${radius}`,

@@ -2,7 +2,7 @@
 // These cover colour, border, shadow, text colour, and disabled state.
 // Callers add layout (flex, gap), spacing (px-*, py-*), text size, and width.
 
-export const appBackground = "bg-[#0b0b0b]";
+export const appBackground = "bg-[#060606]";
 export const radius = "rounded-lg";
 export const inputBackground = "bg-zinc-900/60";
 export const logBackground = "bg-zinc-900/60";
