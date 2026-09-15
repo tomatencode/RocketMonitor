@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
-import { createParser, encode, feed, take, Message, JobStatus } from "./Protocol";
+import { createParser, encode, feed, take, Message, JobStatus, MessageType } from "./Protocol";
 import { useFrameLog } from "./useFrameLog";
 
 export type { LogEntry } from "./useFrameLog";
@@ -35,6 +35,7 @@ export function useMessageTransport() {
     const sendInFlight = useRef(false);
     const sendDeadline = useRef(0);
 
+    const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
     const armTimeout = (seqId: number, timeout_ms: number) => {
         return setTimeout(() => {
@@ -99,9 +100,10 @@ export function useMessageTransport() {
         });
     }, [onReceiveRadio]);
 
-    const queueMessage = (partial: Pick<Message, "type" | "payload">, timeout_ms = 500, retrys = 3): Promise<{ status: ResponseStatus; payload?: any }> => {
+    const queueMessage = (messageType: MessageType, payload?: any, timeout_ms = 500, retrys = 3): Promise<{ status: ResponseStatus; payload?: any }> => {
         const seqId = (nextSeqId.current = (nextSeqId.current + 1) & 0xFF);
-        const message: Message = { ...partial, seqId, status: JobStatus.BUSY };
+        const payloadArr = payload ?? new Uint8Array();
+        const message: Message = { type: messageType, payload: payloadArr, seqId, status: JobStatus.BUSY };
 
         const result = new Promise<{ status: ResponseStatus; payload?: any }>((resolve, reject) => {
             pendingResponses.current.set(seqId, { resolve, reject, timeout_ms, remainingRetries: retrys, message });
@@ -111,10 +113,14 @@ export function useMessageTransport() {
         return result;
     };
 
-    const sendFrame = () => {
+    const sendFrame = async () => {
 
-        if (sendInFlight.current && Date.now() < sendDeadline.current) return; // still waiting on this frame
-        if (pendingResponses.current.size === 0) return; // do nothing if there are no pending responses
+        if (pendingResponses.current.size === 0 && sceduledMessages.current.length === 0) return;
+
+        // wait out any cooldown instead of dropping the messages that were counting on this call to flush them
+        while (sendInFlight.current && Date.now() < sendDeadline.current) {
+            await delay(sendDeadline.current - Date.now());
+        }
 
         const messages = sceduledMessages.current.splice(0, 16); // even send an empty frame if there are no new messages to allow the rocket to respond
         const frameId = nextFrameId.current++;

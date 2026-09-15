@@ -1,5 +1,6 @@
 // Mirrors the C++ radioLink/Protocol.hpp/.cpp framing (frames of multiple messages)
 export enum MessageType {
+    PING = 0x00,
     TELEMETRY = 0x01,
     SET_GIMBAL = 0x02,
     DO_BEEP = 0x03,

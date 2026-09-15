@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { MessageType } from "./Protocol";
 import { useMessageTransport, LogEntry } from "./useMessageTransport";
@@ -21,18 +21,43 @@ interface RadioLinkContextValue {
     log: LogEntry[];
 }
 
+const PING_INTERVAL_MS = 1000;
+
 const RadioLinkContext = createContext<RadioLinkContextValue | null>(null);
 
 export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
-    const { connected: rocketConnected } = useRocketLink();
+    const { connected: usbConnected } = useRocketLink();
     const { log, queueMessage, sendFrame } = useMessageTransport();
+
+    const [connected, setConnected] = useState(true);
+
+    useEffect(() => {
+        let pingInFlight = false;
+
+        const intervalId = setInterval(async () => {
+            if (pingInFlight) return; // avoid overlapping pings if one is slow
+            pingInFlight = true;
+            try {
+                const pending = queueMessage(MessageType.PING);
+                sendFrame();
+                await pending;
+                setConnected(true);
+            } catch (error) {
+                setConnected(false);
+            } finally {
+                pingInFlight = false;
+            }
+        }, PING_INTERVAL_MS);
+
+        return () => clearInterval(intervalId);
+    }, []);
 
     const queueSetGimbalPos = async (degX: number, degY: number): Promise<void> => {
         const payload = new Uint8Array(4);
         const view = new DataView(payload.buffer);
         view.setInt16(0, degX, true);
         view.setInt16(2, degY, true);
-        await queueMessage({ type: MessageType.SET_GIMBAL, payload });
+        await queueMessage(MessageType.SET_GIMBAL, payload);
     }
 
     const setGimbalPos = async (degX: number, degY: number): Promise<void> => {
@@ -42,7 +67,7 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     }
 
     const queueBeepBuzzer = async (): Promise<void> => {
-        await queueMessage({ type: MessageType.DO_BEEP, payload: new Uint8Array() });
+        await queueMessage(MessageType.DO_BEEP);
     }
 
     const beepBuzzer = async (): Promise<void> => {
@@ -52,7 +77,7 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     }
 
     const queueFirePyroChanel = async (channel: number): Promise<void> => {
-        await queueMessage({ type: MessageType.FIRE_PYRO, payload: new Uint8Array([channel]) });
+        await queueMessage(MessageType.FIRE_PYRO, new Uint8Array([channel]));
     }
 
     const firePyroChanel = async (channel: number): Promise<void> => {
@@ -67,7 +92,7 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <RadioLinkContext.Provider value={{
-            connected: rocketConnected,
+            connected: connected && usbConnected,
 
             queueSetGimbalPos: queueSetGimbalPos,
             queueBeepBuzzer: queueBeepBuzzer,
