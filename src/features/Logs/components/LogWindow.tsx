@@ -37,7 +37,7 @@ function LogTitleBar({ title, buttons }: LogTitleBarProps) {
             </div>
 
             <div data-tauri-drag-region className="flex flex-1 min-w-0 h-full items-center justify-center">
-                <span className="text-xs font-semibold tracking-widest text-zinc-500 uppercase">{title}</span>
+                <span data-tauri-drag-region className="text-xs font-semibold tracking-widest text-zinc-500 uppercase">{title}</span>
             </div>
 
             <div className="flex shrink-0 items-center justify-end gap-1.5 px-2">
