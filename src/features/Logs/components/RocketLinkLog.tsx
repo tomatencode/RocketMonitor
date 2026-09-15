@@ -21,7 +21,7 @@ export default function PacketLog<T extends PacketLogEntry>({ log, formatEntry }
     return (
         <ScrollView
             stickToBottom
-            blurEdges
+            blurTop
             initialScrollPosition="bottom"
             className="p-3 flex flex-col gap-1"
         >

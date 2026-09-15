@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ComponentPropsWithRef, type ReactNode, type RefObject } from "react";
 
-interface BaseScrollViewProps extends ComponentPropsWithRef<"div"> {
+export interface ScrollViewProps extends ComponentPropsWithRef<"div"> {
     children: ReactNode;
     /** Receives the element that owns scrolling. */
     scrollElementRef?: RefObject<HTMLDivElement | null>;
@@ -8,27 +8,23 @@ interface BaseScrollViewProps extends ComponentPropsWithRef<"div"> {
     stickToBottom?: boolean;
     /** Where the view is scrolled to on mount */
     initialScrollPosition?: "top" | "bottom";
-}
-
-type GradientEdgeProps = {
-    /** Fade the top or bottom edge while there's more content to scroll to in that direction */
+    /** Fade both top and bottom edges while there's more content to scroll to */
     gradientEdges?: boolean;
+    /** Fade the top edge while there's more content to scroll up to */
+    gradientTop?: boolean;
+    /** Fade the bottom edge while there's more content to scroll down to */
+    gradientBottom?: boolean;
     /** CSS color the edge gradient fully transitions to at the very edge */
     gradientColor?: string;
-    blurEdges?: never;
-    blurRadius?: never;
-};
-
-type BlurEdgeProps = {
-    gradientEdges?: never;
-    gradientColor?: never;
-    /** Blur the top or bottom edge while there's more content to scroll to in that direction */
+    /** Blur both top and bottom edges while there's more content to scroll to */
     blurEdges?: boolean;
+    /** Blur the top edge while there's more content to scroll up to */
+    blurTop?: boolean;
+    /** Blur the bottom edge while there's more content to scroll down to */
+    blurBottom?: boolean;
     /** CSS blur radius for the blurred edge (default: "8px") */
     blurRadius?: string;
-};
-
-export type ScrollViewProps = BaseScrollViewProps & (GradientEdgeProps | BlurEdgeProps);
+}
 
 const BOTTOM_THRESHOLD_PX = 32;
 const MAX_GRADIENT_PX = 48;
@@ -45,14 +41,26 @@ export function ScrollView({
     stickToBottom = false,
     initialScrollPosition = "top",
     gradientEdges = false,
+    gradientTop,
+    gradientBottom,
     gradientColor = "#18181b",
     blurEdges = false,
+    blurTop,
+    blurBottom,
     blurRadius = "8px",
     className = "",
     ...props
 }: ScrollViewProps) {
-    if (gradientEdges && blurEdges) {
-        throw new Error("ScrollView cannot use both gradientEdges and blurEdges at the same time.");
+    const showGradientTop = Boolean(gradientTop ?? gradientEdges);
+    const showGradientBottom = Boolean(gradientBottom ?? gradientEdges);
+    const showBlurTop = Boolean(blurTop ?? blurEdges);
+    const showBlurBottom = Boolean(blurBottom ?? blurEdges);
+
+    if (showGradientTop && showBlurTop) {
+        throw new Error("ScrollView cannot use both gradient and blur on the top edge.");
+    }
+    if (showGradientBottom && showBlurBottom) {
+        throw new Error("ScrollView cannot use both gradient and blur on the bottom edge.");
     }
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -172,7 +180,7 @@ export function ScrollView({
             >
                 <div ref={contentRef} className={className}>{children}</div>
             </div>
-            {gradientEdges && topGradientSize > 0 && (
+            {showGradientTop && topGradientSize > 0 && (
                 <div
                     className="pointer-events-none absolute inset-x-0 top-0"
                     style={{
@@ -183,7 +191,7 @@ export function ScrollView({
                     }}
                 />
             )}
-            {gradientEdges && !isPinnedToBottom && bottomGradientSize > 0 && (
+            {showGradientBottom && !isPinnedToBottom && bottomGradientSize > 0 && (
                 <div
                     className="pointer-events-none absolute inset-x-0 bottom-0"
                     style={{
@@ -194,7 +202,7 @@ export function ScrollView({
                     }}
                 />
             )}
-            {blurEdges && topGradientSize > 0 && (
+            {showBlurTop && topGradientSize > 0 && (
                 <div
                     className="pointer-events-none absolute inset-x-0 top-0"
                     style={{
@@ -206,7 +214,7 @@ export function ScrollView({
                     }}
                 />
             )}
-            {blurEdges && !isPinnedToBottom && bottomGradientSize > 0 && (
+            {showBlurBottom && !isPinnedToBottom && bottomGradientSize > 0 && (
                 <div
                     className="pointer-events-none absolute inset-x-0 bottom-0"
                     style={{

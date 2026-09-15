@@ -89,7 +89,7 @@ export default function PacketLog<M extends { seqId: number }>({ log, formatMess
     return (
         <ScrollView
             stickToBottom
-            blurEdges
+            blurTop
             initialScrollPosition="bottom"
             scrollElementRef={scrollElementRef}
             className="p-3"
