@@ -16,7 +16,7 @@ export enum ResponseStatus {
 interface PendingResponses {
     resolve: (result: { status: ResponseStatus; payload?: any }) => void;
     reject: (err: Error) => void;
-    timer: ReturnType<typeof setTimeout>;
+    timer?: ReturnType<typeof setTimeout>;
     timeout_ms: number;
     remainingRetries: number;
     message: Message;
@@ -53,8 +53,7 @@ export function useMessageTransport() {
             if (pending.remainingRetries > 0) {
                 pending.remainingRetries -= 1;
                 sceduledMessages.current.push(pending.message);
-                pending.timer = armTimeout(seqId, timeout_ms);
-                sendFrame();
+                sendFrame(); // rearms the timer once the retry is actually sent
             } else {
                 pendingResponses.current.delete(seqId);
                 pending.reject(new Error("Timeout"));
@@ -114,8 +113,7 @@ export function useMessageTransport() {
         const message: Message = { ...partial, seqId, status: JobStatus.BUSY };
 
         const result = new Promise<{ status: ResponseStatus; payload?: any }>((resolve, reject) => {
-            const timer = armTimeout(seqId, timeout_ms);
-            pendingResponses.current.set(seqId, { resolve, reject, timer, timeout_ms, remainingRetries: retrys, message });
+            pendingResponses.current.set(seqId, { resolve, reject, timeout_ms, remainingRetries: retrys, message });
 
             sceduledMessages.current.push(message);
         });
@@ -128,6 +126,13 @@ export function useMessageTransport() {
         if (pendingResponses.current.size === 0) return; // do nothing if there are no pending responses
 
         const messages = sceduledMessages.current.splice(0, 16); // even send an empty frame if there are no new messages to allow the rocket to respond
+        const frameId = nextFrameId.current++;
+        messages.forEach((message) => {
+            addLogEntry({ direction: "send", message, frameId, ts: Date.now() });
+
+            const pending = pendingResponses.current.get(message.seqId);
+            if (pending) pending.timer = armTimeout(message.seqId, pending.timeout_ms);
+        });
         sendRadio(Array.from(encode({ messages: messages }))).catch((err) => {
                 for (const message of messages) {
                     const pending = pendingResponses.current.get(message.seqId);
