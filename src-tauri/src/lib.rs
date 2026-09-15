@@ -141,7 +141,7 @@ fn open_log_window(app: tauri::AppHandle, window: String) -> Result<(), String> 
     let mut builder = WebviewWindowBuilder::new(&app, label, WebviewUrl::App(path.into()))
         .title(title)
         .inner_size(500.0, 600.0)
-        .min_inner_size(300.0, 300.0)
+        .min_inner_size(350.0, 300.0)
         .always_on_top(true)
         .transparent(true)
         .decorations(false);
