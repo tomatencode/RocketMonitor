@@ -24,10 +24,17 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
     const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
 
     const visibleLog = useMemo(() => log.filter(entry => entry.ts > clearedAt), [log, clearedAt]);
-    const logTypes = useMemo(() => [...new Set(visibleLog.map(formatEntry).map(entry => entry.label))], [visibleLog, formatEntry]);
+
+    // formatEntry runs once per entry here instead of being re-invoked in every later pass
+    const formattedLog = useMemo(
+        () => visibleLog.map(entry => ({ entry, formatted: formatEntry(entry) })),
+        [visibleLog, formatEntry]
+    );
+
+    const logTypes = useMemo(() => [...new Set(formattedLog.map(({ formatted }) => formatted.label))], [formattedLog]);
     const filteredLog = useMemo(
-        () => visibleLog.filter(entry => !hiddenTypes.has(formatEntry(entry).label)),
-        [visibleLog, hiddenTypes, formatEntry]
+        () => formattedLog.filter(({ formatted }) => !hiddenTypes.has(formatted.label)),
+        [formattedLog, hiddenTypes]
     );
 
     function toggleType(type: string) {
@@ -73,8 +80,7 @@ export default function PacketLog<T extends PacketLogEntry>({ title, log, format
                             {visibleLog.length === 0 ? "No packets yet." : "No packets match the filter."}
                         </span>
                     )}
-                    {filteredLog.map((entry, index) => {
-                        const { label, detail, isText } = formatEntry(entry);
+                    {filteredLog.map(({ entry, formatted: { label, detail, isText } }, index) => {
                         const isTx = entry.direction === "send";
                         return (
                             <div key={index} className="flex gap-2 text-xs leading-relaxed font-mono">

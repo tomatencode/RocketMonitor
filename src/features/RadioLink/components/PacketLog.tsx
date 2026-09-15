@@ -54,64 +54,52 @@ function seqColor(seqId: number): string {
 const CONNECTOR_COLOR = "border-zinc-600";
 const NO_RESPONSE_CONNECTOR_COLOR = "border-red-500";
 
+// A message paired with its formatted output, computed once and reused across the filter/render passes below
+type FormattedMessage<M> = { message: M; formatted: FormattedEntry };
+
 export default function PacketLog<M extends { seqId: number }>({ title, log, formatMessage }: PacketLogProps<M>) {
     const [clearedAt, setClearedAt] = useState(0);
     const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
 
     const visibleLog = useMemo(() => log.filter(entry => entry.ts > clearedAt), [log, clearedAt]);
 
+    // formatMessage runs once per message here instead of being re-invoked in every later pass
+    const formattedLog = useMemo(() => {
+        return visibleLog.map(entry => ({
+            ...entry,
+            messages: entry.messages.map((message): FormattedMessage<M> => ({ message, formatted: formatMessage(message, entry.direction) })),
+        }));
+    }, [visibleLog, formatMessage]);
+
     const logTypes = useMemo(() => {
         const labels = new Set<string>();
-        for (const entry of visibleLog) {
-            for (const message of entry.messages) labels.add(formatMessage(message, entry.direction).label);
+        for (const entry of formattedLog) {
+            for (const { formatted } of entry.messages) labels.add(formatted.label);
         }
         return [...labels];
-    }, [visibleLog, formatMessage]);
+    }, [formattedLog]);
 
     // Entries with every message hidden by the type filter are dropped entirely
     const filteredLog = useMemo(() => {
-        return visibleLog
+        return formattedLog
             .map(entry => ({
                 ...entry,
-                messages: entry.messages.filter(message => !hiddenTypes.has(formatMessage(message, entry.direction).label)),
+                messages: entry.messages.filter(({ formatted }) => !hiddenTypes.has(formatted.label)),
             }))
             .filter(entry => entry.messages.length > 0);
-    }, [visibleLog, hiddenTypes, formatMessage]);
+    }, [formattedLog, hiddenTypes]);
 
-    // Every sent frame gets a matching response frame; join them under one line, or flag red if the response hasn't arrived
     const displayBlocks = useMemo(() => {
-        const claimedResponses = new Set<number>();
-        const responseFor = new Map<number, (typeof filteredLog)[number]>();
-
-        for (let i = 0; i < filteredLog.length; i++) {
-            const entry = filteredLog[i];
-            if (entry.direction !== "send") continue;
-
-            const seqIds = new Set(entry.messages.map(m => m.seqId));
-            if (seqIds.size === 0) continue;
-
-            const response = filteredLog.slice(i + 1).find(e =>
-                e.direction === "receive" &&
-                !claimedResponses.has(e.frameId) &&
-                e.messages.some(m => seqIds.has(m.seqId))
-            );
-
-            if (response) {
-                claimedResponses.add(response.frameId);
-                responseFor.set(entry.frameId, response);
-            }
-        }
-
         const blocks: { key: number; frames: (typeof filteredLog)[number][]; color: string }[] = [];
-        for (const entry of filteredLog) {
-            if (claimedResponses.has(entry.frameId)) continue; // rendered as part of its request's block below
-            if (entry.direction === "send") {
-                const response = responseFor.get(entry.frameId);
-                blocks.push({
-                    key: entry.frameId,
-                    frames: response ? [entry, response] : [entry],
-                    color: response ? CONNECTOR_COLOR : NO_RESPONSE_CONNECTOR_COLOR,
-                });
+        for (let index = 0; index < filteredLog.length; index++) {
+            const entry = filteredLog[index];
+            const response = filteredLog[index + 1];
+
+            if (entry.direction === "send" && response?.direction === "receive") {
+                blocks.push({ key: entry.frameId, frames: [entry, response], color: CONNECTOR_COLOR });
+                index++;
+            } else if (entry.direction === "send") {
+                blocks.push({ key: entry.frameId, frames: [entry], color: NO_RESPONSE_CONNECTOR_COLOR });
             } else {
                 blocks.push({ key: entry.frameId, frames: [entry], color: "border-transparent" });
             }
@@ -187,8 +175,7 @@ export default function PacketLog<M extends { seqId: number }>({ title, log, for
                                             <span className="text-zinc-700 text-[10px] uppercase tracking-wide">{isTx ? "sent frame" : "received frame"}</span>
                                         </div>
                                         <div className="flex flex-col gap-1 pl-7">
-                                            {entry.messages.map((message, index) => {
-                                                const { label, detail, isText, status } = formatMessage(message, entry.direction);
+                                            {entry.messages.map(({ message, formatted: { label, detail, isText, status } }, index) => {
                                                 return (
                                                     <AccentRow
                                                         key={index}
