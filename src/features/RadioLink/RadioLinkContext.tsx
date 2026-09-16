@@ -35,7 +35,6 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     });
 
     useEffect(() => {
-        let pingInFlight = false;
         let timeoutId: ReturnType<typeof setTimeout>;
 
         const schedulePing = () => {
@@ -44,8 +43,10 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
         };
 
         const sendPing = async () => {
-            if (pingInFlight) return; // avoid overlapping pings if one is slow
-            pingInFlight = true;
+            if (!usbConnected) {
+                setConnected(false);
+                return;
+            }
             try {
                 const pending = queueMessage(MessageType.PING);
                 sendFrame();
@@ -54,7 +55,6 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
             } catch (error) {
                 setConnected(false);
             } finally {
-                pingInFlight = false;
                 schedulePing();
             }
         };
