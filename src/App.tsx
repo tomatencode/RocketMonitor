@@ -2,7 +2,7 @@ import TitleBar from "./shared/components/TitleBar";
 import HomeScreen from "./screens/HomeScreen";
 import { RocketLinkProvider } from "./features/RocketLink/RocketLinkContext";
 import { RadioLinkProvider } from "./features/RadioLink/RadioLinkContext";
-import { appBackground, radius } from "./shared/styles";
+import { radius } from "./shared/styles";
 import { RadioLogMonitor } from "./screens/logScreens/RadioLogMonitor";
 import { RocketLogMonitor } from "./screens/logScreens/RocketLogMonitor";
 import "./App.css";
@@ -14,7 +14,7 @@ function App() {
   return (
     <RocketLinkProvider>
       <RadioLinkProvider>
-        <div className={`flex flex-col h-screen overflow-hidden ${radius} ${appBackground}`}>
+        <div className={`relative flex flex-col h-screen overflow-hidden ${radius} bg-transparent`}>
           <TitleBar />
           <HomeScreen />
         </div>
