@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRadioLink } from "../features/RadioLink/RadioLinkContext";
 import { useRocketLink } from "../features/RocketLink/RocketLinkContext";
 import { Button } from "../shared/components/primitives/Button";
 import { Card } from "../shared/components/primitives/Card";
 import { Input } from "../shared/components/primitives/Input";
+import { LineGraph } from "../shared/components/primitives/LineGraph";
 import SceneBackground from "../features/RocketModle/components/SceneBackground";
 
 function parseHex(input: string): number[] | null {
@@ -23,6 +24,20 @@ export default function HomeScreen() {
 	const [radioInput, setRadioInput] = useState("DE AD BE EF");
 	const [atCommand, setAtCommand] = useState("AT+VER");
 	const [rocketError, setRocketError] = useState<string | null>(null);
+	const [sinData, setSinData] = useState<number[]>([]);
+	const [cosData, setCosData] = useState<number[]>([]);
+	const [sampleCount, setSampleCount] = useState(0);
+
+	useEffect(() => {
+		const start = Date.now();
+		const interval = setInterval(() => {
+			const t = (Date.now() - start) / 500;
+			setSinData(prev => [...prev.slice(-199), Math.sin(t)]);
+			setCosData(prev => [...prev.slice(-199), Math.cos(t) * 0.6]);
+			setSampleCount(prev => prev + 1);
+		}, 50);
+		return () => clearInterval(interval);
+	}, []);
 
 	async function run(action: () => Promise<void>) {
 		setError(null);
@@ -63,6 +78,21 @@ export default function HomeScreen() {
 					</Card>
 				</div>
 				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
+					<span className="text-xs font-semibold tracking-wide uppercase text-zinc-300">Line Graph Test</span>
+					<Card className="p-3 flex flex-col gap-2 border border-zinc-700/60">
+						<LineGraph
+							series={[
+								{ label: "sin", color: "#38bdf8", data: sinData },
+								{ label: "cos", color: "#f472b6", data: cosData },
+							]}
+							yMin={-1.5}
+							yMax={1.5}
+							scale={1.2}
+							xOffset={Math.max(0, sampleCount - 200)}
+							xAxis={{ label: "Time", tickInterval: 20, labelEvery: 0, atZero: true }}
+							yAxis={{ label: "Amplitude", unit: "m", tickInterval: 0.5, labelEvery: 2 }}
+						/>
+					</Card>
 					<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Radio-Link Commands</span>
 					<Card className="p-3 flex flex-col gap-2 border border-zinc-700/60">
 						<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Set Gimbal Position</span>
