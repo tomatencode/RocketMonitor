@@ -45,6 +45,7 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
         const sendPing = async () => {
             if (!usbConnected) {
                 setConnected(false);
+                schedulePing();
                 return;
             }
             try {
@@ -66,7 +67,7 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
             clearTimeout(timeoutId);
             resetPingTimer.current = () => {};
         };
-    }, []);
+    }, [usbConnected]);
 
     const queueSetGimbalPos = async (degX: number, degY: number): Promise<void> => {
         const payload = new Uint8Array(4);
