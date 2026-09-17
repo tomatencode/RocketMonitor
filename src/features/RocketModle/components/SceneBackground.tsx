@@ -1,46 +1,39 @@
+import { Component, Suspense, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Environment, Float, OrbitControls } from "@react-three/drei";
+import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
 
-function RocketModel() {
-  return (
-    <Float speed={1.4} rotationIntensity={0.5} floatIntensity={0.8}>
-      <group position={[0, 0.1, 0]}>
-        <mesh castShadow position={[0, 0, 0]}>
-          <capsuleGeometry args={[0.42, 2.6, 8, 18]} />
-          <meshStandardMaterial color="#d4d4d8" metalness={0.9} roughness={0.18} />
-        </mesh>
+import rocketUrl from "../../../assets/3d/rocket/Rocket.glb?url";
 
-        <mesh castShadow position={[0, 1.9, 0]}>
-          <coneGeometry args={[0.3, 0.9, 20]} />
-          <meshStandardMaterial color="#e2e8f0" metalness={0.75} roughness={0.25} />
-        </mesh>
+// Prevents a GLTF load/parse failure from crashing the whole app (root has no boundary).
+class ModelErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
 
-        <mesh castShadow position={[0, -1.75, 0]}>
-          <coneGeometry args={[0.45, 0.7, 20]} />
-          <meshStandardMaterial color="#60a5fa" emissive="#1d4ed8" emissiveIntensity={0.4} metalness={0.35} roughness={0.2} />
-        </mesh>
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
 
-        <mesh castShadow position={[0, 0.75, 0.46]}>
-          <boxGeometry args={[0.18, 0.8, 0.18]} />
-          <meshStandardMaterial color="#a5b4fc" metalness={0.8} roughness={0.2} />
-        </mesh>
-      </group>
-    </Float>
-  );
+  componentDidCatch(error: unknown) {
+    console.error("Failed to load rocket model", error);
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
 }
 
-function LaunchPad() {
+function ExportedRocket() {
+  const { scene } = useGLTF(rocketUrl);
+
   return (
-    <mesh rotation-x={-Math.PI / 2} position={[0, -1.8, 0]} receiveShadow>
-      <circleGeometry args={[6, 64]} />
-      <meshStandardMaterial color="#0f172a" metalness={0.2} roughness={0.9} />
-    </mesh>
+    <group scale={10} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.5, 0]}>
+      <primitive object={scene} />
+    </group>
   );
 }
 
 export default function SceneBackground() {
   return (
-    <div className="absolute inset-0 -z-10">
+    <div className="pointer-events-none absolute inset-0 z-0">
       <Canvas camera={{ position: [3.5, 2.2, 5], fov: 42 }} shadows dpr={[1, 2]}>
         <color attach="background" args={["#050816"]} />
         <fog attach="fog" args={["#050816", 6, 16]} />
@@ -49,7 +42,7 @@ export default function SceneBackground() {
         <directionalLight
           castShadow
           position={[4, 6, 3]}
-          intensity={2.2}
+          intensity={1.0}
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
         />
@@ -57,14 +50,17 @@ export default function SceneBackground() {
 
         <Environment preset="night" />
 
-        <LaunchPad />
-        <RocketModel />
+        <ModelErrorBoundary>
+          <Suspense fallback={null}>
+            <ExportedRocket />
+          </Suspense>
+        </ModelErrorBoundary>
 
         <OrbitControls
           enablePan={false}
           enableZoom={false}
           autoRotate
-          autoRotateSpeed={0.45}
+          autoRotateSpeed={0.5}
           minPolarAngle={Math.PI / 2.6}
           maxPolarAngle={Math.PI / 1.9}
         />
