@@ -1,9 +1,12 @@
 import { useMemo } from "react";
 
+/** A single sample: either a bare value (plotted at an index-derived X) or an explicit {x, y} pair for irregular intervals. */
+export type LineGraphPoint = number | { x: number; y: number };
+
 export interface LineGraphSeries {
 	label: string;
 	color: string;
-	data: number[];
+	data: LineGraphPoint[];
 }
 
 export interface AxisOptions {
@@ -41,8 +44,17 @@ interface LineGraphProps {
 	scale?: number;
 	/** Absolute index of the first sample currently in `series` data. Increment this as old
 	 * samples scroll out of the window so X tick marks stay aligned to the real sample index
-	 * (and appear to scroll) instead of resetting to the local window position. Defaults to 0. */
+	 * (and appear to scroll) instead of resetting to the local window position. Defaults to 0.
+	 * Only applies to plain-number samples; {x, y} samples carry their own absolute X already. */
 	xOffset?: number;
+	/** Width of the visible X window, in data units. When set, only samples whose x falls within
+	 * [xMax - maxXinFrame, xMax] are shown, so the window is defined by a span of X (e.g. time)
+	 * rather than by a fixed sample count - correct even when samples arrive at irregular intervals. */
+	maxXinFrame?: number;
+}
+
+function toPoint(sample: LineGraphPoint, index: number, xOffset: number): { x: number; y: number } {
+	return typeof sample === "number" ? { x: xOffset + index, y: sample } : sample;
 }
 
 const WIDTH = 400;
@@ -69,16 +81,6 @@ function computeTicks(min: number, max: number, interval: number | undefined, ta
 	return ticks;
 }
 
-function computeIndexTicks(offset: number, count: number, interval: number | undefined, targetTicks: number): { local: number; absolute: number }[] {
-	if (count <= 0) return [];
-	const step = interval && interval > 0 ? Math.round(interval) : Math.max(1, Math.round(count / targetTicks));
-	const firstTick = Math.ceil(offset / step) * step;
-	const ticks: { local: number; absolute: number }[] = [];
-	for (let abs = firstTick; abs < offset + count; abs += step) ticks.push({ local: abs - offset, absolute: abs });
-	if (ticks.length === 0) ticks.push({ local: 0, absolute: offset });
-	return ticks;
-}
-
 export function LineGraph({
 	series,
 	height = 160,
@@ -93,6 +95,7 @@ export function LineGraph({
 	yAutoscaleMax,
 	scale = 1,
 	xOffset = 0,
+	maxXinFrame,
 }: LineGraphProps) {
 	const xLabelEvery = Math.max(1, xAxis?.labelEvery ?? 2);
 	const yLabelEvery = Math.max(1, yAxis?.labelEvery ?? 2);
@@ -118,9 +121,16 @@ export function LineGraph({
 	const axisX = marginLeft;
 	const axisY = marginTop + plotHeight;
 
-	const { paths, yTicks, xTicks, pointCount } = useMemo(() => {
-		const trimmed = series.map(s => s.data.slice(-maxPoints));
-		const finiteValues = trimmed.flat().filter(Number.isFinite);
+	const { paths, yTicks, xTicks, xMin, xSpan } = useMemo(() => {
+		const converted = series.map(s => s.data.slice(-maxPoints).map((sample, i) => toPoint(sample, i, xOffset)).sort((a, b) => a.x - b.x));
+		const trimmed = maxXinFrame !== undefined
+			? (() => {
+				const latestX = Math.max(...converted.flatMap(points => points.map(p => p.x)).filter(Number.isFinite), -Infinity);
+				const cutoff = latestX - maxXinFrame;
+				return converted.map(points => points.filter(p => p.x >= cutoff));
+			})()
+			: converted;
+		const finiteValues = trimmed.flat().map(p => p.y).filter(Number.isFinite);
 		const autoMin = finiteValues.length ? Math.min(...finiteValues) : 0;
 		const autoMax = finiteValues.length ? Math.max(...finiteValues) : 1;
 		const autoBoundedMin = Math.min(autoMin, yAutoscaleMin ?? 0);
@@ -131,16 +141,17 @@ export function LineGraph({
 		if (yMax === undefined && max < 0) max = 0;
 		if (min === max) { min -= 1; max += 1; }
 		const span = max - min;
-		const pointCount = trimmed.reduce((longest, data) => Math.max(longest, data.length), 0);
 
-		const toXY = (data: number[]) => {
-			const count = data.length;
-			if (count === 0) return "";
-			const stepX = count > 1 ? plotWidth / (count - 1) : 0;
+		const finiteXs = trimmed.flat().map(p => p.x).filter(Number.isFinite);
+		const xMin = finiteXs.length ? Math.min(...finiteXs) : xOffset;
+		const xMax = finiteXs.length ? Math.max(...finiteXs) : xOffset;
+		const xSpan = xMax - xMin || 1;
+
+		const toXY = (points: { x: number; y: number }[]) => {
 			let hasPoint = false;
-			return data.flatMap((value, i) => {
-					if (!Number.isFinite(value)) return [];
-					const x = axisX + i * stepX;
+			return points.flatMap(({ x: px, y: value }) => {
+					if (!Number.isFinite(value) || !Number.isFinite(px)) return [];
+					const x = axisX + ((px - xMin) / xSpan) * plotWidth;
 					const y = marginTop + plotHeight - ((value - min) / span) * plotHeight;
 					const command = `${hasPoint ? "L" : "M"}${x.toFixed(2)},${y.toFixed(2)}`;
 					hasPoint = true;
@@ -152,10 +163,11 @@ export function LineGraph({
 		return {
 			paths: trimmed.map(toXY),
 			yTicks: computeTicks(min, max, yAxis?.tickInterval, 4),
-			xTicks: computeIndexTicks(xOffset, pointCount, xAxis?.tickInterval, 5),
-			pointCount,
+			xTicks: computeTicks(xMin, xMax, xAxis?.tickInterval, 5),
+			xMin,
+			xSpan,
 		};
-	}, [series, maxPoints, yMin, yMax, yAxis?.tickInterval, xAxis?.tickInterval, plotWidth, plotHeight, axisX, xOffset]);
+	}, [series, maxPoints, yMin, yMax, yAxis?.tickInterval, xAxis?.tickInterval, plotWidth, plotHeight, axisX, xOffset, maxXinFrame]);
 
 	const valueToY = (value: number) => {
 		const min = yTicks[0];
@@ -163,7 +175,7 @@ export function LineGraph({
 		const span = max - min || 1;
 		return marginTop + plotHeight - ((value - min) / span) * plotHeight;
 	};
-	const indexToX = (index: number) => axisX + (pointCount > 1 ? (index / (pointCount - 1)) * plotWidth : 0);
+	const indexToX = (value: number) => axisX + (plotWidth * (value - xMin)) / xSpan;
 
 	const xAxisY = xAxis?.atZero ? Math.min(Math.max(valueToY(0), marginTop), axisY) : axisY;
 
@@ -193,17 +205,18 @@ export function LineGraph({
 					);
 				})}
 
-				{/* X ticks: short marks crossing the axis, labeled every Nth. Aligned to the absolute
-				   sample index (via xOffset) so they scroll with the data instead of the window. */}
-				{xTicks.map(tick => {
-					const x = indexToX(tick.local);
-					const isRegularLabel = tick.absolute % xLabelEvery === 0;
+				{/* X ticks: short marks crossing the axis, labeled every Nth. Positioned by real X value
+				   (absolute sample index, or explicit {x,y} coordinate) so irregular intervals render correctly
+				   and ticks scroll with the data instead of the window. */}
+				{xTicks.map((value, i) => {
+					const x = indexToX(value);
+					const isRegularLabel = i % xLabelEvery === 0;
 					return (
-						<g key={`x-${tick.absolute}`}>
+						<g key={`x-${value}`}>
 							<line x1={x} y1={xAxisY - tickLength} x2={x} y2={xAxisY + tickLength} className="stroke-zinc-600/60" strokeWidth={axisStroke} />
 							{xShowLabels && isRegularLabel &&
 							<text x={x} y={xAxisY + tickLength + 9 * scale} textAnchor="middle" fontSize={fontSize} className="fill-zinc-500">
-								{tick.absolute.toFixed(xDecimalPlaces)}{xAxis?.unit ?? ""}
+								{value.toFixed(xDecimalPlaces)}{xAxis?.unit ?? ""}
 							</text>
 							}
 						</g>

@@ -6,10 +6,6 @@ import { Input } from "../shared/components/primitives/Input";
 import { LineGraph } from "../shared/components/primitives/LineGraph";
 import SceneBackground from "../features/RocketModle/components/SceneBackground";
 
-
-const ACCEL_SAMPLES_IN_CHART = 10;
-const GYRO_SAMPLES_IN_CHART = 10;
-
 export default function HomeScreen() {
 	const { connected, setGimbalPos, beepBuzzer, firePyroChanel, getIMU } = useRadioLink();
 	const [gimbalX, setGimbalX] = useState("0");
@@ -17,29 +13,31 @@ export default function HomeScreen() {
 	const [channel, setChannel] = useState("1");
 	const [error, setError] = useState<string | null>(null);
 
-	const [accelX, setAccelX] = useState<number[]>([]);
-	const [accelY, setAccelY] = useState<number[]>([]);
-	const [accelZ, setAccelZ] = useState<number[]>([]);
-	const [accelSampleCount, setAccelSampleCount] = useState(0);
-	const [gyroX, setGyroX] = useState<number[]>([]);
-	const [gyroY, setGyroY] = useState<number[]>([]);
-	const [gyroZ, setGyroZ] = useState<number[]>([]);
-	const [gyroSampleCount, setGyroSampleCount] = useState(0);
+	const [accelX, setAccelX] = useState<{ x: number; y: number }[]>([]);
+	const [accelY, setAccelY] = useState<{ x: number; y: number }[]>([]);
+	const [accelZ, setAccelZ] = useState<{ x: number; y: number }[]>([]);
+	const [gyroX, setGyroX] = useState<{ x: number; y: number }[]>([]);
+	const [gyroY, setGyroY] = useState<{ x: number; y: number }[]>([]);
+	const [gyroZ, setGyroZ] = useState<{ x: number; y: number }[]>([]);
+	const chartStartT = Date.now();
 
 	useEffect(() => {
-		const interval = setInterval(() => {
-			getIMU().then(imu => {
-				setAccelX(prev => [...prev.slice(-ACCEL_SAMPLES_IN_CHART), imu.accelX_m_s2]);
-				setAccelY(prev => [...prev.slice(-ACCEL_SAMPLES_IN_CHART), imu.accelY_m_s2]);
-				setAccelZ(prev => [...prev.slice(-ACCEL_SAMPLES_IN_CHART), imu.accelZ_m_s2]);
-				setAccelSampleCount(prev => prev + 1);
-				setGyroX(prev => [...prev.slice(-GYRO_SAMPLES_IN_CHART), imu.gyroX_rad_s]);
-				setGyroY(prev => [...prev.slice(-GYRO_SAMPLES_IN_CHART), imu.gyroY_rad_s]);
-				setGyroZ(prev => [...prev.slice(-GYRO_SAMPLES_IN_CHART), imu.gyroZ_rad_s]);
-				setGyroSampleCount(prev => prev + 1);
-			});
-		}, 500);
-		return () => clearInterval(interval);
+		let cancelled = false;
+		const pollIMU = async () => {
+			while (!cancelled) {
+				const imu = await getIMU();
+				const t = (Date.now() - chartStartT) / 1000;
+				// Cap on stored samples is just a memory bound, not the visible window - LineGraph's maxXinFrame handles that.
+				setAccelX(prev => [...prev.slice(-100), { x: t, y: imu.accelX_m_s2 }]);
+				setAccelY(prev => [...prev.slice(-100), { x: t, y: imu.accelY_m_s2 }]);
+				setAccelZ(prev => [...prev.slice(-100), { x: t, y: imu.accelZ_m_s2 }]);
+				setGyroX(prev => [...prev.slice(-100), { x: t, y: imu.gyroX_rad_s }]);
+				setGyroY(prev => [...prev.slice(-100), { x: t, y: imu.gyroY_rad_s }]);
+				setGyroZ(prev => [...prev.slice(-100), { x: t, y: imu.gyroZ_rad_s }]);
+			}
+		};
+		pollIMU();
+		return () => { cancelled = true; };
 	}, []);
 
 	async function run(action: () => Promise<void>) {
@@ -67,7 +65,7 @@ export default function HomeScreen() {
 							scale={1.2}
 							yAutoscaleMin={-10}
 							yAutoscaleMax={10}
-							xOffset={Math.max(0, accelSampleCount - ACCEL_SAMPLES_IN_CHART)}
+							maxXinFrame={15}
 							xAxis={{ label: "Time", tickInterval: 2, labelEvery: 0, atZero: true }}
 							yAxis={{ label: "Accel", unit: "m/s²", tickInterval: 2, labelEvery: 2 }}
 						/>
@@ -84,7 +82,7 @@ export default function HomeScreen() {
 							scale={1.2}
 							yAutoscaleMin={-5}
 							yAutoscaleMax={5}
-							xOffset={Math.max(0, gyroSampleCount - GYRO_SAMPLES_IN_CHART)}
+							maxXinFrame={15}
 							xAxis={{ label: "Time", tickInterval: 2, labelEvery: 0, atZero: true }}
 							yAxis={{ label: "Gyro", unit: "rad/s", tickInterval: 1, labelEvery: 2 }}
 						/>
