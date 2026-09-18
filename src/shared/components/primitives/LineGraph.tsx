@@ -103,6 +103,12 @@ function buildPath(points: Point[], xMin: number, xSpan: number, yMin: number, y
 	return commands.join(" ");
 }
 
+/** Rough glyph width estimate for the (monospace-ish) tick label font, used to reserve just enough
+ * left margin that Y tick labels never collide with the axis title. Slightly generous by design. */
+function estimateTextWidth(text: string, fontSize: number): number {
+	return text.length * fontSize * 0.62;
+}
+
 const WIDTH = 400;
 const BASE_MARGIN_TOP = 8;
 const BASE_MARGIN_RIGHT = 8;
@@ -157,17 +163,7 @@ export function LineGraph({
 	const lineStroke = BASE_LINE_STROKE * scale;
 	const axisStroke = BASE_AXIS_STROKE * scale;
 
-	const marginLeft = (20 + (yShowLabels ? 24 : 0) + (yAxis?.label ? 14 : 0)) * scale;
-	// When the axis sits at Y=0, its tick labels render inside the plot, so the bottom margin
-	// only needs room for the axis title (not the tick labels).
-	const bottomTickSpace = xAxis?.atZero ? 0 : (xShowLabels ? 14 : 0);
-	const marginBottom = (6 + bottomTickSpace + (xAxis?.label ? 14 : 0)) * scale;
-	const plotWidth = WIDTH - marginLeft - marginRight;
-	const plotHeight = height - marginTop - marginBottom;
-	const axisX = marginLeft;
-	const axisY = marginTop + plotHeight;
-
-	const { paths, yTicks, xTicks, xMin, xSpan } = useMemo(() => {
+	const { pointsPerSeries, yLo, ySpan, xMin, xSpan, yTicks, xTicks } = useMemo(() => {
 		const pointsPerSeries = clipToWindow(toAbsolutePoints(series, maxPoints, xOffset), maxXinFrame);
 		const allPoints = pointsPerSeries.flat();
 
@@ -186,17 +182,39 @@ export function LineGraph({
 		const [xMin, xMax] = finiteXs.length ? minMax(finiteXs, xOffset) : [xOffset, xOffset];
 		const xSpan = xMax - xMin || 1;
 
-		const plot = { axisX, marginTop, plotWidth, plotHeight };
 		// Drop ticks computeTicks rounded outside the real domain so they don't render past the axis.
 		const xTickTolerance = xSpan * 1e-6;
 		return {
-			paths: pointsPerSeries.map(points => buildPath(points, xMin, xSpan, yLo, ySpan, plot)),
-			yTicks: computeTicks(yLo, yHi, yAxis?.tickInterval, 4),
-			xTicks: computeTicks(xMin, xMax, xAxis?.tickInterval, 5).filter(t => t >= xMin - xTickTolerance && t <= xMax + xTickTolerance),
+			pointsPerSeries,
+			yLo,
+			ySpan,
 			xMin,
 			xSpan,
+			yTicks: computeTicks(yLo, yHi, yAxis?.tickInterval, 4),
+			xTicks: computeTicks(xMin, xMax, xAxis?.tickInterval, 5).filter(t => t >= xMin - xTickTolerance && t <= xMax + xTickTolerance),
 		};
-	}, [series, maxPoints, yMin, yMax, yAutoscaleMin, yAutoscaleMax, yAxis?.tickInterval, xAxis?.tickInterval, plotWidth, plotHeight, axisX, marginTop, xOffset, maxXinFrame]);
+	}, [series, maxPoints, yMin, yMax, yAutoscaleMin, yAutoscaleMax, yAxis?.tickInterval, xAxis?.tickInterval, xOffset, maxXinFrame]);
+
+	// Reserve exactly as much left margin as the widest rendered Y tick label needs, so the axis
+	// title (fixed just left of that column) never overlaps long labels (e.g. negative decimals + unit).
+	const yTickLabelWidth = yShowLabels
+		? yTicks.reduce((widest, v) => Math.max(widest, estimateTextWidth(`${v.toFixed(yDecimalPlaces)}${yAxis?.unit ?? ""}`, fontSize)), 0)
+		: 0;
+
+	const marginLeft = 20 * scale + yTickLabelWidth + (yAxis?.label ? 14 * scale : 0);
+	// When the axis sits at Y=0, its tick labels render inside the plot, so the bottom margin
+	// only needs room for the axis title (not the tick labels).
+	const bottomTickSpace = xAxis?.atZero ? 0 : (xShowLabels ? 14 : 0);
+	const marginBottom = (6 + bottomTickSpace + (xAxis?.label ? 14 : 0)) * scale;
+	const plotWidth = WIDTH - marginLeft - marginRight;
+	const plotHeight = height - marginTop - marginBottom;
+	const axisX = marginLeft;
+	const axisY = marginTop + plotHeight;
+
+	const paths = useMemo(
+		() => pointsPerSeries.map(points => buildPath(points, xMin, xSpan, yLo, ySpan, { axisX, marginTop, plotWidth, plotHeight })),
+		[pointsPerSeries, xMin, xSpan, yLo, ySpan, axisX, marginTop, plotWidth, plotHeight]
+	);
 
 	const valueToY = (value: number) => {
 		const min = yTicks[0];
