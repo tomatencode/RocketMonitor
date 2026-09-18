@@ -80,10 +80,14 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
         };
     }, [usbConnected]);
 
-    const queueSetGimbalPos = async (degX: number, degY: number): Promise<void> => {
+    const checkConnection = () => {
         if (!connected) {
             throw new Error("Not connected to the radio link");
         }
+    };
+
+    const queueSetGimbalPos = async (degX: number, degY: number): Promise<void> => {
+        checkConnection();
         const payload = new Uint8Array(4);
         const view = new DataView(payload.buffer);
         view.setInt16(0, degX, true);
@@ -92,57 +96,43 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     }
 
     const setGimbalPos = async (degX: number, degY: number): Promise<void> => {
-        if (!connected) {
-            throw new Error("Not connected to the radio link");
-        }
+        checkConnection();
         const pending = queueSetGimbalPos(degX, degY);
         sendQueuedCommands();
         await pending;
     }
 
     const queueBeepBuzzer = async (): Promise<void> => {
-        if (!connected) {
-            throw new Error("Not connected to the radio link");
-        }
+        checkConnection();
         await queueMessage(MessageType.DO_BEEP);
     }
 
     const beepBuzzer = async (): Promise<void> => {
-        if (!connected) {
-            throw new Error("Not connected to the radio link");
-        }
+        checkConnection();
         const pending = queueBeepBuzzer();
         sendQueuedCommands();
         await pending;
     }
 
     const queueFirePyroChanel = async (channel: number): Promise<void> => {
-        if (!connected) {
-            throw new Error("Not connected to the radio link");
-        }
+        checkConnection();
         await queueMessage(MessageType.FIRE_PYRO, new Uint8Array([channel]));
     }
 
     const firePyroChanel = async (channel: number): Promise<void> => {
-        if (!connected) {
-            throw new Error("Not connected to the radio link");
-        }
+        checkConnection();
         const pending = queueFirePyroChanel(channel);
         sendQueuedCommands();
         await pending;
     }
 
     const sendQueuedCommands = () => {
-        if (!connected) {
-            throw new Error("Not connected to the radio link");
-        }
+        checkConnection();
         sendFrame();
     }
 
     const queueGetIMU = async (): Promise<IMUData> => {
-        if (!connected) {
-            throw new Error("Not connected to the radio link");
-        }
+        checkConnection();
         const response = await queueMessage(MessageType.GET_IMU);
 
         if (!response.payload || response.payload.byteLength < 12) {
@@ -166,9 +156,7 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     }
 
     const getIMU = async (): Promise<IMUData> => {
-        if (!connected) {
-            throw new Error("Not connected to the radio link");
-        }
+        checkConnection();
         const pending = queueGetIMU();
         sendQueuedCommands();
         const imuData = await pending;
