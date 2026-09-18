@@ -1,45 +1,42 @@
 import { useEffect, useState } from "react";
 import { useRadioLink } from "../features/RadioLink/RadioLinkContext";
-import { useRocketLink } from "../features/RocketLink/RocketLinkContext";
 import { Button } from "../shared/components/primitives/Button";
 import { Card } from "../shared/components/primitives/Card";
 import { Input } from "../shared/components/primitives/Input";
 import { LineGraph } from "../shared/components/primitives/LineGraph";
 import SceneBackground from "../features/RocketModle/components/SceneBackground";
 
-function parseHex(input: string): number[] | null {
-	const tokens = input.trim().split(/\s+/);
-	if (tokens.length === 0 || (tokens.length === 1 && tokens[0] === "")) return [];
-	const bytes = tokens.map(token => parseInt(token, 16));
-	return bytes.some(byte => isNaN(byte) || byte < 0 || byte > 255) ? null : bytes;
-}
+
+const ACCEL_SAMPLES_IN_CHART = 10;
+const GYRO_SAMPLES_IN_CHART = 10;
 
 export default function HomeScreen() {
 	const { connected, setGimbalPos, beepBuzzer, firePyroChanel, getIMU } = useRadioLink();
-	const { connected: usbConnected, sendRadio, sendAT } = useRocketLink();
 	const [gimbalX, setGimbalX] = useState("0");
 	const [gimbalY, setGimbalY] = useState("0");
 	const [channel, setChannel] = useState("1");
 	const [error, setError] = useState<string | null>(null);
-	const [radioInput, setRadioInput] = useState("DE AD BE EF");
-	const [atCommand, setAtCommand] = useState("AT+VER");
-	const [rocketError, setRocketError] = useState<string | null>(null);
 
 	const [accelX, setAccelX] = useState<number[]>([]);
 	const [accelY, setAccelY] = useState<number[]>([]);
 	const [accelZ, setAccelZ] = useState<number[]>([]);
 	const [accelSampleCount, setAccelSampleCount] = useState(0);
+	const [gyroX, setGyroX] = useState<number[]>([]);
+	const [gyroY, setGyroY] = useState<number[]>([]);
+	const [gyroZ, setGyroZ] = useState<number[]>([]);
+	const [gyroSampleCount, setGyroSampleCount] = useState(0);
 
 	useEffect(() => {
-		const start = Date.now();
 		const interval = setInterval(() => {
-			const t = (Date.now() - start) / 500;
-
 			getIMU().then(imu => {
-				setAccelX(prev => [...prev.slice(-199), imu.accelX_m_s2]);
-				setAccelY(prev => [...prev.slice(-199), imu.accelY_m_s2]);
-				setAccelZ(prev => [...prev.slice(-199), imu.accelZ_m_s2]);
+				setAccelX(prev => [...prev.slice(-ACCEL_SAMPLES_IN_CHART), imu.accelX_m_s2]);
+				setAccelY(prev => [...prev.slice(-ACCEL_SAMPLES_IN_CHART), imu.accelY_m_s2]);
+				setAccelZ(prev => [...prev.slice(-ACCEL_SAMPLES_IN_CHART), imu.accelZ_m_s2]);
 				setAccelSampleCount(prev => prev + 1);
+				setGyroX(prev => [...prev.slice(-GYRO_SAMPLES_IN_CHART), imu.gyroX_rad_s]);
+				setGyroY(prev => [...prev.slice(-GYRO_SAMPLES_IN_CHART), imu.gyroY_rad_s]);
+				setGyroZ(prev => [...prev.slice(-GYRO_SAMPLES_IN_CHART), imu.gyroZ_rad_s]);
+				setGyroSampleCount(prev => prev + 1);
 			});
 		}, 500);
 		return () => clearInterval(interval);
@@ -54,37 +51,12 @@ export default function HomeScreen() {
 		}
 	}
 
-	async function handleSendRadio() {
-		setRocketError(null);
-		const bytes = parseHex(radioInput);
-		if (bytes === null) { setRocketError("Invalid hex bytes"); return; }
-		try { await sendRadio(bytes); } catch (e) { setRocketError(String(e)); }
-	}
-
-	async function handleSendAT() {
-		setRocketError(null);
-		try { await sendAT(atCommand); } catch (e) { setRocketError(String(e)); }
-	}
-
 	return (
 		<div className="relative flex h-full bg-transparent text-zinc-200 font-mono text-sm overflow-hidden p-3 gap-3">
 			<SceneBackground />
 			<div className="relative z-10 flex flex-row min-h-0 gap-3 overflow-x-auto w-full">
 				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
-					<span className={`text-xs font-semibold tracking-wide uppercase ${usbConnected ? "text-zinc-300" : "text-zinc-600"}`}>Rocket-Link Commands</span>
-					<Card className="p-3 flex flex-col gap-2 border border-zinc-700/60">
-						<span className={`text-xs font-semibold tracking-wide uppercase ${usbConnected ? "text-zinc-300" : "text-zinc-600"}`}>Send Radio</span>
-						<Input type="text" value={radioInput} onChange={e => setRadioInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSendRadio()} disabled={!usbConnected} />
-						<Button variant="primary" className="px-3 py-1.5 text-xs self-start" disabled={!usbConnected} onClick={handleSendRadio}>Send Radio</Button>
-					</Card>
-					<Card className="p-3 flex flex-col gap-2 border border-zinc-700/60">
-						<span className={`text-xs font-semibold tracking-wide uppercase ${usbConnected ? "text-yellow-300" : "text-yellow-300/40"}`}>AT Command</span>
-						<Input type="text" value={atCommand} onChange={e => setAtCommand(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSendAT()} disabled={!usbConnected} />
-						<Button variant="warning" className="px-3 py-1.5 text-xs self-start" disabled={!usbConnected} onClick={handleSendAT}>Send AT</Button>
-					</Card>
-				</div>
-				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
-					<span className="text-xs font-semibold tracking-wide uppercase text-zinc-300">Line Graph Test</span>
+					<span className="text-xs font-semibold tracking-wide uppercase text-zinc-300">Accelerometer Linechart</span>
 					<Card className="p-3 flex flex-col gap-2 border border-zinc-700/60">
 						<LineGraph
 							series={[
@@ -93,11 +65,32 @@ export default function HomeScreen() {
 								{ label: "accelZ", color: "#34d399", data: accelZ },
 							]}
 							scale={1.2}
-							xOffset={Math.max(0, accelSampleCount - 200)}
-							xAxis={{ label: "Time", tickInterval: 20, labelEvery: 0, atZero: true }}
-							yAxis={{ label: "Accel", unit: "m/s²", labelEvery: 0 }}
+							yAutoscaleMin={-10}
+							yAutoscaleMax={10}
+							xOffset={Math.max(0, accelSampleCount - ACCEL_SAMPLES_IN_CHART)}
+							xAxis={{ label: "Time", tickInterval: 2, labelEvery: 0, atZero: true }}
+							yAxis={{ label: "Accel", unit: "m/s²", tickInterval: 2, labelEvery: 2 }}
 						/>
 					</Card>
+
+					<span className="text-xs font-semibold tracking-wide uppercase text-zinc-300">Gyroscope Linechart</span>
+					<Card className="p-3 flex flex-col gap-2 border border-zinc-700/60">
+						<LineGraph
+							series={[
+								{ label: "gyroX", color: "#38bdf8", data: gyroX },
+								{ label: "gyroY", color: "#f472b6", data: gyroY },
+								{ label: "gyroZ", color: "#34d399", data: gyroZ },
+							]}
+							scale={1.2}
+							yAutoscaleMin={-5}
+							yAutoscaleMax={5}
+							xOffset={Math.max(0, gyroSampleCount - GYRO_SAMPLES_IN_CHART)}
+							xAxis={{ label: "Time", tickInterval: 2, labelEvery: 0, atZero: true }}
+							yAxis={{ label: "Gyro", unit: "rad/s", tickInterval: 1, labelEvery: 2 }}
+						/>
+					</Card>
+				</div>
+				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
 					<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Radio-Link Commands</span>
 					<Card className="p-3 flex flex-col gap-2 border border-zinc-700/60">
 						<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Set Gimbal Position</span>
@@ -119,11 +112,6 @@ export default function HomeScreen() {
 					{error &&
 					<Card variant="error" className="p-3 flex flex-col gap-2">
 						<span className="text-xs text-red-400 break-all">{error}</span>
-					</Card>
-					}
-					{rocketError &&
-					<Card variant="error" className="p-3 flex flex-col gap-2">
-						<span className="text-xs text-red-400 break-all">{rocketError}</span>
 					</Card>
 					}
 				</div>

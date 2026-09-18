@@ -34,21 +34,6 @@ interface RadioLinkContextValue {
 
 const PING_INTERVAL_MS = 1000;
 
-function readFloat16(data: DataView, offset: number): number {
-    const bits = data.getUint16(offset, true);
-    const sign = (bits & 0x8000) === 0 ? 1 : -1;
-    const exponent = (bits >>> 10) & 0x1f;
-    const fraction = bits & 0x03ff;
-
-    if (exponent === 0) {
-        return sign * 2 ** -14 * (fraction / 2 ** 10);
-    }
-    if (exponent === 0x1f) {
-        return fraction === 0 ? sign * Infinity : Number.NaN;
-    }
-    return sign * 2 ** (exponent - 15) * (1 + fraction / 2 ** 10);
-}
-
 const RadioLinkContext = createContext<RadioLinkContextValue | null>(null);
 
 export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
@@ -146,12 +131,12 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
             response.payload.byteLength,
         );
         const imuData: IMUData = {
-            accelX_m_s2: readFloat16(data, 0) / 1000,
-            accelY_m_s2: readFloat16(data, 2) / 1000,
-            accelZ_m_s2: readFloat16(data, 4) / 1000,
-            gyroX_rad_s: readFloat16(data, 6) / 1000,
-            gyroY_rad_s: readFloat16(data, 8) / 1000,
-            gyroZ_rad_s: readFloat16(data, 10) / 1000,
+            accelX_m_s2: data.getInt16(0, true) / 1000,
+            accelY_m_s2: data.getInt16(2, true) / 1000,
+            accelZ_m_s2: data.getInt16(4, true) / 1000,
+            gyroX_rad_s: data.getInt16(6, true) / 1000,
+            gyroY_rad_s: data.getInt16(8, true) / 1000,
+            gyroZ_rad_s: data.getInt16(10, true) / 1000,
         };
         return imuData;
     }

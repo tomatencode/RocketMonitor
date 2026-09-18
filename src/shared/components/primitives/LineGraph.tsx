@@ -34,6 +34,9 @@ interface LineGraphProps {
 	/** Fixed Y axis bounds. Falls back to auto-scaling from the visible data when omitted. */
 	yMin?: number;
 	yMax?: number;
+	/** Minimum Y value used for auto-scaling when `yMin` is not specified. */
+	yAutoscaleMin?: number;
+	yAutoscaleMax?: number;
 	/** Uniformly scales fonts, line thickness, ticks and margins. Defaults to 1. */
 	scale?: number;
 	/** Absolute index of the first sample currently in `series` data. Increment this as old
@@ -58,7 +61,11 @@ function niceStep(span: number, targetTicks: number): number {
 function computeTicks(min: number, max: number, interval: number | undefined, targetTicks: number): number[] {
 	const step = interval && interval > 0 ? interval : niceStep(max - min, targetTicks);
 	const ticks: number[] = [];
-	for (let v = min; v <= max + step * 0.001; v += step) ticks.push(v);
+	const firstTick = Math.floor(min / step) * step;
+	const lastTick = Math.ceil(max / step) * step;
+	for (let v = firstTick; v <= lastTick + step * 0.001; v += step) {
+		ticks.push(Number(v.toFixed(10)));
+	}
 	return ticks;
 }
 
@@ -82,12 +89,14 @@ export function LineGraph({
 	yAxis,
 	yMin,
 	yMax,
+	yAutoscaleMin,
+	yAutoscaleMax,
 	scale = 1,
 	xOffset = 0,
 }: LineGraphProps) {
-	const xLabelEvery = xAxis?.labelEvery ?? 2;
-	const yLabelEvery = yAxis?.labelEvery ?? 2;
-	const xShowLabels = xAxis?.showTickLabels ?? true;
+	const xLabelEvery = Math.max(1, xAxis?.labelEvery ?? 2);
+	const yLabelEvery = Math.max(1, yAxis?.labelEvery ?? 2);
+	const xShowLabels = xAxis?.showTickLabels ?? false;
 	const yShowLabels = yAxis?.showTickLabels ?? true;
 	const xDecimalPlaces = Math.max(0, Math.min(100, xAxis?.decimalPlaces ?? 1));
 	const yDecimalPlaces = Math.max(0, Math.min(100, yAxis?.decimalPlaces ?? 1));
@@ -114,8 +123,12 @@ export function LineGraph({
 		const finiteValues = trimmed.flat().filter(Number.isFinite);
 		const autoMin = finiteValues.length ? Math.min(...finiteValues) : 0;
 		const autoMax = finiteValues.length ? Math.max(...finiteValues) : 1;
-		let min: number = yMin !== undefined && Number.isFinite(yMin) ? yMin : autoMin;
-		let max: number = yMax !== undefined && Number.isFinite(yMax) ? yMax : autoMax;
+		const autoBoundedMin = Math.min(autoMin, yAutoscaleMin ?? 0);
+		const autoBoundedMax = Math.max(autoMax, yAutoscaleMax ?? 0);
+		let min: number = yMin !== undefined && Number.isFinite(yMin) ? yMin : autoBoundedMin;
+		let max: number = yMax !== undefined && Number.isFinite(yMax) ? yMax : autoBoundedMax;
+		if (yMin === undefined && min > 0) min = 0;
+		if (yMax === undefined && max < 0) max = 0;
 		if (min === max) { min -= 1; max += 1; }
 		const span = max - min;
 		const pointCount = trimmed.reduce((longest, data) => Math.max(longest, data.length), 0);
@@ -164,10 +177,14 @@ export function LineGraph({
 				{/* Y ticks: short marks crossing the axis, labeled every Nth */}
 				{yTicks.map((value, i) => {
 					const y = valueToY(value);
+					const zeroTickIndex = yTicks.findIndex(tick => tick === 0);
+					const isRegularLabel = zeroTickIndex >= 0
+						? (i - zeroTickIndex) % yLabelEvery === 0
+						: i % yLabelEvery === 0;
 					return (
 						<g key={`y-${i}`}>
 							<line x1={axisX - tickLength} y1={y} x2={axisX + tickLength} y2={y} className="stroke-zinc-600/60" strokeWidth={axisStroke} />
-							{yShowLabels && i % yLabelEvery === 0 &&
+							{yShowLabels && isRegularLabel &&
 							<text x={axisX - tickLength - 3 * scale} y={y} textAnchor="end" dominantBaseline="middle" fontSize={fontSize} className="fill-zinc-500">
 								{value.toFixed(yDecimalPlaces)}{yAxis?.unit ?? ""}
 							</text>
@@ -178,12 +195,13 @@ export function LineGraph({
 
 				{/* X ticks: short marks crossing the axis, labeled every Nth. Aligned to the absolute
 				   sample index (via xOffset) so they scroll with the data instead of the window. */}
-				{xTicks.map((tick, i) => {
+				{xTicks.map(tick => {
 					const x = indexToX(tick.local);
+					const isRegularLabel = tick.absolute % xLabelEvery === 0;
 					return (
 						<g key={`x-${tick.absolute}`}>
 							<line x1={x} y1={xAxisY - tickLength} x2={x} y2={xAxisY + tickLength} className="stroke-zinc-600/60" strokeWidth={axisStroke} />
-							{xShowLabels && i % xLabelEvery === 0 &&
+							{xShowLabels && isRegularLabel &&
 							<text x={x} y={xAxisY + tickLength + 9 * scale} textAnchor="middle" fontSize={fontSize} className="fill-zinc-500">
 								{tick.absolute.toFixed(xDecimalPlaces)}{xAxis?.unit ?? ""}
 							</text>
