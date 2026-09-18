@@ -189,10 +189,11 @@ export function ScrollView({
         // Only a real scroll gesture should be able to unstick from the bottom - a click/tap on
         // content (e.g. a button in a log row) must not interrupt an in-progress catch-up animation.
         const onPointerDown = (event: PointerEvent) => {
-            // Dragging the scrollbar thumb itself doesn't fire wheel/touchmove, so detect it separately:
-            // it's the only way a pointerdown directly on the scroll container (not a child) can occur.
+            // Dragging the scrollbar thumb (or clicking its track) doesn't fire wheel/touchmove and
+            // doesn't hit any content, so `target` is the scroll container itself - unlike a click on
+            // content, which always targets a descendant. offsetX/clientWidth isn't reliable here since
+            // overlay scrollbars don't reserve any layout width.
             if (event.target !== scroll) return;
-            if (event.offsetX < scroll.clientWidth) return;
             gesture.start();
             cancelAutoScroll();
             const onPointerUp = () => { gesture.extend(); window.removeEventListener("pointerup", onPointerUp); };
