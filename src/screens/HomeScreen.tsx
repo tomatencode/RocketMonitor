@@ -25,6 +25,10 @@ export default function HomeScreen() {
 		let cancelled = false;
 		const pollIMU = async () => {
 			while (!cancelled) {
+				if (!connected) {
+					await new Promise(resolve => setTimeout(resolve, 100)); // Wait a bit before retrying
+					return;
+				}
 				const imu = await getIMU();
 				const t = (Date.now() - chartStartT) / 1000;
 				// Cap on stored samples is just a memory bound, not the visible window - LineGraph's maxXinFrame handles that.
@@ -38,7 +42,7 @@ export default function HomeScreen() {
 		};
 		pollIMU();
 		return () => { cancelled = true; };
-	}, []);
+	}, [connected]);
 
 	async function run(action: () => Promise<void>) {
 		setError(null);
