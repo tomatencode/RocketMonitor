@@ -160,10 +160,12 @@ export function LineGraph({
 				.join(" ");
 		};
 
+		// Drop ticks computeTicks rounded outside the real domain so they don't render past the axis.
+		const xTickTolerance = xSpan * 1e-6;
 		return {
 			paths: trimmed.map(toXY),
 			yTicks: computeTicks(min, max, yAxis?.tickInterval, 4),
-			xTicks: computeTicks(xMin, xMax, xAxis?.tickInterval, 5),
+			xTicks: computeTicks(xMin, xMax, xAxis?.tickInterval, 5).filter(t => t >= xMin - xTickTolerance && t <= xMax + xTickTolerance),
 			xMin,
 			xSpan,
 		};
