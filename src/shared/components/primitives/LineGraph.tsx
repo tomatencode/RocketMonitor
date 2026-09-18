@@ -14,7 +14,7 @@ export interface AxisOptions {
 	label?: string;
 	/** Unit suffix appended to tick labels and the axis title, e.g. "s" or "m". */
 	unit?: string;
-	/** Number of decimal places used for tick labels. Defaults to 0 for X and 2 for Y. */
+	/** Number of decimal places used for tick labels. Defaults to 1. */
 	decimalPlaces?: number;
 	/** Spacing between ticks, in data units (index step for X, value step for Y). Auto-computed if omitted. */
 	tickInterval?: number;
@@ -53,8 +53,54 @@ interface LineGraphProps {
 	maxXinFrame?: number;
 }
 
-function toPoint(sample: LineGraphPoint, index: number, xOffset: number): { x: number; y: number } {
+type Point = { x: number; y: number };
+
+function toPoint(sample: LineGraphPoint, index: number, xOffset: number): Point {
 	return typeof sample === "number" ? { x: xOffset + index, y: sample } : sample;
+}
+
+/** Min/max over a flat array via a single reduce pass - avoids Math.max(...arr)/Math.min(...arr),
+ * which risk a stack overflow on large arrays. Returns `fallback` when `values` is empty. */
+function minMax(values: number[], fallback: number): [min: number, max: number] {
+	if (values.length === 0) return [fallback, fallback];
+	let min = values[0];
+	let max = values[0];
+	for (const v of values) {
+		if (v < min) min = v;
+		if (v > max) max = v;
+	}
+	return [min, max];
+}
+
+/** Converts each series' raw samples to sorted, absolute {x, y} points, most recent `maxPoints` only. */
+function toAbsolutePoints(series: LineGraphSeries[], maxPoints: number, xOffset: number): Point[][] {
+	return series.map(s =>
+		s.data.slice(-maxPoints).map((sample, i) => toPoint(sample, i, xOffset)).sort((a, b) => a.x - b.x)
+	);
+}
+
+/** Keeps only points whose x falls within the trailing `maxXinFrame` window of the latest x across all series. */
+function clipToWindow(pointsPerSeries: Point[][], maxXinFrame: number | undefined): Point[][] {
+	if (maxXinFrame === undefined) return pointsPerSeries;
+	const allX = pointsPerSeries.flatMap(points => points.map(p => p.x)).filter(Number.isFinite);
+	if (allX.length === 0) return pointsPerSeries;
+	const [, latestX] = minMax(allX, 0);
+	const cutoff = latestX - maxXinFrame;
+	return pointsPerSeries.map(points => points.filter(p => p.x >= cutoff));
+}
+
+/** Builds an SVG path "d" string for one series' points, mapped into plot pixel space. Skips non-finite samples. */
+function buildPath(points: Point[], xMin: number, xSpan: number, yMin: number, ySpan: number, plot: { axisX: number; marginTop: number; plotWidth: number; plotHeight: number }): string {
+	let hasPoint = false;
+	const commands: string[] = [];
+	for (const { x: px, y: value } of points) {
+		if (!Number.isFinite(value) || !Number.isFinite(px)) continue;
+		const x = plot.axisX + ((px - xMin) / xSpan) * plot.plotWidth;
+		const y = plot.marginTop + plot.plotHeight - ((value - yMin) / ySpan) * plot.plotHeight;
+		commands.push(`${hasPoint ? "L" : "M"}${x.toFixed(2)},${y.toFixed(2)}`);
+		hasPoint = true;
+	}
+	return commands.join(" ");
 }
 
 const WIDTH = 400;
@@ -122,54 +168,35 @@ export function LineGraph({
 	const axisY = marginTop + plotHeight;
 
 	const { paths, yTicks, xTicks, xMin, xSpan } = useMemo(() => {
-		const converted = series.map(s => s.data.slice(-maxPoints).map((sample, i) => toPoint(sample, i, xOffset)).sort((a, b) => a.x - b.x));
-		const trimmed = maxXinFrame !== undefined
-			? (() => {
-				const latestX = Math.max(...converted.flatMap(points => points.map(p => p.x)).filter(Number.isFinite), -Infinity);
-				const cutoff = latestX - maxXinFrame;
-				return converted.map(points => points.filter(p => p.x >= cutoff));
-			})()
-			: converted;
-		const finiteValues = trimmed.flat().map(p => p.y).filter(Number.isFinite);
-		const autoMin = finiteValues.length ? Math.min(...finiteValues) : 0;
-		const autoMax = finiteValues.length ? Math.max(...finiteValues) : 1;
+		const pointsPerSeries = clipToWindow(toAbsolutePoints(series, maxPoints, xOffset), maxXinFrame);
+		const allPoints = pointsPerSeries.flat();
+
+		const finiteYs = allPoints.map(p => p.y).filter(Number.isFinite);
+		const [autoMin, autoMax] = minMax(finiteYs, 0);
 		const autoBoundedMin = Math.min(autoMin, yAutoscaleMin ?? 0);
 		const autoBoundedMax = Math.max(autoMax, yAutoscaleMax ?? 0);
-		let min: number = yMin !== undefined && Number.isFinite(yMin) ? yMin : autoBoundedMin;
-		let max: number = yMax !== undefined && Number.isFinite(yMax) ? yMax : autoBoundedMax;
-		if (yMin === undefined && min > 0) min = 0;
-		if (yMax === undefined && max < 0) max = 0;
-		if (min === max) { min -= 1; max += 1; }
-		const span = max - min;
+		let yLo = yMin !== undefined && Number.isFinite(yMin) ? yMin : autoBoundedMin;
+		let yHi = yMax !== undefined && Number.isFinite(yMax) ? yMax : autoBoundedMax;
+		if (yMin === undefined && yLo > 0) yLo = 0;
+		if (yMax === undefined && yHi < 0) yHi = 0;
+		if (yLo === yHi) { yLo -= 1; yHi += 1; }
+		const ySpan = yHi - yLo;
 
-		const finiteXs = trimmed.flat().map(p => p.x).filter(Number.isFinite);
-		const xMin = finiteXs.length ? Math.min(...finiteXs) : xOffset;
-		const xMax = finiteXs.length ? Math.max(...finiteXs) : xOffset;
+		const finiteXs = allPoints.map(p => p.x).filter(Number.isFinite);
+		const [xMin, xMax] = finiteXs.length ? minMax(finiteXs, xOffset) : [xOffset, xOffset];
 		const xSpan = xMax - xMin || 1;
 
-		const toXY = (points: { x: number; y: number }[]) => {
-			let hasPoint = false;
-			return points.flatMap(({ x: px, y: value }) => {
-					if (!Number.isFinite(value) || !Number.isFinite(px)) return [];
-					const x = axisX + ((px - xMin) / xSpan) * plotWidth;
-					const y = marginTop + plotHeight - ((value - min) / span) * plotHeight;
-					const command = `${hasPoint ? "L" : "M"}${x.toFixed(2)},${y.toFixed(2)}`;
-					hasPoint = true;
-					return [command];
-				})
-				.join(" ");
-		};
-
+		const plot = { axisX, marginTop, plotWidth, plotHeight };
 		// Drop ticks computeTicks rounded outside the real domain so they don't render past the axis.
 		const xTickTolerance = xSpan * 1e-6;
 		return {
-			paths: trimmed.map(toXY),
-			yTicks: computeTicks(min, max, yAxis?.tickInterval, 4),
+			paths: pointsPerSeries.map(points => buildPath(points, xMin, xSpan, yLo, ySpan, plot)),
+			yTicks: computeTicks(yLo, yHi, yAxis?.tickInterval, 4),
 			xTicks: computeTicks(xMin, xMax, xAxis?.tickInterval, 5).filter(t => t >= xMin - xTickTolerance && t <= xMax + xTickTolerance),
 			xMin,
 			xSpan,
 		};
-	}, [series, maxPoints, yMin, yMax, yAxis?.tickInterval, xAxis?.tickInterval, plotWidth, plotHeight, axisX, xOffset, maxXinFrame]);
+	}, [series, maxPoints, yMin, yMax, yAutoscaleMin, yAutoscaleMax, yAxis?.tickInterval, xAxis?.tickInterval, plotWidth, plotHeight, axisX, marginTop, xOffset, maxXinFrame]);
 
 	const valueToY = (value: number) => {
 		const min = yTicks[0];
