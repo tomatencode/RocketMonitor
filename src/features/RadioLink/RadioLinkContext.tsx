@@ -90,8 +90,8 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
         checkConnection();
         const payload = new Uint8Array(4);
         const view = new DataView(payload.buffer);
-        view.setInt16(0, degX, true);
-        view.setInt16(2, degY, true);
+        view.setInt16(0, degX * 100, true);
+        view.setInt16(2, degY * 100, true);
         await queueMessage(MessageType.SET_GIMBAL, payload);
     }
 
