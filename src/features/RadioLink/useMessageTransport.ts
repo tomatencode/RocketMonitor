@@ -5,7 +5,7 @@ import { useFrameLog } from "./useFrameLog";
 
 export type { LogEntry } from "./useFrameLog";
 
-const SEND_TIMEOUT_MS = 500;
+const MAX_RESPONSE_TIME = 1000;
 
 export enum ResponseStatus {
     SUCCESS,
@@ -33,7 +33,7 @@ export function useMessageTransport(onResponse?: () => void) {
     const sceduledMessages = useRef<Message[]>([]);
 
     const sendInFlight = useRef(false);
-    const sendDeadline = useRef(0);
+    const receveDeadline = useRef(0);
 
     const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -117,8 +117,8 @@ export function useMessageTransport(onResponse?: () => void) {
 
     const sendFrame = async () => {
         // wait out any cooldown instead of dropping the messages that were counting on this call to flush them
-        while (sendInFlight.current && Date.now() < sendDeadline.current) {
-            await delay(sendDeadline.current - Date.now());
+        while (sendInFlight.current && Date.now() < receveDeadline.current) {
+            await delay(receveDeadline.current - Date.now());
         }
 
         if (pendingResponses.current.size === 0 && sceduledMessages.current.length === 0) return;
@@ -145,7 +145,7 @@ export function useMessageTransport(onResponse?: () => void) {
             });
         
         sendInFlight.current = true;
-        sendDeadline.current = Date.now() + SEND_TIMEOUT_MS;
+        receveDeadline.current = Date.now() + MAX_RESPONSE_TIME;
     };
 
     return { log, queueMessage, sendFrame };
