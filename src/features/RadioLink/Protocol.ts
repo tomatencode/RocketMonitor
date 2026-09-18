@@ -5,6 +5,7 @@ export enum MessageType {
     SET_GIMBAL = 0x02,
     DO_BEEP = 0x03,
     FIRE_PYRO = 0x04,
+    GET_IMU = 0x05,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome

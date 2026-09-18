@@ -15,7 +15,7 @@ function parseHex(input: string): number[] | null {
 }
 
 export default function HomeScreen() {
-	const { connected, setGimbalPos, beepBuzzer, firePyroChanel } = useRadioLink();
+	const { connected, setGimbalPos, beepBuzzer, firePyroChanel, getIMU } = useRadioLink();
 	const { connected: usbConnected, sendRadio, sendAT } = useRocketLink();
 	const [gimbalX, setGimbalX] = useState("0");
 	const [gimbalY, setGimbalY] = useState("0");
@@ -24,18 +24,24 @@ export default function HomeScreen() {
 	const [radioInput, setRadioInput] = useState("DE AD BE EF");
 	const [atCommand, setAtCommand] = useState("AT+VER");
 	const [rocketError, setRocketError] = useState<string | null>(null);
-	const [sinData, setSinData] = useState<number[]>([]);
-	const [cosData, setCosData] = useState<number[]>([]);
-	const [sampleCount, setSampleCount] = useState(0);
+
+	const [accelX, setAccelX] = useState<number[]>([]);
+	const [accelY, setAccelY] = useState<number[]>([]);
+	const [accelZ, setAccelZ] = useState<number[]>([]);
+	const [accelSampleCount, setAccelSampleCount] = useState(0);
 
 	useEffect(() => {
 		const start = Date.now();
 		const interval = setInterval(() => {
 			const t = (Date.now() - start) / 500;
-			setSinData(prev => [...prev.slice(-199), Math.sin(t)]);
-			setCosData(prev => [...prev.slice(-199), Math.cos(t) * 0.6]);
-			setSampleCount(prev => prev + 1);
-		}, 50);
+
+			getIMU().then(imu => {
+				setAccelX(prev => [...prev.slice(-199), imu.accelX_m_s2]);
+				setAccelY(prev => [...prev.slice(-199), imu.accelY_m_s2]);
+				setAccelZ(prev => [...prev.slice(-199), imu.accelZ_m_s2]);
+				setAccelSampleCount(prev => prev + 1);
+			});
+		}, 500);
 		return () => clearInterval(interval);
 	}, []);
 
@@ -82,15 +88,14 @@ export default function HomeScreen() {
 					<Card className="p-3 flex flex-col gap-2 border border-zinc-700/60">
 						<LineGraph
 							series={[
-								{ label: "sin", color: "#38bdf8", data: sinData },
-								{ label: "cos", color: "#f472b6", data: cosData },
+								{ label: "accelX", color: "#38bdf8", data: accelX },
+								{ label: "accelY", color: "#f472b6", data: accelY },
+								{ label: "accelZ", color: "#34d399", data: accelZ },
 							]}
-							yMin={-1.5}
-							yMax={1.5}
 							scale={1.2}
-							xOffset={Math.max(0, sampleCount - 200)}
+							xOffset={Math.max(0, accelSampleCount - 200)}
 							xAxis={{ label: "Time", tickInterval: 20, labelEvery: 0, atZero: true }}
-							yAxis={{ label: "Amplitude", unit: "m", tickInterval: 0.5, labelEvery: 2 }}
+							yAxis={{ label: "Accel", unit: "m/s²", labelEvery: 0 }}
 						/>
 					</Card>
 					<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Radio-Link Commands</span>

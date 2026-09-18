@@ -11,6 +11,8 @@ export interface AxisOptions {
 	label?: string;
 	/** Unit suffix appended to tick labels and the axis title, e.g. "s" or "m". */
 	unit?: string;
+	/** Number of decimal places used for tick labels. Defaults to 0 for X and 2 for Y. */
+	decimalPlaces?: number;
 	/** Spacing between ticks, in data units (index step for X, value step for Y). Auto-computed if omitted. */
 	tickInterval?: number;
 	/** Whether to render numeric labels on ticks. Defaults to true. */
@@ -87,6 +89,8 @@ export function LineGraph({
 	const yLabelEvery = yAxis?.labelEvery ?? 2;
 	const xShowLabels = xAxis?.showTickLabels ?? true;
 	const yShowLabels = yAxis?.showTickLabels ?? true;
+	const xDecimalPlaces = Math.max(0, Math.min(100, xAxis?.decimalPlaces ?? 1));
+	const yDecimalPlaces = Math.max(0, Math.min(100, yAxis?.decimalPlaces ?? 1));
 
 	const marginTop = BASE_MARGIN_TOP * scale;
 	const marginRight = BASE_MARGIN_RIGHT * scale;
@@ -107,11 +111,11 @@ export function LineGraph({
 
 	const { paths, yTicks, xTicks, pointCount } = useMemo(() => {
 		const trimmed = series.map(s => s.data.slice(-maxPoints));
-		const allValues = trimmed.flat();
-		const autoMin = allValues.length ? Math.min(...allValues) : 0;
-		const autoMax = allValues.length ? Math.max(...allValues) : 1;
-		let min = yMin ?? autoMin;
-		let max = yMax ?? autoMax;
+		const finiteValues = trimmed.flat().filter(Number.isFinite);
+		const autoMin = finiteValues.length ? Math.min(...finiteValues) : 0;
+		const autoMax = finiteValues.length ? Math.max(...finiteValues) : 1;
+		let min: number = yMin !== undefined && Number.isFinite(yMin) ? yMin : autoMin;
+		let max: number = yMax !== undefined && Number.isFinite(yMax) ? yMax : autoMax;
 		if (min === max) { min -= 1; max += 1; }
 		const span = max - min;
 		const pointCount = trimmed.reduce((longest, data) => Math.max(longest, data.length), 0);
@@ -120,11 +124,14 @@ export function LineGraph({
 			const count = data.length;
 			if (count === 0) return "";
 			const stepX = count > 1 ? plotWidth / (count - 1) : 0;
-			return data
-				.map((value, i) => {
+			let hasPoint = false;
+			return data.flatMap((value, i) => {
+					if (!Number.isFinite(value)) return [];
 					const x = axisX + i * stepX;
 					const y = marginTop + plotHeight - ((value - min) / span) * plotHeight;
-					return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+					const command = `${hasPoint ? "L" : "M"}${x.toFixed(2)},${y.toFixed(2)}`;
+					hasPoint = true;
+					return [command];
 				})
 				.join(" ");
 		};
@@ -162,7 +169,7 @@ export function LineGraph({
 							<line x1={axisX - tickLength} y1={y} x2={axisX + tickLength} y2={y} className="stroke-zinc-600/60" strokeWidth={axisStroke} />
 							{yShowLabels && i % yLabelEvery === 0 &&
 							<text x={axisX - tickLength - 3 * scale} y={y} textAnchor="end" dominantBaseline="middle" fontSize={fontSize} className="fill-zinc-500">
-								{value.toFixed(2)}{yAxis?.unit ?? ""}
+								{value.toFixed(yDecimalPlaces)}{yAxis?.unit ?? ""}
 							</text>
 							}
 						</g>
@@ -178,7 +185,7 @@ export function LineGraph({
 							<line x1={x} y1={xAxisY - tickLength} x2={x} y2={xAxisY + tickLength} className="stroke-zinc-600/60" strokeWidth={axisStroke} />
 							{xShowLabels && i % xLabelEvery === 0 &&
 							<text x={x} y={xAxisY + tickLength + 9 * scale} textAnchor="middle" fontSize={fontSize} className="fill-zinc-500">
-								{tick.absolute}{xAxis?.unit ?? ""}
+								{tick.absolute.toFixed(xDecimalPlaces)}{xAxis?.unit ?? ""}
 							</text>
 							}
 						</g>
