@@ -38,6 +38,39 @@ const SNAP_THRESHOLD_VIEWPORTS = 2;
 // to cover momentum scrolling without letting unrelated (e.g. virtualizer) scroll events unstick us.
 const USER_GESTURE_GRACE_MS = 400;
 
+interface ScrollState {
+    /** Currently scrolled (within threshold of) the bottom. */
+    atBottom: boolean;
+    /** The catch-up animation is actively driving scrollTop right now. */
+    autoScrolling: boolean;
+    /** A real user gesture (wheel/touch/scrollbar-drag), plus grace period, is in progress. */
+    userGestureActive: boolean;
+    /** rAF handle for the in-progress catch-up animation, if any. */
+    frame: number | null;
+    /** Timestamp of the catch-up animation's previous frame, for frame-rate-independent easing. */
+    frameTime: number | null;
+}
+
+/** Tracks whether a user gesture is ongoing, with a grace period after the last `extend()` call
+ * so momentum scrolling still counts as user-driven. Scroll events outside this window (auto-scroll,
+ * browser scroll anchoring, virtualized rows resizing as they're measured, etc.) must never unstick us. */
+function createUserGestureTracker(state: ScrollState, graceMs: number) {
+    let idleTimeout: number | null = null;
+    return {
+        start() {
+            state.userGestureActive = true;
+            if (idleTimeout !== null) window.clearTimeout(idleTimeout);
+        },
+        extend() {
+            if (idleTimeout !== null) window.clearTimeout(idleTimeout);
+            idleTimeout = window.setTimeout(() => { state.userGestureActive = false; }, graceMs);
+        },
+        dispose() {
+            if (idleTimeout !== null) window.clearTimeout(idleTimeout);
+        },
+    };
+}
+
 export function ScrollView({
     children,
     scrollElementRef,
@@ -67,16 +100,9 @@ export function ScrollView({
     }
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
-    const isAtBottomRef = useRef(true);
-    const isAutoScrollingRef = useRef(false);
-    const autoScrollFrameRef = useRef<number | null>(null);
-    const lastAutoScrollFrameTimeRef = useRef<number | null>(null);
-    // True only while the user is actively dragging/wheeling/touching the scroll area (plus a short
-    // grace period for momentum). Scroll events outside this window (auto-scroll, browser scroll
-    // anchoring, virtualized rows resizing as they're measured, etc.) must never unstick us.
-    const userGestureActiveRef = useRef(false);
+    const state = useRef<ScrollState>({ atBottom: true, autoScrolling: false, userGestureActive: false, frame: null, frameTime: null }).current;
 
-    const isPinnedToBottom = stickToBottom && (isAtBottomRef.current || isAutoScrollingRef.current);
+    const isPinnedToBottom = stickToBottom && (state.atBottom || state.autoScrolling);
     
     const [topGradientSize, setTopGradientSize] = useState(0);
     const [bottomGradientSize, setBottomGradientSize] = useState(0);
@@ -86,12 +112,9 @@ export function ScrollView({
         if (!el) return;
         const distanceFromTop = el.scrollTop;
         const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-        if (!isAutoScrollingRef.current) {
-            if (distanceFromBottom < BOTTOM_THRESHOLD_PX) {
-                isAtBottomRef.current = true;
-            } else if (userGestureActiveRef.current) {
-                isAtBottomRef.current = false;
-            }
+        if (!state.autoScrolling) {
+            if (distanceFromBottom < BOTTOM_THRESHOLD_PX) state.atBottom = true;
+            else if (state.userGestureActive) state.atBottom = false;
         }
         setTopGradientSize(Math.min(distanceFromTop, MAX_GRADIENT_PX));
         setBottomGradientSize(Math.min(distanceFromBottom, MAX_GRADIENT_PX));
@@ -99,22 +122,21 @@ export function ScrollView({
 
     function animateToBottom(timestamp: number) {
         const scroll = scrollRef.current;
-        if (!scroll || !isAutoScrollingRef.current) return;
+        if (!scroll || !state.autoScrolling) return;
 
         const target = scroll.scrollHeight - scroll.clientHeight;
         const distance = target - scroll.scrollTop;
         if (distance <= 1) {
             scroll.scrollTop = target;
-            isAutoScrollingRef.current = false;
-            autoScrollFrameRef.current = null;
-            lastAutoScrollFrameTimeRef.current = null;
+            state.autoScrolling = false;
+            state.frame = null;
+            state.frameTime = null;
             updateScrollState();
             return;
         }
 
-        const lastTime = lastAutoScrollFrameTimeRef.current;
-        lastAutoScrollFrameTimeRef.current = timestamp;
-        const dt = lastTime === null ? 16 : Math.min(timestamp - lastTime, 100);
+        const dt = state.frameTime === null ? 16 : Math.min(timestamp - state.frameTime, 100);
+        state.frameTime = timestamp;
 
         if (distance > scroll.clientHeight * SNAP_THRESHOLD_VIEWPORTS) {
             scroll.scrollTop = target;
@@ -123,14 +145,14 @@ export function ScrollView({
             scroll.scrollTop += Math.max(distance * catchUpFraction, 1);
         }
         updateScrollState();
-        autoScrollFrameRef.current = requestAnimationFrame(animateToBottom);
+        state.frame = requestAnimationFrame(animateToBottom);
     }
 
     function startAutoScroll() {
-        isAutoScrollingRef.current = true;
-        if (autoScrollFrameRef.current === null) {
-            lastAutoScrollFrameTimeRef.current = null;
-            autoScrollFrameRef.current = requestAnimationFrame(animateToBottom);
+        state.autoScrolling = true;
+        if (state.frame === null) {
+            state.frameTime = null;
+            state.frame = requestAnimationFrame(animateToBottom);
         }
     }
 
@@ -138,39 +160,30 @@ export function ScrollView({
         const scroll = scrollRef.current;
         if (!scroll) return;
 
-        isAutoScrollingRef.current = false;
+        state.autoScrolling = false;
         if (initialScrollPosition === "bottom") {
             scroll.scrollTop = scroll.scrollHeight;
-            isAtBottomRef.current = true;
+            state.atBottom = true;
         }
         updateScrollState();
 
         const content = contentRef.current;
         if (!content) return;
 
-        let gestureGraceTimeout: number | null = null;
-        const beginUserGesture = () => {
-            userGestureActiveRef.current = true;
-            if (gestureGraceTimeout !== null) window.clearTimeout(gestureGraceTimeout);
-        };
-        // Wheel/touch gestures fire repeatedly while scrolling, then stop; keep the window open a bit
-        // past the last one so momentum scrolling still counts as user-driven.
-        const scheduleGestureEnd = () => {
-            if (gestureGraceTimeout !== null) window.clearTimeout(gestureGraceTimeout);
-            gestureGraceTimeout = window.setTimeout(() => { userGestureActiveRef.current = false; }, USER_GESTURE_GRACE_MS);
-        };
+        const gesture = createUserGestureTracker(state, USER_GESTURE_GRACE_MS);
+
         const cancelAutoScroll = () => {
-            isAutoScrollingRef.current = false;
-            if (autoScrollFrameRef.current !== null) {
-                cancelAnimationFrame(autoScrollFrameRef.current);
-                autoScrollFrameRef.current = null;
+            state.autoScrolling = false;
+            if (state.frame !== null) {
+                cancelAnimationFrame(state.frame);
+                state.frame = null;
             }
-            lastAutoScrollFrameTimeRef.current = null;
+            state.frameTime = null;
             updateScrollState();
         };
         const onWheelOrTouchMove = () => {
-            beginUserGesture();
-            scheduleGestureEnd();
+            gesture.start();
+            gesture.extend();
             cancelAutoScroll();
         };
         // Only a real scroll gesture should be able to unstick from the bottom - a click/tap on
@@ -180,9 +193,9 @@ export function ScrollView({
             // it's the only way a pointerdown directly on the scroll container (not a child) can occur.
             if (event.target !== scroll) return;
             if (event.offsetX < scroll.clientWidth) return;
-            beginUserGesture();
+            gesture.start();
             cancelAutoScroll();
-            const onPointerUp = () => { scheduleGestureEnd(); window.removeEventListener("pointerup", onPointerUp); };
+            const onPointerUp = () => { gesture.extend(); window.removeEventListener("pointerup", onPointerUp); };
             window.addEventListener("pointerup", onPointerUp);
         };
         scroll.addEventListener("wheel", onWheelOrTouchMove, { passive: true });
@@ -191,7 +204,7 @@ export function ScrollView({
 
         // Content can grow without the scroll container firing a "scroll" event, so watch its size directly
         const observer = new ResizeObserver(() => {
-            if (stickToBottom && (isAtBottomRef.current || isAutoScrollingRef.current)) {
+            if (stickToBottom && (state.atBottom || state.autoScrolling)) {
                 startAutoScroll();
             }
             updateScrollState();
@@ -199,10 +212,10 @@ export function ScrollView({
         observer.observe(content);
         return () => {
             observer.disconnect();
-            if (gestureGraceTimeout !== null) window.clearTimeout(gestureGraceTimeout);
-            if (autoScrollFrameRef.current !== null) {
-                cancelAnimationFrame(autoScrollFrameRef.current);
-                autoScrollFrameRef.current = null;
+            gesture.dispose();
+            if (state.frame !== null) {
+                cancelAnimationFrame(state.frame);
+                state.frame = null;
             }
             scroll.removeEventListener("wheel", onWheelOrTouchMove);
             scroll.removeEventListener("touchmove", onWheelOrTouchMove);
