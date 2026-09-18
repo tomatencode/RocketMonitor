@@ -2,10 +2,11 @@
 export enum MessageType {
     PING = 0x00,
     TELEMETRY = 0x01,
-    SET_GIMBAL = 0x02,
-    DO_BEEP = 0x03,
-    FIRE_PYRO = 0x04,
-    GET_IMU = 0x05,
+    GET_GIMBAL = 0x02,
+    SET_GIMBAL = 0x03,
+    DO_BEEP = 0x04,
+    FIRE_PYRO = 0x05,
+    GET_IMU = 0x06,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome
