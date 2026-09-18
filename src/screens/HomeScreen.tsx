@@ -29,7 +29,15 @@ export default function HomeScreen() {
 					await new Promise(resolve => setTimeout(resolve, 100)); // Wait a bit before retrying
 					return;
 				}
-				const imu = await getIMU();
+				let imu;
+				try {
+				imu = await getIMU();
+				} catch (e) {
+					console.error("Failed to get IMU data:", e);
+					await new Promise(resolve => setTimeout(resolve, 100)); // Wait a bit before retrying
+					continue;
+				}
+
 				const t = (Date.now() - chartStartT) / 1000;
 				// Cap on stored samples is just a memory bound, not the visible window - LineGraph's maxXinFrame handles that.
 				setAccelX(prev => [...prev.slice(-100), { x: t, y: imu.accelX_m_s2 }]);
