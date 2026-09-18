@@ -208,6 +208,21 @@ pub fn run() {
             rocket: Mutex::new(VecDeque::with_capacity(LOG_HISTORY_LIMIT)),
             radio: Mutex::new(VecDeque::with_capacity(LOG_HISTORY_LIMIT)),
         })
+        .setup(|app| {
+            if let Some(main_window) = app.get_webview_window("main") {
+                let app_handle = app.handle().clone();
+                main_window.on_window_event(move |event| {
+                    if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
+                        for label in ["rocket-log", "radio-log"] {
+                            if let Some(window) = app_handle.get_webview_window(label) {
+                                let _ = window.close();
+                            }
+                        }
+                    }
+                });
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             rocket_link_start_search,
             rocket_link_stop_search,
