@@ -7,15 +7,16 @@ import { GroundSpotlight } from "./GroundSpotlight";
 import { useGroundClampedZoom } from "./useGroundClampedZoom";
 
 const GROUND_SPOTLIGHT_RADIUS = 0.3;
-const GROUND_SPOTLIGHT_COUNT = 3;
+const GROUND_SPOTLIGHT_COUNT = 4;
+const GROUND_SPOTLIGHT_ANGLE_OFFSET = Math.PI / 8;
 const GROUND_SPOTLIGHT_TARGET: [number, number, number] = [0, 0.2, 0];
 
 const groundSpotlights = Array.from({ length: GROUND_SPOTLIGHT_COUNT }, (_, index) => {
   const angle = (index / GROUND_SPOTLIGHT_COUNT) * Math.PI * 2;
   const position: [number, number, number] = [
-    Math.cos(angle) * GROUND_SPOTLIGHT_RADIUS,
+    Math.cos(angle + GROUND_SPOTLIGHT_ANGLE_OFFSET) * GROUND_SPOTLIGHT_RADIUS,
     0,
-    Math.sin(angle) * GROUND_SPOTLIGHT_RADIUS,
+    Math.sin(angle + GROUND_SPOTLIGHT_ANGLE_OFFSET) * GROUND_SPOTLIGHT_RADIUS,
   ];
 
   return { position };
@@ -38,7 +39,7 @@ export default function BackgroundScene({ RocketPosition, RocketRotation }: Back
 
   return (
     <div className="pointer-events-none absolute inset-0 z-0">
-      <Canvas camera={{ position: [0.5, 0.25, 0.5], fov: 60 }} shadows dpr={[1, 2]}>
+      <Canvas camera={{ position: [0.4, 0.35, 0.4], fov: 60 }} shadows dpr={[1, 2]}>
         <color attach="background" args={["#060606"]} />
         <fog attach="fog" args={["#060606", 5, 20]} />
 
@@ -60,7 +61,7 @@ export default function BackgroundScene({ RocketPosition, RocketRotation }: Back
             key={index}
             position={spotlight.position}
             target={GROUND_SPOTLIGHT_TARGET}
-            intensity={3}
+            intensity={0.5}
           />
         ))}
 
