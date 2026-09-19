@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { PacketType } from "./Protocol";
 import { usePacketTransport, LogEntry } from "./usePacketTransport";
 
@@ -48,12 +48,12 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
         if (responsePacket.type !== PacketType.RADIO_SEND_QUEUED) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
     }
 
-    const onReceiveRadio = (callback: (data: number[]) => void) => {
+    const onReceiveRadio = useCallback((callback: (data: number[]) => void) => {
         const unsubscribe = subscribeToPacketType(PacketType.RADIO_RECEIVED, (packet) => {
             callback(Array.from(packet.payload));
         });
         return unsubscribe;
-    }
+    }, [subscribeToPacketType]);
 
     const sendAT = async (command: string): Promise<string> => {
         const commandBytes = new TextEncoder().encode(command);

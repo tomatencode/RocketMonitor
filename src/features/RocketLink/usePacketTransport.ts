@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createParser, encode, feed, take, Packet, PacketType, EXPECTED_RESPONSE } from "./Protocol";
 
 type DataDirection = "send" | "receive";
@@ -91,7 +91,7 @@ export function usePacketTransport() {
         return result;
     };
 
-    const subscribeToPacketType = (type: PacketType, callback: (pkt: Packet) => void) => {
+    const subscribeToPacketType = useCallback((type: PacketType, callback: (pkt: Packet) => void) => {
         const listeners = pushListeners.current.get(type) ?? [];
         listeners.push(callback);
         pushListeners.current.set(type, listeners);
@@ -100,7 +100,7 @@ export function usePacketTransport() {
             const listeners = pushListeners.current.get(type) ?? [];
             pushListeners.current.set(type, listeners.filter((l) => l !== callback));
         };
-    }
+    }, []);
 
     return { log, sendPacket, sendAndReceivePacket, subscribeToPacketType };
 }
