@@ -4,6 +4,7 @@ import { Environment, OrbitControls } from "@react-three/drei";
 import { PolarGround } from "./PolarGround";
 import { RocketModel } from "./RocketModel";
 import { GroundSpotlight } from "./GroundSpotlight";
+import { CameraFrameOffset } from "./CameraFrameOffset";
 import { useGroundClampedZoom } from "./useGroundClampedZoom";
 
 const GROUND_SPOTLIGHT_RADIUS = 0.3;
@@ -65,6 +66,7 @@ export default function BackgroundScene({ RocketPosition, RocketRotation }: Back
           />
         ))}
 
+        <CameraFrameOffset verticalOffset={0.15} />
         <OrbitControls
           ref={controlsRef}
           target={target}
