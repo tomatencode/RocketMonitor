@@ -4,7 +4,7 @@ import { Button } from "../shared/components/primitives/Button";
 import { Card } from "../shared/components/primitives/Card";
 import { Input } from "../shared/components/primitives/Input";
 import { LineGraph } from "../shared/components/primitives/LineGraph";
-import SceneBackground from "../features/RocketModle/components/SceneBackground";
+import BackgroundScene from "../features/3DScene/components/BackgroundScene";
 
 export default function HomeScreen() {
 	const { connected, setGimbalPos, beepBuzzer, firePyroChanel, queueGetIMU, queueGetBaro, sendQueuedCommands } = useRadioLink();
@@ -72,7 +72,7 @@ export default function HomeScreen() {
 
 	return (
 		<div className="relative flex h-full bg-transparent text-zinc-200 font-mono text-sm overflow-hidden p-3 gap-3">
-			<SceneBackground />
+			<BackgroundScene />
 			<div className="relative z-10 flex flex-row min-h-0 gap-3 overflow-x-auto w-full pointer-events-none">
 				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto pointer-events-none">
 					<Card className="p-3 flex flex-col gap-2">
