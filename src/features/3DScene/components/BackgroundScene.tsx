@@ -7,6 +7,8 @@ import { PolarGround } from "./PolarGround";
 import { RocketModel } from "./RocketModel";
 
 const MIN_CAMERA_HEIGHT = 0.15;
+// How quickly the camera eases back out toward the desired distance once the ground clamp releases.
+const UNCLAMP_SMOOTHING = 0.15;
 
 export default function BackgroundScene() {
   const controlsRef = useRef<OrbitControlsImpl>(null);
@@ -34,6 +36,12 @@ export default function BackgroundScene() {
     if (direction.y < 0) {
       const maxAllowedDistance = (MIN_CAMERA_HEIGHT - target.y) / direction.y;
       effectiveDistance = Math.min(effectiveDistance, maxAllowedDistance);
+    }
+
+    // Ease toward the target instead of snapping, so releasing the ground clamp doesn't cause a sudden jump.
+    if (appliedDistanceRef.current !== null && effectiveDistance > appliedDistanceRef.current) {
+      effectiveDistance =
+        appliedDistanceRef.current + (effectiveDistance - appliedDistanceRef.current) * UNCLAMP_SMOOTHING;
     }
 
     camera.position.copy(target).addScaledVector(direction, effectiveDistance);
@@ -70,7 +78,7 @@ export default function BackgroundScene() {
           minDistance={2}
           maxDistance={20}
           minPolarAngle={0}
-          maxPolarAngle={Math.PI - 0.05}
+          maxPolarAngle={Math.PI - 0.5}
           onChange={handleControlsChange}
         />
       </Canvas>
