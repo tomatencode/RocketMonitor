@@ -13,7 +13,7 @@ function ExportedRocket() {
   const { scene } = useGLTF(rocketUrl);
 
   return (
-    <group scale={10} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.0, 0]}>
+    <group rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]}>
       <primitive object={scene} />
     </group>
   );

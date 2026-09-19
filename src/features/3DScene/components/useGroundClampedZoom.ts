@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
-const MIN_CAMERA_HEIGHT = 0.15;
+const MIN_CAMERA_HEIGHT = 0.015;
 // How quickly the camera eases back out toward the desired distance once the ground clamp releases.
 const UNCLAMP_SMOOTHING = 0.15;
 

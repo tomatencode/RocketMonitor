@@ -6,7 +6,7 @@ export function createCirclePoints(radius: number): Point3[] {
 
     return [
       Math.cos(angle) * radius,
-      0.03,
+      0.003,
       Math.sin(angle) * radius,
     ];
   });
@@ -14,18 +14,18 @@ export function createCirclePoints(radius: number): Point3[] {
 
 export function createSpokePoints(angle: number, radius: number): Point3[] {
   return [
-    [0, 0.03, 0],
-    [Math.cos(angle) * radius, 0.03, Math.sin(angle) * radius],
+    [0, 0.003, 0],
+    [Math.cos(angle) * radius, 0.003, Math.sin(angle) * radius],
   ];
 }
 
-export function createRingRadii(maxRadius: number, growthFactor = 1.3, minStep = 0.8) {
+export function createRingRadii(maxRadius: number, growthFactor = 1.3, minStep = 0.08) {
   const radii: number[] = [];
   let radius = minStep;
   let step = minStep;
 
   while (radius <= maxRadius) {
-    radii.push(Math.round(radius * 10) / 10);
+    radii.push(Math.round(radius * 1000) / 1000);
     step *= growthFactor;
     radius += step;
   }

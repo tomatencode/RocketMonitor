@@ -1,10 +1,25 @@
-import { useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment, OrbitControls } from "@react-three/drei";
 
 import { PolarGround } from "./PolarGround";
 import { RocketModel } from "./RocketModel";
+import { GroundSpotlight } from "./GroundSpotlight";
 import { useGroundClampedZoom } from "./useGroundClampedZoom";
+
+const GROUND_SPOTLIGHT_RADIUS = 0.3;
+const GROUND_SPOTLIGHT_COUNT = 3;
+const GROUND_SPOTLIGHT_TARGET: [number, number, number] = [0, 0.2, 0];
+
+const groundSpotlights = Array.from({ length: GROUND_SPOTLIGHT_COUNT }, (_, index) => {
+  const angle = (index / GROUND_SPOTLIGHT_COUNT) * Math.PI * 2;
+  const position: [number, number, number] = [
+    Math.cos(angle) * GROUND_SPOTLIGHT_RADIUS,
+    0,
+    Math.sin(angle) * GROUND_SPOTLIGHT_RADIUS,
+  ];
+
+  return { position };
+});
 
 interface BackgroundSceneProps {
   RocketPosition: [number, number, number];
@@ -14,13 +29,7 @@ interface BackgroundSceneProps {
 export default function BackgroundScene({ RocketPosition, RocketRotation }: BackgroundSceneProps) {
   const { controlsRef, handleControlsChange } = useGroundClampedZoom();
 
-  const [initialCameraPosition] = useState<[number, number, number]>(() => [
-    RocketPosition[0] + 5,
-    RocketPosition[1] + 2.5,
-    RocketPosition[2] + 5,
-  ]);
-
-  const targetOffset: [number, number, number] = [0, 1, 0];
+  const targetOffset: [number, number, number] = [0, 0.1, 0];
   const target: [number, number, number] = [
     RocketPosition[0] + targetOffset[0],
     RocketPosition[1] + targetOffset[1],
@@ -29,23 +38,31 @@ export default function BackgroundScene({ RocketPosition, RocketRotation }: Back
 
   return (
     <div className="pointer-events-none absolute inset-0 z-0">
-      <Canvas camera={{ position: initialCameraPosition, fov: 60 }} shadows dpr={[1, 2]}>
+      <Canvas camera={{ position: [0.5, 0.25, 0.5], fov: 60 }} shadows dpr={[1, 2]}>
         <color attach="background" args={["#060606"]} />
-        <fog attach="fog" args={["#060606", 50, 200]} />
+        <fog attach="fog" args={["#060606", 5, 20]} />
 
         <ambientLight intensity={0.5} />
         <directionalLight
           castShadow
-          position={[4, 6, 3]}
-          intensity={1.0}
-          shadow-mapSize-width={1024}
-          shadow-mapSize-height={1024}
+          position={[0.4, 1.0, 0.3]}
+          intensity={1.2}
+          shadow-mapSize-width={2024}
+          shadow-mapSize-height={2024}
         />
-        <spotLight position={[-3, 4, 2]} intensity={0.9} angle={0.5} penumbra={0.8} />
 
         <Environment preset="night" />
         <PolarGround />
         <RocketModel position={RocketPosition} rotation={RocketRotation} />
+
+        {groundSpotlights.map((spotlight, index) => (
+          <GroundSpotlight
+            key={index}
+            position={spotlight.position}
+            target={GROUND_SPOTLIGHT_TARGET}
+            intensity={3}
+          />
+        ))}
 
         <OrbitControls
           ref={controlsRef}
@@ -54,8 +71,8 @@ export default function BackgroundScene({ RocketPosition, RocketRotation }: Back
           enableZoom={true}
           autoRotate
           autoRotateSpeed={0.5}
-          minDistance={2}
-          maxDistance={20}
+          minDistance={0.2}
+          maxDistance={2}
           minPolarAngle={0}
           maxPolarAngle={Math.PI - 0.5}
           onChange={handleControlsChange}

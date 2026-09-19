@@ -3,7 +3,7 @@ import { Line } from "@react-three/drei";
 import { createCirclePoints, createRingRadii, createSpokePoints } from "./scene-utils";
 
 export function PolarGround() {
-  const size = 200;
+  const size = 20;
 
   const ringRadii = createRingRadii(size);
   const ringColors = ["#38bdf8", "#52525b", "#34d399", "#52525b", "#f472b6", "#52525b"];

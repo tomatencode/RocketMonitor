@@ -24,7 +24,7 @@ export default function HomeScreen() {
 
 	const rocketPosition: [number, number, number] = [
 		0,
-		1.75,
+		0.175,
 		0
 	];
 	const rocketRotation: [number, number, number] = [
