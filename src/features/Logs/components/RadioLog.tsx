@@ -87,82 +87,84 @@ export default function PacketLog<M extends { seqId: number }>({ log, formatMess
     });
 
     return (
-        <ScrollView
-            stickToBottom
-            blurTop
-            initialScrollPosition="bottom"
-            scrollElementRef={scrollElementRef}
-            className="p-3"
-        >
-            {formattedLog.length === 0 && (
-                <span className="text-zinc-600 text-xs">
-                    {log.length === 0 ? "No packets yet." : "No packets match the filter."}
-                </span>
-            )}
-            {displayBlocks.length > 0 && (
-                <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
-                    {virtualizer.getVirtualItems().map(virtualRow => {
-                        const block = displayBlocks[virtualRow.index];
-                        return (
-                            <div
-                                key={block.key}
-                                ref={virtualizer.measureElement}
-                                data-index={virtualRow.index}
-                                className="absolute left-0 top-0 w-full pb-4"
-                                style={{ transform: `translateY(${virtualRow.start}px)` }}
-                            >
-                                <div className={`flex flex-col gap-2 border-l-2 pl-2 ${block.color}`}>
-                                    {block.frames.map(entry => {
-                                        const isTx = entry.direction === "send";
-                                        return (
-                                            <div key={entry.frameId} className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2 text-xs font-mono">
-                                                    <span className="text-zinc-600 shrink-0 w-20">
-                                                        {new Date(entry.ts).toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                                                        <span className="text-zinc-700">.{String(entry.ts % 1000).padStart(3, "0")}</span>
-                                                    </span>
-                                                    <span className={`shrink-0 w-5 flex items-center justify-center ${isTx ? "text-zinc-400" : "text-green-400"}`}>
-                                                        {isTx ? (
-                                                            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                <path d="M8 13V3M3 8l5-5 5 5" />
-                                                            </svg>
-                                                        ) : (
-                                                            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                <path d="M8 3v10M3 8l5 5 5-5" />
-                                                            </svg>
-                                                        )}
-                                                    </span>
-                                                    <span className="text-zinc-700 text-[10px] uppercase tracking-wide">{isTx ? "sent frame" : "received frame"}</span>
-                                                </div>
-                                                <div className="flex flex-col gap-1 pl-7">
-                                                    {entry.messages.map(({ message, formatted: { label, detail, isText, status } }, index) => (
-                                                        <AccentRow
-                                                            key={index}
-                                                            accent={seqColor(message.seqId)}
-                                                            className="flex gap-2 text-xs leading-relaxed font-mono px-1.5 py-0.5"
-                                                        >
-                                                            <span className="shrink-0 w-8 text-zinc-500">#{message.seqId}</span>
-                                                            <span className="shrink-0 font-semibold min-w-[9rem] text-zinc-300">
-                                                                {label}
-                                                            </span>
-                                                            {status && (
-                                                                <span className={`shrink-0 self-start px-1.5 text-[10px] font-semibold rounded border ${status.className}`}>
-                                                                    {status.text}
-                                                                </span>
+        <div className="h-full w-full min-h-0">
+            <ScrollView
+                stickToBottom
+                blurTop
+                initialScrollPosition="bottom"
+                scrollElementRef={scrollElementRef}
+                className="p-3"
+            >
+                {formattedLog.length === 0 && (
+                    <span className="text-zinc-600 text-xs">
+                        {log.length === 0 ? "No packets yet." : "No packets match the filter."}
+                    </span>
+                )}
+                {displayBlocks.length > 0 && (
+                    <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
+                        {virtualizer.getVirtualItems().map(virtualRow => {
+                            const block = displayBlocks[virtualRow.index];
+                            return (
+                                <div
+                                    key={block.key}
+                                    ref={virtualizer.measureElement}
+                                    data-index={virtualRow.index}
+                                    className="absolute left-0 top-0 w-full pb-4"
+                                    style={{ transform: `translateY(${virtualRow.start}px)` }}
+                                >
+                                    <div className={`flex flex-col gap-2 border-l-2 pl-2 ${block.color}`}>
+                                        {block.frames.map(entry => {
+                                            const isTx = entry.direction === "send";
+                                            return (
+                                                <div key={entry.frameId} className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2 text-xs font-mono">
+                                                        <span className="text-zinc-600 shrink-0 w-20">
+                                                            {new Date(entry.ts).toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                                                            <span className="text-zinc-700">.{String(entry.ts % 1000).padStart(3, "0")}</span>
+                                                        </span>
+                                                        <span className={`shrink-0 w-5 flex items-center justify-center ${isTx ? "text-zinc-400" : "text-green-400"}`}>
+                                                            {isTx ? (
+                                                                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                    <path d="M8 13V3M3 8l5-5 5 5" />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                    <path d="M8 3v10M3 8l5 5 5-5" />
+                                                                </svg>
                                                             )}
-                                                            {detail && <span className={`break-all ${isText ? "text-yellow-200" : "text-zinc-400"}`}>{detail}</span>}
-                                                        </AccentRow>
-                                                    ))}
+                                                        </span>
+                                                        <span className="text-zinc-700 text-[10px] uppercase tracking-wide">{isTx ? "sent frame" : "received frame"}</span>
+                                                    </div>
+                                                    <div className="flex flex-col gap-1 pl-7">
+                                                        {entry.messages.map(({ message, formatted: { label, detail, isText, status } }, index) => (
+                                                            <AccentRow
+                                                                key={index}
+                                                                accent={seqColor(message.seqId)}
+                                                                className="flex gap-2 text-xs leading-relaxed font-mono px-1.5 py-0.5"
+                                                            >
+                                                                <span className="shrink-0 w-8 text-zinc-500">#{message.seqId}</span>
+                                                                <span className="shrink-0 font-semibold min-w-[9rem] text-zinc-300">
+                                                                    {label}
+                                                                </span>
+                                                                {status && (
+                                                                    <span className={`shrink-0 self-start px-1.5 text-[10px] font-semibold rounded border ${status.className}`}>
+                                                                        {status.text}
+                                                                    </span>
+                                                                )}
+                                                                {detail && <span className={`break-all ${isText ? "text-yellow-200" : "text-zinc-400"}`}>{detail}</span>}
+                                                            </AccentRow>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </ScrollView>
+                            );
+                        })}
+                    </div>
+                )}
+            </ScrollView>
+        </div>
     );
 }

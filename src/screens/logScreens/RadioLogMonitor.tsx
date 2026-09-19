@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LogWindow } from "../../features/Logs/components/LogWindow";
 import { JobStatus, Message, MessageType } from "../../features/RadioLink/Protocol";
 import RadioPacketLog, { PacketLogEntry as RadioLogEntry } from "../../features/Logs/components/RadioLog";
+import { getFilterMessageTypes, RadioLogFilter } from "../../features/Logs/components/RadioLogFilter";
 
 const MAX_LOG_ENTRIES = 1000;
 
@@ -40,6 +41,7 @@ function deserializeRadioEntry(entry: SerializedRadioLogEntry): RadioLogEntry<Me
 
 export function RadioLogMonitor() {
     const [log, setLog] = useState<RadioLogEntry<Message>[]>([]);
+    const [showFilters, setShowFilters] = useState(true);
 
     useEffect(() => {
         let active = true;
@@ -58,12 +60,35 @@ export function RadioLogMonitor() {
         return () => { active = false; cleanup?.(); };
     }, []);
 
-    const [hidePings, setHidePings] = useState(false);
+    const [excludedTypes, setExcludedTypes] = useState<Partial<Record<MessageType, boolean>>>({});
 
-    const filteredLog = useMemo(() => hidePings ? log.filter(entry => entry.messages.every(message => message.type !== MessageType.PING)) : log, [log, hidePings]);
+    const filterMessageTypes = useMemo(
+        () => getFilterMessageTypes(log.flatMap(entry => entry.messages.map(message => message.type))),
+        [log]
+    );
+
+    const filteredLog = useMemo(() => {
+        return log
+            .map(entry => ({
+                ...entry,
+                messages: entry.messages.filter(message => !excludedTypes[message.type]),
+            }))
+            .filter(entry => entry.messages.length > 0);
+    }, [log, excludedTypes]);
+
+    function toggleExcludedType(messageType: MessageType) {
+        setExcludedTypes(currentTypes => ({
+            ...currentTypes,
+            [messageType]: !currentTypes[messageType],
+        }));
+    }
 
     return (
-        <LogWindow title="Radio Link Log" titleButtons={[{ label: "Clear", onClick: () => setLog([]) }, { label: hidePings ? "Show Pings" : "Hide Pings", onClick: () => setHidePings(prev => !prev)    }]}>
+        <LogWindow title="Radio Link Log" titleButtons={[
+            { label: "Clear", onClick: () => setLog([]) },
+            { label: showFilters ? "Hide Filters" : "Show Filters", onClick: () => setShowFilters(current => !current) },
+        ]}>
+            <RadioLogFilter messageTypes={filterMessageTypes} excludedTypes={excludedTypes} onToggle={toggleExcludedType} isOpen={showFilters} />
             <RadioPacketLog log={filteredLog} formatMessage={formatRadioMessage} />
         </LogWindow>
     );
