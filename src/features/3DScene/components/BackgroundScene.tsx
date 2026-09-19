@@ -5,12 +5,31 @@ import { PolarGround } from "./PolarGround";
 import { RocketModel } from "./RocketModel";
 import { useGroundClampedZoom } from "./useGroundClampedZoom";
 
-export default function BackgroundScene() {
+interface BackgroundSceneProps {
+  RocketPosition: [number, number, number];
+  RocketRotation: [number, number, number];
+}
+
+export default function BackgroundScene({ RocketPosition, RocketRotation }: BackgroundSceneProps) {
   const { controlsRef, handleControlsChange } = useGroundClampedZoom();
+
+  const cameraPositionOffset: [number, number, number] = [5, 2.5, 5];
+  const cameraPosition: [number, number, number] = [
+    RocketPosition[0] + cameraPositionOffset[0],
+    RocketPosition[1] + cameraPositionOffset[1],
+    RocketPosition[2] + cameraPositionOffset[2]
+  ];
+
+  const targetOffset: [number, number, number] = [0, 1, 0];
+  const target: [number, number, number] = [
+    RocketPosition[0] + targetOffset[0],
+    RocketPosition[1] + targetOffset[1],
+    RocketPosition[2] + targetOffset[2]
+  ];
 
   return (
     <div className="pointer-events-none absolute inset-0 z-0">
-      <Canvas camera={{ position: [5, 3.5, 5], fov: 60 }} shadows dpr={[1, 2]}>
+      <Canvas camera={{ position: cameraPosition, fov: 60 }} shadows dpr={[1, 2]}>
         <color attach="background" args={["#060606"]} />
         <fog attach="fog" args={["#060606", 50, 200]} />
 
@@ -26,12 +45,12 @@ export default function BackgroundScene() {
 
         <Environment preset="night" />
         <PolarGround />
-        <RocketModel />
+        <RocketModel position={RocketPosition} rotation={RocketRotation} />
 
         <OrbitControls
           ref={controlsRef}
-          target={[0, 2, 0]}
-          enablePan={true}
+          target={target}
+          enablePan={false}
           enableZoom={true}
           autoRotate
           autoRotateSpeed={0.5}

@@ -22,6 +22,17 @@ export default function HomeScreen() {
 	const [pressure, setPressure] = useState<{ x: number; y: number }[]>([]);
 	const chartStartT = Date.now();
 
+	const rocketPosition: [number, number, number] = [
+		accelX[accelX.length - 1]?.y || 0,
+		1.75 + ( (accelZ[accelZ.length - 1]?.y - 9.81) || 0),
+		accelY[accelY.length - 1]?.y  || 0
+	];
+	const rocketRotation: [number, number, number] = [
+		gyroX[gyroX.length - 1]?.y || 0,
+		gyroZ[gyroZ.length - 1]?.y || 0,
+		gyroY[gyroY.length - 1]?.y || 0
+	];
+
 	useEffect(() => {
 		let cancelled = false;
 		const pollIMU = async () => {
@@ -72,7 +83,7 @@ export default function HomeScreen() {
 
 	return (
 		<div className="relative flex h-full bg-transparent text-zinc-200 font-mono text-sm overflow-hidden p-3 gap-3">
-			<BackgroundScene />
+			<BackgroundScene RocketPosition={rocketPosition} RocketRotation={rocketRotation} />
 			<div className="relative z-10 flex flex-row min-h-0 gap-3 overflow-x-auto w-full pointer-events-none">
 				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto pointer-events-none">
 					<Card className="p-3 flex flex-col gap-2">
