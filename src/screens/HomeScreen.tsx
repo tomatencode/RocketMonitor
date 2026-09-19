@@ -125,7 +125,7 @@ export default function HomeScreen() {
 					</Card>
 				</div>
 
-				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto pointer-events-none">
+				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto pointer-events-none ml-auto">
 					<Card className="p-3 flex flex-col gap-2">
 						<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Set Gimbal Position</span>
 						<div className="flex gap-2">
