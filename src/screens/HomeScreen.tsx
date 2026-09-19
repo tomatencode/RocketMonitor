@@ -23,14 +23,14 @@ export default function HomeScreen() {
 	const chartStartT = Date.now();
 
 	const rocketPosition: [number, number, number] = [
-		accelX[accelX.length - 1]?.y || 0,
-		1.75 + ( (accelZ[accelZ.length - 1]?.y - 9.81) || 0),
-		accelY[accelY.length - 1]?.y  || 0
+		0,
+		1.75,
+		0
 	];
 	const rocketRotation: [number, number, number] = [
-		gyroX[gyroX.length - 1]?.y || 0,
-		gyroZ[gyroZ.length - 1]?.y || 0,
-		gyroY[gyroY.length - 1]?.y || 0
+		0,
+		0,
+		0
 	];
 
 	useEffect(() => {
