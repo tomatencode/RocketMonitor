@@ -14,6 +14,12 @@ interface IMUData {
     gyroZ_rad_s: number;
 }
 
+interface BaroData {
+    altitude: number;
+    pressure: number;
+    temperature: number;
+}
+
 interface RadioLinkContextValue {
     connected: boolean;
 
@@ -21,11 +27,13 @@ interface RadioLinkContextValue {
     queueBeepBuzzer: () => Promise<void>;
     queueFirePyroChanel: (channel: number) => Promise<void>;
     queueGetIMU: () => Promise<IMUData>;
+    queueGetBaro: () => Promise<BaroData>;
 
     setGimbalPos: (degX: number, degY: number) => Promise<void>;
     beepBuzzer: () => Promise<void>;
     firePyroChanel: (channel: number) => Promise<void>;
     getIMU: () => Promise<IMUData>;
+    getBaro: () => Promise<BaroData>;
 
     sendQueuedCommands: () => void;
 
@@ -163,6 +171,34 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
         return imuData;
     }
 
+    const queueGetBaro = async (): Promise<BaroData> => {
+        checkConnection();
+        const response = await queueMessage(MessageType.GET_BARO);
+
+        if (!response.payload || response.payload.byteLength < 12) {
+            throw new Error("GET_BARO response has an invalid payload");
+        }
+
+        const data = new DataView(
+            response.payload.buffer,
+            response.payload.byteOffset,
+            response.payload.byteLength,
+        );
+        const altitude = data.getInt32(0, true) / 100;
+        const pressure = data.getInt32(4, true) / 100;
+        const temperature = data.getInt32(8, true) / 100;
+        return { altitude, pressure, temperature };
+    }
+
+    const getBaro = async (): Promise<BaroData> => {
+        checkConnection();
+        const pending = queueGetBaro();
+        sendQueuedCommands();
+        const baroData = await pending;
+        return baroData;
+    }
+
+
     return (
         <RadioLinkContext.Provider value={{
             connected: connected && usbConnected,
@@ -171,11 +207,13 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
             queueBeepBuzzer: queueBeepBuzzer,
             queueFirePyroChanel: queueFirePyroChanel,
             queueGetIMU: queueGetIMU,
+            queueGetBaro: queueGetBaro,
 
             setGimbalPos: setGimbalPos,
             beepBuzzer: beepBuzzer,
             firePyroChanel: firePyroChanel,
             getIMU: getIMU,
+            getBaro: getBaro,
 
             sendQueuedCommands: sendQueuedCommands,
 

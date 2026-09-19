@@ -7,7 +7,7 @@ import { LineGraph } from "../shared/components/primitives/LineGraph";
 import SceneBackground from "../features/RocketModle/components/SceneBackground";
 
 export default function HomeScreen() {
-	const { connected, setGimbalPos, beepBuzzer, firePyroChanel, getIMU } = useRadioLink();
+	const { connected, setGimbalPos, beepBuzzer, firePyroChanel, queueGetIMU, queueGetBaro, sendQueuedCommands } = useRadioLink();
 	const [gimbalX, setGimbalX] = useState("0");
 	const [gimbalY, setGimbalY] = useState("0");
 	const [channel, setChannel] = useState("1");
@@ -19,6 +19,7 @@ export default function HomeScreen() {
 	const [gyroX, setGyroX] = useState<{ x: number; y: number }[]>([]);
 	const [gyroY, setGyroY] = useState<{ x: number; y: number }[]>([]);
 	const [gyroZ, setGyroZ] = useState<{ x: number; y: number }[]>([]);
+	const [pressure, setPressure] = useState<{ x: number; y: number }[]>([]);
 	const chartStartT = Date.now();
 
 	useEffect(() => {
@@ -30,8 +31,15 @@ export default function HomeScreen() {
 					return;
 				}
 				let imu;
+				let baro;
 				try {
-				imu = await getIMU();
+					imu = queueGetIMU();
+					baro = queueGetBaro();
+					sendQueuedCommands();
+					await Promise.all([imu, baro]);
+					imu = await imu;
+					baro = await baro;
+
 				} catch (e) {
 					console.error("Failed to get IMU data:", e);
 					await new Promise(resolve => setTimeout(resolve, 100)); // Wait a bit before retrying
@@ -46,6 +54,7 @@ export default function HomeScreen() {
 				setGyroX(prev => [...prev.slice(-100), { x: t, y: imu.gyroX_rad_s }]);
 				setGyroY(prev => [...prev.slice(-100), { x: t, y: imu.gyroY_rad_s }]);
 				setGyroZ(prev => [...prev.slice(-100), { x: t, y: imu.gyroZ_rad_s }]);
+				setPressure(prev => [...prev.slice(-100), { x: t, y: baro.pressure }]);
 			}
 		};
 		pollIMU();
@@ -97,6 +106,21 @@ export default function HomeScreen() {
 							maxXinFrame={15}
 							xAxis={{ label: "Time", tickInterval: 2, labelEvery: 0, atZero: true }}
 							yAxis={{ label: "Gyro", unit: "rad/s", tickInterval: 1, labelEvery: 2 }}
+						/>
+					</Card>
+
+					<span className="text-xs font-semibold tracking-wide uppercase text-zinc-300">Barometer Linechart</span>
+					<Card className="p-3 flex flex-col gap-2 border border-zinc-700/60">
+						<LineGraph
+							series={[
+								{ label: "baro", color: "#38bdf8", data: pressure },
+							]}
+							scale={1.2}
+							yAutoscaleMin={950}
+							yAutoscaleMax={1050}
+							maxXinFrame={15}
+							xAxis={{ label: "Time", tickInterval: 2, labelEvery: 0, atZero: true }}
+							yAxis={{ label: "Baro", unit: "hPa", tickInterval: 50, labelEvery: 1 }}
 						/>
 					</Card>
 				</div>

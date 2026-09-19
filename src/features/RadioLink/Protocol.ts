@@ -7,6 +7,7 @@ export enum MessageType {
     DO_BEEP = 0x04,
     FIRE_PYRO = 0x05,
     GET_IMU = 0x06,
+    GET_BARO = 0x07,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome
