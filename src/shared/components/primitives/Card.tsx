@@ -18,7 +18,7 @@ const variantStyles: Record<CardVariant, string> = {
 
 export function Card({ children, variant = "outer", className = "", ...props }: CardProps) {
     return (
-        <div className={`${variantStyles[variant]} backdrop-blur-sm ${className}`} {...props}>
+        <div className={`${variantStyles[variant]} backdrop-blur-sm pointer-events-auto ${className}`} {...props}>
             {children}
         </div>
     );

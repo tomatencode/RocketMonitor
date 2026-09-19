@@ -73,8 +73,8 @@ export default function HomeScreen() {
 	return (
 		<div className="relative flex h-full bg-transparent text-zinc-200 font-mono text-sm overflow-hidden p-3 gap-3">
 			<SceneBackground />
-			<div className="relative z-10 flex flex-row min-h-0 gap-3 overflow-x-auto w-full">
-				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
+			<div className="relative z-10 flex flex-row min-h-0 gap-3 overflow-x-auto w-full pointer-events-none">
+				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto pointer-events-none">
 					<Card className="p-3 flex flex-col gap-2">
 						<span className="text-xs font-semibold tracking-wide uppercase text-zinc-300">Accelerometer Linechart</span>
 						<LineGraph
@@ -125,7 +125,7 @@ export default function HomeScreen() {
 					</Card>
 				</div>
 
-				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
+				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto pointer-events-none">
 					<Card className="p-3 flex flex-col gap-2">
 						<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Set Gimbal Position</span>
 						<div className="flex gap-2">
