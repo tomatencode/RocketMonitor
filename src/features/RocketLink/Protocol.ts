@@ -38,7 +38,7 @@ export interface Parser {
     pendingPayloadLen: number;
 }
 
-const SOF_BYTE = 0xAA;
+const SOF_BYTE = 0x7E; // distinct from the RadioLink frame's own 0xAA start byte, so a desync can't resync onto an embedded RadioLink frame
 const MAX_PAYLOAD = 1024;
 
 // CRC-8/SMBUS, poly 0x07

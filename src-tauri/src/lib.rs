@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
-const HANDSHAKE_SEND: &[u8] = &[0xAA, 0x01, 0x00, 0x00, 0x6B];
-const HANDSHAKE_RESPONSE: &[u8] = &[0xAA, 0x02, 0x00, 0x00, 0xD6];
+const HANDSHAKE_SEND: &[u8] = &[0x7E, 0x01, 0x00, 0x00, 0x6B];
+const HANDSHAKE_RESPONSE: &[u8] = &[0x7E, 0x02, 0x00, 0x00, 0xD6];
 const BAUD_RATE: u32 = 115200;
 const LOG_HISTORY_LIMIT: usize = 100;
 
