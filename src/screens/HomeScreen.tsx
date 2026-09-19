@@ -84,8 +84,8 @@ export default function HomeScreen() {
 								{ label: "accelZ", color: "#34d399", data: accelZ },
 							]}
 							scale={1.2}
-							yAutoscaleMin={-10}
-							yAutoscaleMax={10}
+							yAutoscaleMin={-12}
+							yAutoscaleMax={12}
 							maxXinFrame={15}
 							xAxis={{ label: "Time", tickInterval: 2, labelEvery: 0, atZero: true }}
 							yAxis={{ label: "Accel", unit: "m/s²", tickInterval: 2, labelEvery: 2 }}
@@ -101,8 +101,8 @@ export default function HomeScreen() {
 								{ label: "gyroZ", color: "#34d399", data: gyroZ },
 							]}
 							scale={1.2}
-							yAutoscaleMin={-5}
-							yAutoscaleMax={5}
+							yAutoscaleMin={-6}
+							yAutoscaleMax={6}
 							maxXinFrame={15}
 							xAxis={{ label: "Time", tickInterval: 2, labelEvery: 0, atZero: true }}
 							yAxis={{ label: "Gyro", unit: "rad/s", tickInterval: 1, labelEvery: 2 }}

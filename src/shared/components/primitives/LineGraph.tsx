@@ -169,12 +169,15 @@ export function LineGraph({
 
 		const finiteYs = allPoints.map(p => p.y).filter(Number.isFinite);
 		const [autoMin, autoMax] = minMax(finiteYs, 0);
-		const autoBoundedMin = Math.min(autoMin, yAutoscaleMin ?? 0);
-		const autoBoundedMax = Math.max(autoMax, yAutoscaleMax ?? 0);
+		const autoBoundedMin = yAutoscaleMin !== undefined ? Math.min(autoMin, yAutoscaleMin) : autoMin;
+		const autoBoundedMax = yAutoscaleMax !== undefined ? Math.max(autoMax, yAutoscaleMax) : autoMax;
 		let yLo = yMin !== undefined && Number.isFinite(yMin) ? yMin : autoBoundedMin;
 		let yHi = yMax !== undefined && Number.isFinite(yMax) ? yMax : autoBoundedMax;
-		if (yMin === undefined && yLo > 0) yLo = 0;
-		if (yMax === undefined && yHi < 0) yHi = 0;
+		// Only the fully-automatic range (no explicit bounds or autoscale hints at all) gets padded
+		// to include zero as a baseline - an explicit yAutoscaleMin/Max window is respected as-is,
+		// letting the X axis (with atZero) render at the top/bottom edge instead when 0 is out of view.
+		if (yMin === undefined && yAutoscaleMin === undefined && yLo > 0) yLo = 0;
+		if (yMax === undefined && yAutoscaleMax === undefined && yHi < 0) yHi = 0;
 		if (yLo === yHi) { yLo -= 1; yHi += 1; }
 		const ySpan = yHi - yLo;
 
