@@ -169,8 +169,12 @@ export function LineGraph({
 
 		const finiteYs = allPoints.map(p => p.y).filter(Number.isFinite);
 		const [autoMin, autoMax] = minMax(finiteYs, 0);
-		const autoBoundedMin = yAutoscaleMin !== undefined ? Math.min(autoMin, yAutoscaleMin) : autoMin;
-		const autoBoundedMax = yAutoscaleMax !== undefined ? Math.max(autoMax, yAutoscaleMax) : autoMax;
+		const autoBoundedMin = yAutoscaleMin !== undefined
+			? (finiteYs.length === 0 ? yAutoscaleMin : Math.min(autoMin, yAutoscaleMin))
+			: autoMin;
+		const autoBoundedMax = yAutoscaleMax !== undefined
+			? (finiteYs.length === 0 ? yAutoscaleMax : Math.max(autoMax, yAutoscaleMax))
+			: autoMax;
 		let yLo = yMin !== undefined && Number.isFinite(yMin) ? yMin : autoBoundedMin;
 		let yHi = yMax !== undefined && Number.isFinite(yMax) ? yMax : autoBoundedMax;
 		// Only the fully-automatic range (no explicit bounds or autoscale hints at all) gets padded
