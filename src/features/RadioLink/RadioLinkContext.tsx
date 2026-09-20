@@ -2,10 +2,11 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { MessageType } from "./Protocol";
 import { useMessageTransport, LogEntry } from "./useMessageTransport";
+import { useRadioCommands } from "./useRadioCommands";
 
 export type { LogEntry };
 
-interface IMUData {
+export interface IMUData {
     accelX_m_s2: number;
     accelY_m_s2: number;
     accelZ_m_s2: number;
@@ -14,7 +15,7 @@ interface IMUData {
     gyroZ_rad_s: number;
 }
 
-interface BaroData {
+export interface BaroData {
     altitude: number;
     pressure: number;
     temperature: number;
@@ -26,8 +27,8 @@ interface RadioLinkContextValue {
     queueSetGimbalPos: (degX: number, degY: number) => Promise<void>;
     queueBeepBuzzer: () => Promise<void>;
     queueFirePyroChanel: (channel: number) => Promise<void>;
-    queueGetIMU: () => Promise<IMUData>;
-    queueGetBaro: () => Promise<BaroData>;
+    requestIMU: () => Promise<IMUData>;
+    requestBaro: () => Promise<BaroData>;
 
     setGimbalPos: (degX: number, degY: number) => Promise<void>;
     beepBuzzer: () => Promise<void>;
@@ -94,126 +95,19 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const queueSetGimbalPos = async (degX: number, degY: number): Promise<void> => {
-        checkConnection();
-        const payload = new Uint8Array(4);
-        const view = new DataView(payload.buffer);
-        view.setInt16(0, degX * 100, true);
-        view.setInt16(2, degY * 100, true);
-        await queueMessage(MessageType.SET_GIMBAL, payload);
-    }
-
-    const setGimbalPos = async (degX: number, degY: number): Promise<void> => {
-        checkConnection();
-        const pending = queueSetGimbalPos(degX, degY);
-        sendQueuedCommands();
-        await pending;
-    }
-
-    const queueBeepBuzzer = async (): Promise<void> => {
-        checkConnection();
-        await queueMessage(MessageType.DO_BEEP);
-    }
-
-    const beepBuzzer = async (): Promise<void> => {
-        checkConnection();
-        const pending = queueBeepBuzzer();
-        sendQueuedCommands();
-        await pending;
-    }
-
-    const queueFirePyroChanel = async (channel: number): Promise<void> => {
-        checkConnection();
-        await queueMessage(MessageType.FIRE_PYRO, new Uint8Array([channel]));
-    }
-
-    const firePyroChanel = async (channel: number): Promise<void> => {
-        checkConnection();
-        const pending = queueFirePyroChanel(channel);
-        sendQueuedCommands();
-        await pending;
-    }
-
     const sendQueuedCommands = () => {
         checkConnection();
         sendFrame();
-    }
+    };
 
-    const queueGetIMU = async (): Promise<IMUData> => {
-        checkConnection();
-        const response = await queueMessage(MessageType.GET_IMU);
-
-        if (!response.payload || response.payload.byteLength < 12) {
-            throw new Error("GET_IMU response has an invalid payload");
-        }
-
-        const data = new DataView(
-            response.payload.buffer,
-            response.payload.byteOffset,
-            response.payload.byteLength,
-        );
-        const imuData: IMUData = {
-            accelX_m_s2: data.getInt16(0, true) / 1000,
-            accelY_m_s2: data.getInt16(2, true) / 1000,
-            accelZ_m_s2: data.getInt16(4, true) / 1000,
-            gyroX_rad_s: data.getInt16(6, true) / 1000,
-            gyroY_rad_s: data.getInt16(8, true) / 1000,
-            gyroZ_rad_s: data.getInt16(10, true) / 1000,
-        };
-        return imuData;
-    }
-
-    const getIMU = async (): Promise<IMUData> => {
-        checkConnection();
-        const pending = queueGetIMU();
-        sendQueuedCommands();
-        const imuData = await pending;
-        return imuData;
-    }
-
-    const queueGetBaro = async (): Promise<BaroData> => {
-        checkConnection();
-        const response = await queueMessage(MessageType.GET_BARO);
-
-        if (!response.payload || response.payload.byteLength < 12) {
-            throw new Error("GET_BARO response has an invalid payload");
-        }
-
-        const data = new DataView(
-            response.payload.buffer,
-            response.payload.byteOffset,
-            response.payload.byteLength,
-        );
-        const altitude = data.getInt32(0, true) / 100;
-        const pressure = data.getInt32(4, true) / 100;
-        const temperature = data.getInt32(8, true) / 100;
-        return { altitude, pressure, temperature };
-    }
-
-    const getBaro = async (): Promise<BaroData> => {
-        checkConnection();
-        const pending = queueGetBaro();
-        sendQueuedCommands();
-        const baroData = await pending;
-        return baroData;
-    }
+    const commands = useRadioCommands({ queueMessage, sendFrame: sendQueuedCommands, checkConnection });
 
 
     return (
         <RadioLinkContext.Provider value={{
             connected: connected && usbConnected,
 
-            queueSetGimbalPos: queueSetGimbalPos,
-            queueBeepBuzzer: queueBeepBuzzer,
-            queueFirePyroChanel: queueFirePyroChanel,
-            queueGetIMU: queueGetIMU,
-            queueGetBaro: queueGetBaro,
-
-            setGimbalPos: setGimbalPos,
-            beepBuzzer: beepBuzzer,
-            firePyroChanel: firePyroChanel,
-            getIMU: getIMU,
-            getBaro: getBaro,
+            ...commands,
 
             sendQueuedCommands: sendQueuedCommands,
 

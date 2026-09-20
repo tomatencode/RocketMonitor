@@ -7,7 +7,7 @@ import { LineGraph } from "../shared/components/primitives/LineGraph";
 import BackgroundScene from "../features/3DScene/components/BackgroundScene";
 
 export default function HomeScreen() {
-	const { connected, setGimbalPos, beepBuzzer, firePyroChanel, queueGetIMU, queueGetBaro, sendQueuedCommands } = useRadioLink();
+	const { connected, setGimbalPos, beepBuzzer, firePyroChanel, requestIMU, requestBaro, sendQueuedCommands } = useRadioLink();
 	const [gimbalX, setGimbalX] = useState("0");
 	const [gimbalY, setGimbalY] = useState("0");
 	const [channel, setChannel] = useState("1");
@@ -44,8 +44,8 @@ export default function HomeScreen() {
 				let imu;
 				let baro;
 				try {
-					imu = queueGetIMU();
-					baro = queueGetBaro();
+					imu = requestIMU();
+					baro = requestBaro();
 					sendQueuedCommands();
 					await Promise.all([imu, baro]);
 					imu = await imu;
