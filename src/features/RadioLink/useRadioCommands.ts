@@ -16,6 +16,12 @@ interface BaroData {
     temperature: number;
 }
 
+interface RotationData {
+    roll_rad: number;
+    pitch_rad: number;
+    yaw_rad: number;
+}
+
 type QueueMessage = (
     messageType: MessageType,
     payload?: Uint8Array,
@@ -129,16 +135,65 @@ export function useRadioCommands({
         return await pending;
     };
 
+    const requestRotation = async (): Promise<RotationData> => {
+        checkConnection();
+        const response = await queueMessage(MessageType.GET_ROTATION);
+
+        if (!response.payload || response.payload.byteLength < 12) {
+            throw new Error("GET_ROTATION response has an invalid payload");
+        }
+
+        const data = new DataView(
+            response.payload.buffer,
+            response.payload.byteOffset,
+            response.payload.byteLength,
+        );
+        return {
+            roll_rad: data.getInt32(0, true) / 100,
+            pitch_rad: data.getInt32(4, true) / 100,
+            yaw_rad: data.getInt32(8, true) / 100,
+        };
+    };
+
+    const getRotation = async (): Promise<RotationData> => {
+        checkConnection();
+        const pending = requestRotation();
+        sendFrame();
+        return await pending;
+    };
+
+    const queueSetRotation = async (roll_rad: number, pitch_rad: number, yaw_rad: number): Promise<void> => {
+        checkConnection();
+        const payload = new Uint8Array(12);
+        const view = new DataView(payload.buffer);
+        view.setInt32(0, roll_rad * 100, true);
+        view.setInt32(4, pitch_rad * 100, true);
+        view.setInt32(8, yaw_rad * 100, true);
+        await queueMessage(MessageType.SET_ROTATION, payload);
+        sendFrame();
+    };
+
+    const setRotation = async (roll_rad: number, pitch_rad: number, yaw_rad: number): Promise<void> => {
+        checkConnection();
+        const pending = queueSetRotation(roll_rad, pitch_rad, yaw_rad);
+        sendFrame();
+        return await pending;
+    };
+
     return {
         queueSetGimbalPos,
         queueBeepBuzzer,
         queueFirePyroChanel,
         requestIMU,
         requestBaro,
+        requestRotation,
+        queueSetRotation,
         setGimbalPos,
         beepBuzzer,
         firePyroChanel,
         getIMU,
         getBaro,
+        getRotation,
+        setRotation,
     };
 }

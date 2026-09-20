@@ -8,6 +8,8 @@ export enum MessageType {
     FIRE_PYRO = 0x05,
     GET_IMU = 0x06,
     GET_BARO = 0x07,
+    GET_ROTATION = 0x08,
+    SET_ROTATION = 0x09,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome
