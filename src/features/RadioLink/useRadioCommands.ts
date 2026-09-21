@@ -98,12 +98,12 @@ export function useRadioCommands({
             response.payload.byteLength,
         );
         return {
-            accelX_m_s2: data.getInt16(0, true) / 100,
-            accelY_m_s2: data.getInt16(2, true) / 100,
-            accelZ_m_s2: data.getInt16(4, true) / 100,
-            gyroX_rad_s: data.getInt16(6, true) / 100,
-            gyroY_rad_s: data.getInt16(8, true) / 100,
-            gyroZ_rad_s: data.getInt16(10, true) / 100,
+            accelX_m_s2: data.getInt16(0, true) / 1000,
+            accelY_m_s2: data.getInt16(2, true) / 1000,
+            accelZ_m_s2: data.getInt16(4, true) / 1000,
+            gyroX_rad_s: data.getInt16(6, true) / 1000,
+            gyroY_rad_s: data.getInt16(8, true) / 1000,
+            gyroZ_rad_s: data.getInt16(10, true) / 1000,
         };
     };
 
