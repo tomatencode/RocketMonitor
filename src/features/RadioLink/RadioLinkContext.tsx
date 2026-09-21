@@ -2,9 +2,10 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { MessageType } from "./Protocol";
 import { useMessageTransport, LogEntry } from "./useMessageTransport";
-import { useRadioCommands } from "./useRadioCommands";
+import { useRadioCommands, type PositionData } from "./useRadioCommands";
 
 export type { LogEntry };
+export type { PositionData };
 
 export interface IMUData {
     accelX_m_s2: number;
@@ -30,7 +31,9 @@ interface RadioLinkContextValue {
     requestIMU: () => Promise<IMUData>;
     requestBaro: () => Promise<BaroData>;
     requestRotation: () => Promise<{ roll_rad: number; pitch_rad: number; yaw_rad: number }>;
+    requestPosition: () => Promise<PositionData>;
     queueSetRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
+    queueSetPosition: (x_m: number, y_m: number, z_m: number) => Promise<void>;
 
     setGimbalPos: (degX: number, degY: number) => Promise<void>;
     beepBuzzer: () => Promise<void>;
@@ -38,7 +41,9 @@ interface RadioLinkContextValue {
     getIMU: () => Promise<IMUData>;
     getBaro: () => Promise<BaroData>;
     getRotation: () => Promise<{ roll_rad: number; pitch_rad: number; yaw_rad: number }>;
+    getPosition: () => Promise<PositionData>;
     setRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
+    setPosition: (x_m: number, y_m: number, z_m: number) => Promise<void>;
 
     sendQueuedCommands: () => void;
 
