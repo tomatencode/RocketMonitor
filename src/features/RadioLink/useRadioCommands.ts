@@ -22,12 +22,6 @@ interface RotationData {
     yaw_rad: number;
 }
 
-export interface PositionData {
-    x_m: number;
-    y_m: number;
-    z_m: number;
-}
-
 type QueueMessage = (
     messageType: MessageType,
     payload?: Uint8Array,
@@ -186,50 +180,6 @@ export function useRadioCommands({
         return await pending;
     };
 
-    const requestPosition = async (): Promise<PositionData> => {
-        checkConnection();
-        const response = await queueMessage(MessageType.GET_POSITION);
-
-        if (!response.payload || response.payload.byteLength < 12) {
-            throw new Error("GET_POSITION response has an invalid payload");
-        }
-
-        const data = new DataView(
-            response.payload.buffer,
-            response.payload.byteOffset,
-            response.payload.byteLength,
-        );
-        return {
-            x_m: data.getInt32(0, true) / 100,
-            y_m: data.getInt32(4, true) / 100,
-            z_m: data.getInt32(8, true) / 100,
-        };
-    };
-
-    const getPosition = async (): Promise<PositionData> => {
-        checkConnection();
-        const pending = requestPosition();
-        sendFrame();
-        return await pending;
-    };
-
-    const queueSetPosition = async (x_m: number, y_m: number, z_m: number): Promise<void> => {
-        checkConnection();
-        const payload = new Uint8Array(12);
-        const view = new DataView(payload.buffer);
-        view.setInt32(0, x_m * 100, true);
-        view.setInt32(4, y_m * 100, true);
-        view.setInt32(8, z_m * 100, true);
-        await queueMessage(MessageType.SET_POSITION, payload);
-    };
-
-    const setPosition = async (x_m: number, y_m: number, z_m: number): Promise<void> => {
-        checkConnection();
-        const pending = queueSetPosition(x_m, y_m, z_m);
-        sendFrame();
-        await pending;
-    };
-
     return {
         queueSetGimbalPos,
         queueBeepBuzzer,
@@ -237,17 +187,13 @@ export function useRadioCommands({
         requestIMU,
         requestBaro,
         requestRotation,
-        requestPosition,
         queueSetRotation,
-        queueSetPosition,
         setGimbalPos,
         beepBuzzer,
         firePyroChanel,
         getIMU,
         getBaro,
         getRotation,
-        getPosition,
         setRotation,
-        setPosition,
     };
 }

@@ -10,8 +10,6 @@ export enum MessageType {
     GET_BARO = 0x07,
     GET_ROTATION = 0x08,
     SET_ROTATION = 0x09,
-    GET_POSITION = 0x0A,
-    SET_POSITION = 0x0B,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome

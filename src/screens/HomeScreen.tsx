@@ -1,26 +1,21 @@
 import { useEffect, useState } from "react";
-import { useRadioLink, type PositionData } from "../features/RadioLink/RadioLinkContext";
+import { useRadioLink } from "../features/RadioLink/RadioLinkContext";
 import { Button } from "../shared/components/primitives/Button";
 import { Card } from "../shared/components/primitives/Card";
 import { Input } from "../shared/components/primitives/Input";
 import { LineGraph } from "../shared/components/primitives/LineGraph";
 import BackgroundScene from "../features/3DScene/components/BackgroundScene";
 
-// Keeps the rocket resting on the ground while the telemetry position is still zero.
-const ROCKET_REST_HEIGHT = 0.175;
-
 export default function HomeScreen() {
 	const {
 		connected,
 		setGimbalPos,
 		setRotation,
-		setPosition,
 		beepBuzzer,
 		firePyroChanel,
 		requestIMU,
 		requestBaro,
 		requestRotation,
-		requestPosition,
 		sendQueuedCommands
 	} = useRadioLink();
 
@@ -28,10 +23,6 @@ export default function HomeScreen() {
 	const [plannedRotationX, setPlannedRotationX] = useState("0");
 	const [plannedRotationY, setPlannedRotationY] = useState("0");
 	const [plannedRotationZ, setPlannedRotationZ] = useState("0");
-
-	const [plannedPositionX, setPlannedPositionX] = useState("0");
-	const [plannedPositionY, setPlannedPositionY] = useState("0");
-	const [plannedPositionZ, setPlannedPositionZ] = useState("0");
 
 	const [plannedGimbalX, setPlannedGimbalX] = useState("0");
 	const [plannedGimbalY, setPlannedGimbalY] = useState("0");
@@ -44,8 +35,6 @@ export default function HomeScreen() {
 	const [rotationY, setRotationY] = useState<number>(0);
 	const [rotationZ, setRotationZ] = useState<number>(0);
 
-	const [telemetryPosition, setTelemetryPosition] = useState<PositionData>({ x_m: 0, y_m: 0, z_m: 0 });
-
 	const [accelX, setAccelX] = useState<{ x: number; y: number }[]>([]);
 	const [accelY, setAccelY] = useState<{ x: number; y: number }[]>([]);
 	const [accelZ, setAccelZ] = useState<{ x: number; y: number }[]>([]);
@@ -55,11 +44,10 @@ export default function HomeScreen() {
 	const [pressure, setPressure] = useState<{ x: number; y: number }[]>([]);
 	const chartStartT = Date.now();
 
-	// The firmware reports the position in a z-up frame (z is the altitude), while the scene is y-up.
 	const rocketPosition: [number, number, number] = [
-		telemetryPosition.x_m,
-		ROCKET_REST_HEIGHT + telemetryPosition.z_m,
-		telemetryPosition.y_m
+		0,
+		0.175,
+		0
 	];
 
 	useEffect(() => {
@@ -73,18 +61,15 @@ export default function HomeScreen() {
 				let imu;
 				let baro;
 				let rotation;
-				let position;
 				try {
 					imu = requestIMU();
 					baro = requestBaro();
 					rotation = requestRotation();
-					position = requestPosition();
 					sendQueuedCommands();
-					await Promise.all([imu, baro, rotation, position]);
+					await Promise.all([imu, baro, rotation]);
 					imu = await imu;
 					baro = await baro;
 					rotation = await rotation;
-					position = await position;
 
 				} catch (e) {
 					console.error("Failed to Poll data:", e);
@@ -95,7 +80,6 @@ export default function HomeScreen() {
 				setRotationX(rotation.roll_rad);
 				setRotationY(rotation.pitch_rad);
 				setRotationZ(rotation.yaw_rad);
-				setTelemetryPosition(position);
 
 				const t = (Date.now() - chartStartT) / 1000;
 				// Cap on stored samples is just a memory bound, not the visible window - LineGraph's maxXinFrame handles that.
@@ -187,19 +171,6 @@ export default function HomeScreen() {
 						<Button variant="primary" className="px-3 py-1.5 text-xs self-start" disabled={!connected} onClick={() => run(() => setRotation(Number(plannedRotationX), Number(plannedRotationY), Number(plannedRotationZ)))}>Set Rotation</Button>
 					</Card>
 					
-					<Card className="p-3 flex flex-col gap-2">
-						<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Accumulated Position</span>
-						<span className={`text-xs ${connected ? "text-zinc-400" : "text-zinc-600"}`}>
-							X {telemetryPosition.x_m.toFixed(2)} m | Y {telemetryPosition.y_m.toFixed(2)} m | Z {telemetryPosition.z_m.toFixed(2)} m
-						</span>
-						<div className="flex gap-2">
-							<Input type="number" value={plannedPositionX} onChange={e => setPlannedPositionX(e.target.value)} placeholder="X m" disabled={!connected} className="w-1/3" />
-							<Input type="number" value={plannedPositionY} onChange={e => setPlannedPositionY(e.target.value)} placeholder="Y m" disabled={!connected} className="w-1/3" />
-							<Input type="number" value={plannedPositionZ} onChange={e => setPlannedPositionZ(e.target.value)} placeholder="Z m" disabled={!connected} className="w-1/3" />
-						</div>
-						<Button variant="primary" className="px-3 py-1.5 text-xs self-start" disabled={!connected} onClick={() => run(() => setPosition(Number(plannedPositionX), Number(plannedPositionY), Number(plannedPositionZ)))}>Set Position</Button>
-					</Card>
-
 					<Card className="p-3 flex flex-col gap-2">
 						<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Set Gimbal Position</span>
 						<div className="flex gap-2">
