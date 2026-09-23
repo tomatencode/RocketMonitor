@@ -8,7 +8,7 @@ import { useRadioLink } from "../../features/RadioLink/RadioLinkContext";
 export default function TitleBar() {
   const appWindow = useRef(getCurrentWindow());
   const [isMaximized, setIsMaximized] = useState(false);
-  const { connected: usbConnected, portName } = useRocketLink();
+  const { connected: usbConnected, portName, hc12Alive } = useRocketLink();
   const { connected: rocketConnected } = useRadioLink();
 
   useEffect(() => {
@@ -56,11 +56,11 @@ export default function TitleBar() {
         <button
           onClick={() => handleOpenLog("rocket")}
           className="flex items-center"
-          title={usbConnected ? `Connected: ${portName}` : "Not connected"}
+          title={!usbConnected ? "Not connected" : !hc12Alive ? `HC12 module not responding: ${portName}` : `Connected: ${portName}`}
         >
           <svg
             viewBox="0 0 56 40"
-            className={`w-6 ${usbConnected ? "text-green-400" : "text-zinc-600"}`}
+            className={`w-6 ${!usbConnected ? "text-zinc-600" : !hc12Alive ? "text-red-400" : "text-green-400"}`}
           >
             <g fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
               <line x1="8" y1="20" x2="50" y2="20" />
