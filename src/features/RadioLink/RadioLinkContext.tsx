@@ -26,19 +26,25 @@ interface RadioLinkContextValue {
 
     queueSetGimbalPos: (degX: number, degY: number) => Promise<void>;
     queueBeepBuzzer: () => Promise<void>;
-    queueFirePyroChanel: (channel: number) => Promise<void>;
+    queueFirePyroChanel: (channel: number, durationMs?: number) => Promise<void>;
     requestIMU: () => Promise<IMUData>;
     requestBaro: () => Promise<BaroData>;
     requestRotation: () => Promise<{ roll_rad: number; pitch_rad: number; yaw_rad: number }>;
     queueSetRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
+    requestPyroContinuity: (channel: number) => Promise<boolean>;
+    requestPyroSoftwareArmed: () => Promise<boolean>;
+    requestPyroHardwareArmed: () => Promise<boolean>;
 
     setGimbalPos: (degX: number, degY: number) => Promise<void>;
     beepBuzzer: () => Promise<void>;
-    firePyroChanel: (channel: number) => Promise<void>;
+    firePyroChanel: (channel: number, durationMs?: number) => Promise<void>;
     getIMU: () => Promise<IMUData>;
     getBaro: () => Promise<BaroData>;
     getRotation: () => Promise<{ roll_rad: number; pitch_rad: number; yaw_rad: number }>;
     setRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
+    getPyroContinuity: (channel: number) => Promise<boolean>;
+    getPyroSoftwareArmed: () => Promise<boolean>;
+    getPyroHardwareArmed: () => Promise<boolean>;
 
     sendQueuedCommands: () => void;
 

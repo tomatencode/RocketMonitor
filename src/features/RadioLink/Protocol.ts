@@ -6,10 +6,13 @@ export enum MessageType {
     SET_GIMBAL = 0x03,
     DO_BEEP = 0x04,
     FIRE_PYRO = 0x05,
-    GET_IMU = 0x06,
-    GET_BARO = 0x07,
-    GET_ROTATION = 0x08,
-    SET_ROTATION = 0x09,
+    GET_PYRO_CONTINUITY = 0x06,
+    GET_PYRO_SOFTWARE_ARMED = 0x07,
+    GET_PYRO_HARDWARE_ARMED = 0x08,
+    GET_IMU = 0x09,
+    GET_BAROMETER = 0x0A,
+    GET_ROTATION = 0x0B,
+    SET_ROTATION = 0x0C,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome

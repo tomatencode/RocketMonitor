@@ -66,16 +66,79 @@ export function useRadioCommands({
         await pending;
     };
 
-    const queueFirePyroChanel = async (channel: number): Promise<void> => {
+    const queueFirePyroChanel = async (channel: number, durationMs?: number): Promise<void> => {
         checkConnection();
-        await queueMessage(MessageType.FIRE_PYRO, new Uint8Array([channel]));
+        let payload: Uint8Array;
+        if (durationMs === undefined) {
+            payload = new Uint8Array([channel]);
+        } else {
+            payload = new Uint8Array(3);
+            const view = new DataView(payload.buffer);
+            view.setUint8(0, channel);
+            view.setUint16(1, durationMs, true);
+        }
+        await queueMessage(MessageType.FIRE_PYRO, payload);
     };
 
-    const firePyroChanel = async (channel: number): Promise<void> => {
+    const firePyroChanel = async (channel: number, durationMs?: number): Promise<void> => {
         checkConnection();
-        const pending = queueFirePyroChanel(channel);
+        const pending = queueFirePyroChanel(channel, durationMs);
         sendFrame();
         await pending;
+    };
+
+    const requestPyroContinuity = async (channel: number): Promise<boolean> => {
+        checkConnection();
+        const response = await queueMessage(MessageType.GET_PYRO_CONTINUITY, new Uint8Array([channel]));
+
+        if (!response.payload || response.payload.byteLength < 1) {
+            throw new Error("GET_PYRO_CONTINUITY response has an invalid payload");
+        }
+
+        return response.payload[0] !== 0;
+    };
+
+    const getPyroContinuity = async (channel: number): Promise<boolean> => {
+        checkConnection();
+        const pending = requestPyroContinuity(channel);
+        sendFrame();
+        return await pending;
+    };
+
+    const requestPyroSoftwareArmed = async (): Promise<boolean> => {
+        checkConnection();
+        const response = await queueMessage(MessageType.GET_PYRO_SOFTWARE_ARMED);
+
+        if (!response.payload || response.payload.byteLength < 1) {
+            throw new Error("GET_PYRO_SOFTWARE_ARMED response has an invalid payload");
+        }
+
+        return response.payload[0] !== 0;
+    };
+
+    const getPyroSoftwareArmed = async (): Promise<boolean> => {
+        checkConnection();
+        const pending = requestPyroSoftwareArmed();
+        sendFrame();
+        return await pending;
+    };
+
+    const requestPyroHardwareArmed = async (): Promise<boolean> => {
+        checkConnection();
+        const response = await queueMessage(MessageType.GET_PYRO_HARDWARE_ARMED);
+
+        if (!response.payload || response.payload.byteLength < 1) {
+            throw new Error("GET_PYRO_HARDWARE_ARMED response has an invalid payload");
+        }
+
+        return response.payload[0] !== 0;
+    };
+
+    const getPyroHardwareArmed = async (): Promise<boolean> => {
+        checkConnection();
+        const pending = requestPyroHardwareArmed();
+        sendFrame();
+        return await pending;
     };
 
     const requestIMU = async (): Promise<IMUData> => {
@@ -110,7 +173,7 @@ export function useRadioCommands({
 
     const requestBaro = async (): Promise<BaroData> => {
         checkConnection();
-        const response = await queueMessage(MessageType.GET_BARO);
+        const response = await queueMessage(MessageType.GET_BAROMETER);
 
         if (!response.payload || response.payload.byteLength < 12) {
             throw new Error("GET_BARO response has an invalid payload");
@@ -188,6 +251,9 @@ export function useRadioCommands({
         requestBaro,
         requestRotation,
         queueSetRotation,
+        requestPyroContinuity,
+        requestPyroSoftwareArmed,
+        requestPyroHardwareArmed,
         setGimbalPos,
         beepBuzzer,
         firePyroChanel,
@@ -195,5 +261,8 @@ export function useRadioCommands({
         getBaro,
         getRotation,
         setRotation,
+        getPyroContinuity,
+        getPyroSoftwareArmed,
+        getPyroHardwareArmed,
     };
 }

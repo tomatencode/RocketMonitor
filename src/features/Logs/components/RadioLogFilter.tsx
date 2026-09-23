@@ -6,7 +6,7 @@ const DEFAULT_FILTER_MESSAGE_TYPES = [
     MessageType.PING,
     MessageType.TELEMETRY,
     MessageType.GET_IMU,
-    MessageType.GET_BARO,
+    MessageType.GET_BAROMETER,
 ];
 
 interface RadioLogFilterProps {
