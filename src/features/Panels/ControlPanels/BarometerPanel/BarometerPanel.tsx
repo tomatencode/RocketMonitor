@@ -1,7 +1,7 @@
 import { Card } from "../../../../shared/components/elements/Card";
 import { LineGraph } from "../../../../shared/components/elements/LineGraph";
-import { accentColor1 } from "../../../../shared/styles";
 import { useBarometerStatus } from "./useBarometerStatus";
+import { accentColor1 } from "../../../../shared/styles";
 
 export interface BarometerPanelProps {
     className?: string;

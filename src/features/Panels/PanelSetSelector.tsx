@@ -52,7 +52,7 @@ export function PanelSetSelector({ activeSetId, onChange }: PanelSetSelectorProp
                     onClick={() => setOpen((v) => !v)}
                     className={`flex w-full items-center gap-2.5 p-2.5 text-left transition-colors ${rowHover}`}
                 >
-                    <SetIcon icon={activeSet.icon} active />
+                    <SetIcon icon={activeSet.icon} color={activeSet.color} active />
                     <SetLabel set={activeSet} />
                     <ChevronIcon open={open} />
                 </button>
@@ -74,7 +74,7 @@ export function PanelSetSelector({ activeSetId, onChange }: PanelSetSelectorProp
                                 }}
                                 className={`flex w-full items-center gap-2.5 border-b p-2.5 text-left transition-colors last:border-b-0 ${dividerBorder} ${rowHover}`}
                             >
-                                <SetIcon icon={set.icon} />
+                                <SetIcon icon={set.icon} color={set.color} />
                                 <SetLabel set={set} muted />
                             </button>
                         ))
@@ -88,17 +88,18 @@ export function PanelSetSelector({ activeSetId, onChange }: PanelSetSelectorProp
 }
 
 /** Square icon badge, matching the look of the control-panel headers. */
-function SetIcon({ icon: Icon, active = false }: { icon: PanelSetIcon; active?: boolean }) {
+function SetIcon({ icon: Icon, color, active = false }: { icon: PanelSetIcon; color: string; active?: boolean }) {
     return (
         <span
             aria-hidden
+            style={{ color }}
             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border ${
                 active
-                    ? "border-zinc-600/70 bg-zinc-800/70 text-zinc-100"
-                    : "border-zinc-700/50 bg-zinc-800/40 text-zinc-400"
+                    ? "border-zinc-600/70 bg-zinc-800/70"
+                    : "border-zinc-700/50 bg-zinc-800/40"
             }`}
         >
-            <Icon className="h-4 w-4" />
+            <Icon className={`h-4 w-4 ${active ? "" : "opacity-70"}`} />
         </span>
     );
 }

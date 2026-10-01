@@ -1,4 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
+import { accentColor1, accentColor2 } from "../../shared/styles";
 import LaunchPanels from "./Sets/LaunchPanels";
 import TestPanels from "./Sets/TestPanels";
 import { LaunchIcon, TestIcon } from "./PanelSetIcons";
@@ -16,6 +17,8 @@ export interface PanelSet {
     description?: string;
     /** SVG icon shown in the set's icon badge. */
     icon: PanelSetIcon;
+    /** Accent colour applied to the set's icon. */
+    color: string;
     /** The component that renders this set's panels. */
     Component: ComponentType;
 }
@@ -33,6 +36,7 @@ export const PANEL_SETS: PanelSet[] = [
         label: "Launch",
         description: "Flight-ready readouts",
         icon: LaunchIcon,
+        color: accentColor1,
         Component: LaunchPanels,
     },
     {
@@ -40,6 +44,7 @@ export const PANEL_SETS: PanelSet[] = [
         label: "Test",
         description: "Full sensor & actuator set",
         icon: TestIcon,
+        color: accentColor2,
         Component: TestPanels,
     },
 ];
