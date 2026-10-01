@@ -111,8 +111,6 @@ export function useMessageTransport(onResponse?: () => void) {
 
         if (sceduledMessages.current.length === 0) return;
 
-        if (pendingResponses.current.size === 0 && sceduledMessages.current.length === 0) return;
-
         const messages = sceduledMessages.current.splice(0, 16)
         const frameId = nextFrameId.current++;
         if (messages.length > 0) {
