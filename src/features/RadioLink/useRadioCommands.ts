@@ -1,7 +1,7 @@
 import { MessageType } from "./Protocol";
 import { ResponseStatus } from "./useMessageTransport";
 
-interface IMUData {
+export interface IMUData {
     accelX_m_s2: number;
     accelY_m_s2: number;
     accelZ_m_s2: number;
@@ -10,13 +10,12 @@ interface IMUData {
     gyroZ_rad_s: number;
 }
 
-interface BaroData {
-    altitude: number;
-    pressure: number;
-    temperature: number;
+export interface BaroData {
+    pressure_Pa: number;
+    temperature_C: number;
 }
 
-interface RotationData {
+export interface RotationData {
     roll_rad: number;
     pitch_rad: number;
     yaw_rad: number;
@@ -175,7 +174,7 @@ export function useRadioCommands({
         checkConnection();
         const response = await queueMessage(MessageType.GET_BAROMETER);
 
-        if (!response.payload || response.payload.byteLength < 12) {
+        if (!response.payload || response.payload.byteLength < 8) {
             throw new Error("GET_BARO response has an invalid payload");
         }
 
@@ -185,9 +184,8 @@ export function useRadioCommands({
             response.payload.byteLength,
         );
         return {
-            altitude: data.getInt32(0, true) / 100,
-            pressure: data.getInt32(4, true) / 100,
-            temperature: data.getInt32(8, true) / 100,
+            pressure_Pa: data.getInt32(0, true) / 100,
+            temperature_C: data.getInt32(4, true) / 100,
         };
     };
 

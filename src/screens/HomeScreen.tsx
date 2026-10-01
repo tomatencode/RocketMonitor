@@ -89,7 +89,7 @@ export default function HomeScreen() {
 				setGyroX(prev => [...prev.slice(-100), { x: t, y: imu.gyroX_rad_s }]);
 				setGyroY(prev => [...prev.slice(-100), { x: t, y: imu.gyroY_rad_s }]);
 				setGyroZ(prev => [...prev.slice(-100), { x: t, y: imu.gyroZ_rad_s }]);
-				setPressure(prev => [...prev.slice(-100), { x: t, y: baro.pressure }]);
+				setPressure(prev => [...prev.slice(-100), { x: t, y: baro.pressure_Pa / 100 }]);
 			}
 		};
 		pollRadio();

@@ -2,24 +2,10 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { MessageType } from "./Protocol";
 import { useMessageTransport, LogEntry } from "./useMessageTransport";
-import { useRadioCommands } from "./useRadioCommands";
+import { useRadioCommands, IMUData, BaroData, RotationData } from "./useRadioCommands";
 
 export type { LogEntry };
 
-export interface IMUData {
-    accelX_m_s2: number;
-    accelY_m_s2: number;
-    accelZ_m_s2: number;
-    gyroX_rad_s: number;
-    gyroY_rad_s: number;
-    gyroZ_rad_s: number;
-}
-
-export interface BaroData {
-    altitude: number;
-    pressure: number;
-    temperature: number;
-}
 
 interface RadioLinkContextValue {
     connected: boolean;
@@ -29,7 +15,7 @@ interface RadioLinkContextValue {
     queueFirePyroChanel: (channel: number, durationMs?: number) => Promise<void>;
     requestIMU: () => Promise<IMUData>;
     requestBaro: () => Promise<BaroData>;
-    requestRotation: () => Promise<{ roll_rad: number; pitch_rad: number; yaw_rad: number }>;
+    requestRotation: () => Promise<RotationData>;
     queueSetRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
     requestPyroContinuity: (channel: number) => Promise<boolean>;
     requestPyroSoftwareArmed: () => Promise<boolean>;
@@ -40,7 +26,7 @@ interface RadioLinkContextValue {
     firePyroChanel: (channel: number, durationMs?: number) => Promise<void>;
     getIMU: () => Promise<IMUData>;
     getBaro: () => Promise<BaroData>;
-    getRotation: () => Promise<{ roll_rad: number; pitch_rad: number; yaw_rad: number }>;
+    getRotation: () => Promise<RotationData>;
     setRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
     getPyroContinuity: (channel: number) => Promise<boolean>;
     getPyroSoftwareArmed: () => Promise<boolean>;
