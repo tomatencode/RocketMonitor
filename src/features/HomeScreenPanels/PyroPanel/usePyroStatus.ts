@@ -20,9 +20,8 @@ interface UsePyroStatusOptions {
 
 /**
  * Polls pyro arm + continuity state through the RadioLink.
- * Batches all requests into a single radio frame
- * (queue request* calls, then one sendQueuedCommands flush),
- * mirroring the HomeScreen IMU/baro polling pattern.
+ * Fires every request in one tick so the transport batches them into a single
+ * radio frame, mirroring the HomeScreen IMU/baro polling pattern.
  */
 export function usePyroStatus({
     channels,
@@ -31,10 +30,9 @@ export function usePyroStatus({
 }: UsePyroStatusOptions): PyroStatus {
     const {
         connected,
-        requestPyroContinuity,
-        requestPyroSoftwareArmed,
-        requestPyroHardwareArmed,
-        sendQueuedCommands,
+        getPyroContinuity,
+        getPyroSoftwareArmed,
+        getPyroHardwareArmed,
     } = useRadioLink();
 
     const [hardwareArmed, setHardwareArmed] = useState<boolean | null>(null);
@@ -73,22 +71,17 @@ export function usePyroStatus({
             pollInFlight = true;
             const chs = channelsRef.current;
             try {
-                // Queue everything first so it goes out in one frame.
-                const hwPending = requestPyroHardwareArmed();
-                const swPending = requestPyroSoftwareArmed();
-                const contPendings = chs.map((ch) => requestPyroContinuity(ch));
-                sendQueuedCommands();
-
+                // One Promise.all; the transport batches these into a single frame.
                 const [hw, sw, ...conts] = await Promise.all([
-                    hwPending,
-                    swPending,
-                    ...contPendings,
+                    getPyroHardwareArmed(),
+                    getPyroSoftwareArmed(),
+                    ...chs.map((ch) => getPyroContinuity(ch)),
                 ]);
 
                 if (cancelled) return;
-                setHardwareArmed(hw as boolean);
-                setSoftwareArmed(sw as boolean);
-                setContinuity(conts as boolean[]);
+                setHardwareArmed(hw);
+                setSoftwareArmed(sw);
+                setContinuity(conts);
                 setError(null);
                 setLastUpdatedAt(Date.now());
             } catch (e) {

@@ -10,33 +10,18 @@ export type { LogEntry };
 interface RadioLinkContextValue {
     connected: boolean;
 
-    queueSetGimbalPos: (degX: number, degY: number) => Promise<void>;
-    queueBeepBuzzer: () => Promise<void>;
-    queueFirePyroChanel: (channel: number, durationMs?: number) => Promise<void>;
-    requestIMU: () => Promise<IMUData>;
-    requestBaro: () => Promise<BaroData>;
-    requestRotation: () => Promise<RotationData>;
-    requestGimbal: () => Promise<GimbalData>;
-    queueSetRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
-    requestPyroContinuity: (channel: number) => Promise<boolean>;
-    requestPyroSoftwareArmed: () => Promise<boolean>;
-    requestSetPyroSoftwareArmed: (armed: boolean) => Promise<void>;
-    requestPyroHardwareArmed: () => Promise<boolean>;
-
     setGimbalPos: (degX: number, degY: number) => Promise<void>;
+    getGimbal: () => Promise<GimbalData>;
     beepBuzzer: () => Promise<void>;
     firePyroChanel: (channel: number, durationMs?: number) => Promise<void>;
-    getIMU: () => Promise<IMUData>;
-    getBaro: () => Promise<BaroData>;
-    getRotation: () => Promise<RotationData>;
-    getGimbal: () => Promise<GimbalData>;
-    setRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
     getPyroContinuity: (channel: number) => Promise<boolean>;
     getPyroSoftwareArmed: () => Promise<boolean>;
     setPyroSoftwareArmed: (armed: boolean) => Promise<void>;
     getPyroHardwareArmed: () => Promise<boolean>;
-
-    sendQueuedCommands: () => void;
+    getIMU: () => Promise<IMUData>;
+    getBaro: () => Promise<BaroData>;
+    getRotation: () => Promise<RotationData>;
+    setRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
 
     log: LogEntry[];
 }
@@ -49,7 +34,7 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     const { connected: usbConnected } = useRocketLink();
     const [connected, setConnected] = useState(true);
     const resetPingTimer = useRef<() => void>(() => {});
-    const { log, queueMessage, sendFrame } = useMessageTransport(() => {
+    const { log, sendMessage } = useMessageTransport(() => {
         setConnected(true);
         resetPingTimer.current();
     });
@@ -69,9 +54,7 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
             try {
-                const pending = queueMessage(MessageType.PING);
-                sendFrame();
-                await pending;
+                await sendMessage(MessageType.PING);
                 setConnected(true);
             } catch (error) {
                 setConnected(false);
@@ -89,27 +72,22 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
         };
     }, [usbConnected]);
 
-    const checkConnection = () => {
+    // Commands must fail fast while the link is down instead of queueing radio
+    // traffic that can never be answered. The transport flushes the frame itself.
+    const sendCommand = (messageType: MessageType, payload?: Uint8Array) => {
         if (!connected) {
             throw new Error("Not connected to the radio link");
         }
+        return sendMessage(messageType, payload);
     };
 
-    const sendQueuedCommands = () => {
-        checkConnection();
-        sendFrame();
-    };
-
-    const commands = useRadioCommands({ queueMessage, sendFrame: sendQueuedCommands, checkConnection });
-
+    const commands = useRadioCommands({ sendMessage: sendCommand });
 
     return (
         <RadioLinkContext.Provider value={{
             connected: connected && usbConnected,
 
             ...commands,
-
-            sendQueuedCommands: sendQueuedCommands,
 
             log,
         }}>

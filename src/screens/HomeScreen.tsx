@@ -13,10 +13,9 @@ export default function HomeScreen() {
 		connected,
 		setRotation,
 		beepBuzzer,
-		requestIMU,
-		requestBaro,
-		requestRotation,
-		sendQueuedCommands
+		getIMU,
+		getBaro,
+		getRotation
 	} = useRadioLink();
 
 
@@ -57,15 +56,12 @@ export default function HomeScreen() {
 				let baro;
 				let rotation;
 				try {
-					imu = requestIMU();
-					baro = requestBaro();
-					rotation = requestRotation();
-					sendQueuedCommands();
-					await Promise.all([imu, baro, rotation]);
-					imu = await imu;
-					baro = await baro;
-					rotation = await rotation;
-
+					// One Promise.all; the transport batches these into a single frame.
+					[imu, baro, rotation] = await Promise.all([
+						getIMU(),
+						getBaro(),
+						getRotation(),
+					]);
 				} catch (e) {
 					console.error("Failed to Poll data:", e);
 					await new Promise(resolve => setTimeout(resolve, 100)); // Wait a bit before retrying

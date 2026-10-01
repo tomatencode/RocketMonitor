@@ -13,7 +13,7 @@ export enum ResponseStatus {
 }
 
 interface PendingResponses {
-    resolve: (result: { status: ResponseStatus; payload?: any }) => void;
+    resolve: (result: { status: ResponseStatus; payload?: Uint8Array }) => void;
     reject: (err: Error) => void;
     timer?: ReturnType<typeof setTimeout>;
     timeout_ms: number;
@@ -34,6 +34,7 @@ export function useMessageTransport(onResponse?: () => void) {
 
     const sendInFlight = useRef(false);
     const receveDeadline = useRef(0);
+    const flushScheduled = useRef(false);
 
     const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -102,28 +103,17 @@ export function useMessageTransport(onResponse?: () => void) {
         });
     }, [onReceiveRadio]);
 
-    const queueMessage = (messageType: MessageType, payload?: any, timeout_ms = 500, retrys = 3): Promise<{ status: ResponseStatus; payload?: any }> => {
-        const seqId = (nextSeqId.current = (nextSeqId.current + 1) & 0xFF);
-        const payloadArr = payload ?? new Uint8Array();
-        const message: Message = { type: messageType, payload: payloadArr, seqId, status: JobStatus.BUSY };
-
-        const result = new Promise<{ status: ResponseStatus; payload?: any }>((resolve, reject) => {
-            pendingResponses.current.set(seqId, { resolve, reject, timeout_ms, remainingRetries: retrys, message });
-
-            sceduledMessages.current.push(message);
-        });
-        return result;
-    };
-
     const sendFrame = async () => {
         // wait out any cooldown instead of dropping the messages that were counting on this call to flush them
         while (sendInFlight.current && Date.now() < receveDeadline.current) {
             await delay(receveDeadline.current - Date.now());
         }
 
+        if (sceduledMessages.current.length === 0) return;
+
         if (pendingResponses.current.size === 0 && sceduledMessages.current.length === 0) return;
 
-        const messages = sceduledMessages.current.splice(0, 16); // even send an empty frame if there are no new messages to allow the rocket to respond
+        const messages = sceduledMessages.current.splice(0, 16)
         const frameId = nextFrameId.current++;
         if (messages.length > 0) {
             addLogEntry({ direction: "send", frameId, ts: Date.now(), messages });
@@ -148,5 +138,36 @@ export function useMessageTransport(onResponse?: () => void) {
         receveDeadline.current = Date.now() + MAX_RESPONSE_TIME;
     };
 
-    return { log, queueMessage, sendFrame };
+    // Transmission timing is owned by the transport: queueing a message always
+    // schedules a frame flush, so callers never have to remember to call sendFrame.
+    // The microtask coalesces every message queued in the same tick into one frame.
+    const scheduleFlush = () => {
+        if (flushScheduled.current) return;
+        flushScheduled.current = true;
+        queueMicrotask(() => {
+            flushScheduled.current = false;
+            void sendFrame();
+        });
+    };
+
+    const sendMessage = (
+        messageType: MessageType,
+        payload?: Uint8Array,
+        timeout_ms = 500,
+        retrys = 3,
+    ): Promise<{ status: ResponseStatus; payload?: Uint8Array }> => {
+        const seqId = (nextSeqId.current = (nextSeqId.current + 1) & 0xFF);
+        const message: Message = { type: messageType, payload: payload ?? new Uint8Array(), seqId, status: JobStatus.BUSY };
+
+        const result = new Promise<{ status: ResponseStatus; payload?: Uint8Array }>((resolve, reject) => {
+            pendingResponses.current.set(seqId, { resolve, reject, timeout_ms, remainingRetries: retrys, message });
+            sceduledMessages.current.push(message);
+        });
+
+        scheduleFlush();
+
+        return result;
+    };
+
+    return { log, sendMessage };
 }
