@@ -19,6 +19,7 @@ interface RadioLinkContextValue {
     queueSetRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
     requestPyroContinuity: (channel: number) => Promise<boolean>;
     requestPyroSoftwareArmed: () => Promise<boolean>;
+    requestSetPyroSoftwareArmed: (armed: boolean) => Promise<void>;
     requestPyroHardwareArmed: () => Promise<boolean>;
 
     setGimbalPos: (degX: number, degY: number) => Promise<void>;
@@ -30,6 +31,7 @@ interface RadioLinkContextValue {
     setRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
     getPyroContinuity: (channel: number) => Promise<boolean>;
     getPyroSoftwareArmed: () => Promise<boolean>;
+    setPyroSoftwareArmed: (armed: boolean) => Promise<void>;
     getPyroHardwareArmed: () => Promise<boolean>;
 
     sendQueuedCommands: () => void;

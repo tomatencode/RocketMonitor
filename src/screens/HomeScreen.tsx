@@ -5,6 +5,7 @@ import { Card } from "../shared/components/primitives/Card";
 import { Input } from "../shared/components/primitives/Input";
 import { LineGraph } from "../shared/components/primitives/LineGraph";
 import BackgroundScene from "../features/3DScene/components/BackgroundScene";
+import { PyroPanel } from "../features/HomeScreenPanels/PyroPanel";
 
 export default function HomeScreen() {
 	const {
@@ -12,7 +13,6 @@ export default function HomeScreen() {
 		setGimbalPos,
 		setRotation,
 		beepBuzzer,
-		firePyroChanel,
 		requestIMU,
 		requestBaro,
 		requestRotation,
@@ -26,8 +26,6 @@ export default function HomeScreen() {
 
 	const [plannedGimbalX, setPlannedGimbalX] = useState("0");
 	const [plannedGimbalY, setPlannedGimbalY] = useState("0");
-
-	const [plannedChannel, setPlannedChannel] = useState("1");
 
 	const [commandError, setCommandError] = useState<string | null>(null);
 
@@ -185,11 +183,7 @@ export default function HomeScreen() {
 						<Button variant="primary" className="px-3 py-1.5 text-xs self-start" disabled={!connected} onClick={() => run(beepBuzzer)}>Beep Buzzer</Button>
 					</Card>
 
-					<Card className="p-3 flex flex-col gap-2">
-						<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-red-300" : "text-red-300/40"}`}>Fire Pyro Channel</span>
-						<Input type="number" min="0" value={plannedChannel} onChange={e => setPlannedChannel(e.target.value)} disabled={!connected} />
-						<Button variant="danger" className="px-3 py-1.5 text-xs self-start" disabled={!connected} onClick={() => run(() => firePyroChanel(Number(plannedChannel)))}>Fire Channel</Button>
-					</Card>
+					<PyroPanel />
 
 					{commandError &&
 					<Card variant="error" className="p-3 flex flex-col gap-2">

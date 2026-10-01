@@ -122,6 +122,18 @@ export function useRadioCommands({
         return await pending;
     };
 
+    const requestSetPyroSoftwareArmed = async (armed: boolean): Promise<void> => {
+        checkConnection();
+        await queueMessage(MessageType.SET_PYRO_SOFTWARE_ARMED, new Uint8Array([armed ? 1 : 0]));
+    };
+
+    const setPyroSoftwareArmed = async (armed: boolean): Promise<void> => {
+        checkConnection();
+        const pending = requestSetPyroSoftwareArmed(armed);
+        sendFrame();
+        await pending;
+    };
+
     const requestPyroHardwareArmed = async (): Promise<boolean> => {
         checkConnection();
         const response = await queueMessage(MessageType.GET_PYRO_HARDWARE_ARMED);
@@ -251,7 +263,9 @@ export function useRadioCommands({
         queueSetRotation,
         requestPyroContinuity,
         requestPyroSoftwareArmed,
+        requestSetPyroSoftwareArmed,
         requestPyroHardwareArmed,
+
         setGimbalPos,
         beepBuzzer,
         firePyroChanel,
@@ -261,6 +275,7 @@ export function useRadioCommands({
         setRotation,
         getPyroContinuity,
         getPyroSoftwareArmed,
+        setPyroSoftwareArmed,
         getPyroHardwareArmed,
     };
 }

@@ -13,6 +13,7 @@ export enum MessageType {
     GET_BAROMETER = 0x0A,
     GET_ROTATION = 0x0B,
     SET_ROTATION = 0x0C,
+    SET_PYRO_SOFTWARE_ARMED = 0x0D,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome
