@@ -11,9 +11,6 @@ import { useGimbalStatus } from "./useGimbalStatus";
 
 export interface GimbalPanelProps {
     maxDeflectionDeg?: number;
-    pollIntervalMs?: number;
-    /** Min ms between SET_GIMBAL sends while dragging. Defaults to 150. */
-    sendThrottleMs?: number;
     className?: string;
 }
 
@@ -23,13 +20,10 @@ function fmt(v: number | null, digits = 1): string {
 
 export function GimbalPanel({
     maxDeflectionDeg = 10,
-    pollIntervalMs = 1500,
-    sendThrottleMs = 150,
     className = "",
 }: GimbalPanelProps) {
     const { connected, setGimbalPos } = useRadioLink();
-    const { degX_deg: actualX, degY_deg: actualY, error: pollError, refresh } = useGimbalStatus({
-        pollIntervalMs,
+    const { degX_deg: actualX, degY_deg: actualY, error: pollError } = useGimbalStatus({
         enabled: connected,
     });
 
@@ -44,59 +38,36 @@ export function GimbalPanel({
         ? { degX_deg: actualX, degY_deg: actualY }
         : null;
 
-    // Latest-wins sender: only one SET_GIMBAL is in flight at a time, and if
-    // more drag moves arrive while it is, only the newest is kept. Chaining
-    // every move (the previous approach) made the queue grow without bound
-    // during a drag, so the gimbal fell seconds behind the handle.
+    // Latest-wins sender: one SET_GIMBAL in flight at a time. Angles that
+    // arrive mid-flight replace any value still waiting, so the gimbal tracks
+    // the handle as fast as the link allows without ever queueing a backlog.
     const inFlightRef = useRef(false);
     const pendingRef = useRef<GimbalAngles | null>(null);
-    const lastSendRef = useRef(0);
-    const trailingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const flushSendQueue = () => {
+    const flush = () => {
         if (inFlightRef.current || !pendingRef.current || !connected) return;
         const next = pendingRef.current;
         pendingRef.current = null;
         inFlightRef.current = true;
-        lastSendRef.current = Date.now();
         setSending(true);
         setActionError(null);
-        Promise.resolve()
-            .then(() => setGimbalPos(next.degX_deg, next.degY_deg))
+        setGimbalPos(next.degX_deg, next.degY_deg)
             .catch((e) => setActionError(e instanceof Error ? e.message : String(e)))
             .finally(() => {
                 inFlightRef.current = false;
                 if (pendingRef.current) {
-                    // Coalesce immediate follow-ups into the next microtask.
-                    Promise.resolve().then(flushSendQueue);
+                    // A newer position is already waiting: send it immediately.
+                    flush();
                 } else {
                     setSending(false);
                 }
             });
     };
 
-    const sendAngles = (a: GimbalAngles, opts?: { force?: boolean }) => {
+    const sendAngles = (a: GimbalAngles) => {
         if (!connected) return;
-        // Always keep the newest value; `force` (drag end / button) bypasses
-        // the throttle so the final position is never dropped.
         pendingRef.current = a;
-        if (!opts?.force && Date.now() - lastSendRef.current < sendThrottleMs) {
-            // Trailing send: a throttled move would otherwise sit pending
-            // forever if the pointer stops moving inside the window.
-            if (trailingTimerRef.current === null) {
-                const wait = Math.max(0, sendThrottleMs - (Date.now() - lastSendRef.current));
-                trailingTimerRef.current = setTimeout(() => {
-                    trailingTimerRef.current = null;
-                    flushSendQueue();
-                }, wait);
-            }
-            return;
-        }
-        if (trailingTimerRef.current !== null) {
-            clearTimeout(trailingTimerRef.current);
-            trailingTimerRef.current = null;
-        }
-        flushSendQueue();
+        flush();
     };
 
     const handleDrag = (a: GimbalAngles) => {
@@ -110,16 +81,14 @@ export function GimbalPanel({
 
     const handleDragEnd = () => {
         setDragging(false);
-        // Trailing send guarantees the release position lands on the rocket
-        // even if intermediate moves were throttled away.
-        sendAngles(commanded, { force: true });
-        refresh();
+        // Sends the release position straight away (or as soon as any in-flight
+        // send settles), so the final handle position is never dropped.
+        sendAngles(commanded);
     };
     const handleCenter = () => {
         const a: GimbalAngles = { degX_deg: 0, degY_deg: 0 };
         setCommanded(a);
-        sendAngles(a, { force: true });
-        refresh();
+        sendAngles(a);
     };
     const statusError = actionError ?? pollError;
 
