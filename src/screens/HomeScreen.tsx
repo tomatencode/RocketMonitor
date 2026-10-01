@@ -5,7 +5,7 @@ import { Card } from "../shared/components/elements/Card";
 import { Input } from "../shared/components/primitives/Input";
 import { LineGraph } from "../shared/components/elements/LineGraph";
 import BackgroundScene from "../features/3DScene/components/BackgroundScene";
-import { PyroPanel } from "../features/HomeScreenPanels/PyroPanel";
+import { PyroPanel } from "../features/HomeScreenPanels/PyroPanel/PyroPanel";
 
 export default function HomeScreen() {
 	const {

@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { AccentRow } from "../../../shared/components/primitives/AccentRow";
+import { AccentRow } from "../../../shared/components/elements/AccentRow";
 import { ScrollView } from "../../../shared/components/primitives/ScrollView";
 
 type DataDirection = "send" | "receive";
