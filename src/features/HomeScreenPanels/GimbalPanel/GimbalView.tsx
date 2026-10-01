@@ -64,7 +64,6 @@ export function GimbalView({
     // True when the current focus came from a pointer press, so no focus ring
     // is drawn for clicks while Tab-navigation still gets a hint.
     const pointerFocusRef = useRef(false);
-    const [keyboardFocus, setKeyboardFocus] = useState(false);
 
     const pointToAngles = (clientX: number, clientY: number): GimbalAngles | null => {
         const svg = svgRef.current;
@@ -150,9 +149,7 @@ export function GimbalView({
             onPointerMove={handlePointerMove}
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
-            onFocus={() => setKeyboardFocus(!pointerFocusRef.current)}
-            onBlur={() => { pointerFocusRef.current = false; setKeyboardFocus(false); }}
-            className={`w-full select-none outline-none ${disabled ? "opacity-50" : "cursor-crosshair"} ${className}`}
+            className={`w-full select-none outline-none ${disabled ? "opacity-50" : ""} ${className}`}
             style={{ touchAction: "none", WebkitTapHighlightColor: "transparent" }}
         >
             {/* Polar grid: concentric range rings + radial spokes every 30 deg */}
@@ -217,19 +214,6 @@ export function GimbalView({
 
             {/* Target nozzle dot */}
             <circle cx={CENTER + cmd.x} cy={CENTER + cmd.y} r={10} fill="#dc2626" stroke="#7f1d1d" strokeWidth={2} />
-            {/* Keyboard focus hint (replaces the browser's default outline) */}
-            {keyboardFocus && (
-                <rect
-                    x={1}
-                    y={1}
-                    width={GIMBAL_VIEW_SIZE - 2}
-                    height={GIMBAL_VIEW_SIZE - 2}
-                    rx={6}
-                    fill="none"
-                    stroke="#52525b"
-                    strokeWidth={1.5}
-                />
-            )}
         </svg>
     );
 }
