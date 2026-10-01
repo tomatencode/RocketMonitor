@@ -1,5 +1,6 @@
-import { Card } from "../../../shared/components/elements/Card";
-import { LineGraph } from "../../../shared/components/elements/LineGraph";
+import { Card } from "../../../../shared/components/elements/Card";
+import { LineGraph } from "../../../../shared/components/elements/LineGraph";
+import { accentColor1, accentColor2, accentColor3 } from "../../../../shared/styles";
 import { useGyroscopeStatus } from "./useGyroscopeStatus";
 
 export interface GyroscopePanelProps {
@@ -14,9 +15,9 @@ export function GyroscopePanel({ className = "" }: GyroscopePanelProps) {
             <span className="text-xs font-semibold tracking-wide uppercase text-zinc-300">Gyroscope Linechart</span>
             <LineGraph
                 series={[
-                    { label: "gyroX", color: "#38bdf8", data: gyroX },
-                    { label: "gyroY", color: "#f472b6", data: gyroY },
-                    { label: "gyroZ", color: "#34d399", data: gyroZ },
+                    { label: "gyroX", color: accentColor1, data: gyroX },
+                    { label: "gyroY", color: accentColor2, data: gyroY },
+                    { label: "gyroZ", color: accentColor3, data: gyroZ },
                 ]}
                 scale={1.2}
                 yAutoscaleMin={-6}

@@ -6,6 +6,7 @@ import { RocketModel } from "./RocketModel";
 import { GroundSpotlight } from "./GroundSpotlight";
 import { CameraFrameOffset } from "./CameraFrameOffset";
 import { useGroundClampedZoom } from "./useGroundClampedZoom";
+import { useRocketOrientation } from "../useRocketOrientation";
 
 const GROUND_SPOTLIGHT_RADIUS = 0.3;
 const GROUND_SPOTLIGHT_COUNT = 4;
@@ -23,13 +24,13 @@ const groundSpotlights = Array.from({ length: GROUND_SPOTLIGHT_COUNT }, (_, inde
   return { position };
 });
 
-interface BackgroundSceneProps {
-  RocketPosition: [number, number, number];
-  RocketRotation: [number, number, number];
-}
 
-export default function BackgroundScene({ RocketPosition, RocketRotation }: BackgroundSceneProps) {
+
+export default function BackgroundScene() {
   const { controlsRef, handleControlsChange } = useGroundClampedZoom();
+  const RocketPosition: [number, number, number] = [0, 0.155, 0];
+  const RocketRotation = useRocketOrientation();
+
 
   const targetOffset: [number, number, number] = [0, 0.1, 0];
   const target: [number, number, number] = [

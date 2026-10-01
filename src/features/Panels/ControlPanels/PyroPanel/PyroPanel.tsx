@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { useRadioLink } from "../../RadioLink/RadioLinkContext";
-import { Button } from "../../../shared/components/primitives/Button";
-import { Card } from "../../../shared/components/elements/Card";
-import { Input } from "../../../shared/components/primitives/Input";
-import { StatusDot } from "../../../shared/components/elements/StatusDot";
-import { StatusTile } from "../../../shared/components/elements/StatusTile";
-import { PanelHeader } from "../../../shared/components/elements/PanelHeader";
+import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { Button } from "../../../../shared/components/primitives/Button";
+import { Card } from "../../../../shared/components/elements/Card";
+import { Input } from "../../../../shared/components/primitives/Input";
+import { StatusDot } from "../../../../shared/components/elements/StatusDot";
+import { StatusTile } from "../../../../shared/components/elements/StatusTile";
+import { PanelHeader } from "../../../../shared/components/elements/PanelHeader";
 import { ChannelRow } from "./ChannelRow";
-import { InlineStatus } from "../../../shared/components/elements/InlineStatus";
+import { InlineStatus } from "../../../../shared/components/elements/InlineStatus";
 import { usePyroStatus } from "./usePyroStatus";
 
 export interface PyroPanelProps {

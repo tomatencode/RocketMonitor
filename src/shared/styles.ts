@@ -11,3 +11,7 @@ export const filterBackground = "bg-zinc-700/60";
 export const dividerBorder = "border-zinc-700/50";
 export const filterBorder = "border-zinc-600";
 export const mutedBorder = "border-zinc-700";
+
+export const accentColor1 = "#38bdf8";
+export const accentColor2 = "#f472b6";
+export const accentColor3 = "#34d399";

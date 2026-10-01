@@ -1,10 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useState } from "react";
-import { LogWindow } from "../../features/Logs/components/LogWindow";
-import { JobStatus, Message, MessageType } from "../../features/RadioLink/Protocol";
-import RadioPacketLog, { PacketLogEntry as RadioLogEntry } from "../../features/Logs/components/RadioLog";
-import { getFilterMessageTypes, RadioLogFilter } from "../../features/Logs/components/RadioLogFilter";
+import { LogWindow } from "../components/LogWindow";
+import { JobStatus, Message, MessageType } from "../../RadioLink/Protocol";
+import RadioPacketLog, { PacketLogEntry as RadioLogEntry } from "../components/RadioLog";
+import { getFilterMessageTypes, RadioLogFilter } from "../components/RadioLogFilter";
 
 const MAX_LOG_ENTRIES = 1000;
 

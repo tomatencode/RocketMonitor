@@ -1,4 +1,4 @@
-import { useRocketStatus } from "../../RocketStatus/RocketStatusContext";
+import { useRocketStatus } from "../../../RocketStatus/RocketStatusContext";
 
 export interface GimbalStatus {
     degX_deg: number | null;

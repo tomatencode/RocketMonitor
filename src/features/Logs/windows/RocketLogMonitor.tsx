@@ -1,10 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
-import { LogWindow } from "../../features/Logs/components/LogWindow";
-import { Packet, PacketType } from "../../features/RocketLink/Protocol";
-import RocketPacketLog from "../../features/Logs/components/RocketLinkLog";
-import { LogEntry as RocketLogEntry } from "../../features/RocketLink/usePacketTransport";
+import { LogWindow } from "../components/LogWindow";
+import { Packet, PacketType } from "../../RocketLink/Protocol";
+import RocketPacketLog from "../components/RocketLinkLog";
+import { LogEntry as RocketLogEntry } from "../../RocketLink/usePacketTransport";
 
 const MAX_LOG_ENTRIES = 1000;
 

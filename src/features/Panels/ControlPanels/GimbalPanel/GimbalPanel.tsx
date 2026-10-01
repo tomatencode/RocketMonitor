@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
-import { useRadioLink } from "../../RadioLink/RadioLinkContext";
-import { Button } from "../../../shared/components/primitives/Button";
-import { Card } from "../../../shared/components/elements/Card";
-import { StatusPill } from "../../../shared/components/elements/StatusPill";
-import { StatusTile } from "../../../shared/components/elements/StatusTile";
-import { PanelHeader } from "../../../shared/components/elements/PanelHeader";
-import { StatusDot } from "../../../shared/components/elements/StatusDot";
+import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { Button } from "../../../../shared/components/primitives/Button";
+import { Card } from "../../../../shared/components/elements/Card";
+import { StatusPill } from "../../../../shared/components/elements/StatusPill";
+import { StatusTile } from "../../../../shared/components/elements/StatusTile";
+import { PanelHeader } from "../../../../shared/components/elements/PanelHeader";
+import { StatusDot } from "../../../../shared/components/elements/StatusDot";
 import { GimbalView, type GimbalAngles } from "./GimbalView";
 import { useGimbalStatus } from "./useGimbalStatus";
 

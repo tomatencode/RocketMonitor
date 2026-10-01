@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRadioLink } from "../../RadioLink/RadioLinkContext";
+import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
 
 export interface PyroStatus {
     hardwareArmed: boolean | null;

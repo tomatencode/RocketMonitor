@@ -1,5 +1,6 @@
-import { Card } from "../../../shared/components/elements/Card";
-import { LineGraph } from "../../../shared/components/elements/LineGraph";
+import { Card } from "../../../../shared/components/elements/Card";
+import { LineGraph } from "../../../../shared/components/elements/LineGraph";
+import { accentColor1, accentColor2, accentColor3 } from "../../../../shared/styles";
 import { useAccelerometerStatus } from "./useAccelerometerStatus";
 
 export interface AccelerometerPanelProps {
@@ -14,9 +15,9 @@ export function AccelerometerPanel({ className = "" }: AccelerometerPanelProps) 
             <span className="text-xs font-semibold tracking-wide uppercase text-zinc-300">Accelerometer Linechart</span>
             <LineGraph
                 series={[
-                    { label: "accelX", color: "#38bdf8", data: accelX },
-                    { label: "accelY", color: "#f472b6", data: accelY },
-                    { label: "accelZ", color: "#34d399", data: accelZ },
+                    { label: "accelX", color: accentColor1, data: accelX },
+                    { label: "accelY", color: accentColor2, data: accelY },
+                    { label: "accelZ", color: accentColor3, data: accelZ },
                 ]}
                 scale={1.2}
                 yAutoscaleMin={-12}

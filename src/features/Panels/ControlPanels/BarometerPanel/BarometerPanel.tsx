@@ -1,5 +1,6 @@
-import { Card } from "../../../shared/components/elements/Card";
-import { LineGraph } from "../../../shared/components/elements/LineGraph";
+import { Card } from "../../../../shared/components/elements/Card";
+import { LineGraph } from "../../../../shared/components/elements/LineGraph";
+import { accentColor1 } from "../../../../shared/styles";
 import { useBarometerStatus } from "./useBarometerStatus";
 
 export interface BarometerPanelProps {
@@ -14,7 +15,7 @@ export function BarometerPanel({ className = "" }: BarometerPanelProps) {
             <span className="text-xs font-semibold tracking-wide uppercase text-zinc-300">Barometer Linechart</span>
             <LineGraph
                 series={[
-                    { label: "baro", color: "#38bdf8", data: pressure },
+                    { label: "baro", color: accentColor1, data: pressure },
                 ]}
                 scale={1.2}
                 yAutoscaleMin={950}

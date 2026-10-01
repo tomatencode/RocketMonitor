@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useRocketStatus } from "../../RocketStatus/RocketStatusContext";
+import { useRocketStatus } from "../../../RocketStatus/RocketStatusContext";
 import type { LineSample } from "../types";
 
 export interface AccelerometerStatus {
