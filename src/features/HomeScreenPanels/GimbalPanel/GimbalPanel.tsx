@@ -23,9 +23,7 @@ export function GimbalPanel({
     className = "",
 }: GimbalPanelProps) {
     const { connected, setGimbalPos } = useRadioLink();
-    const { degX_deg: actualX, degY_deg: actualY, error: pollError } = useGimbalStatus({
-        enabled: connected,
-    });
+    const { degX_deg: actualX, degY_deg: actualY, error: pollError } = useGimbalStatus();
 
     // Commanded (target) position. Only ever moved by the user — never synced
     // from the rocket. The ghost handle shows the actual position instead.
