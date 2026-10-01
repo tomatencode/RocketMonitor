@@ -6,11 +6,11 @@ import { Input } from "../shared/components/primitives/Input";
 import { LineGraph } from "../shared/components/elements/LineGraph";
 import BackgroundScene from "../features/3DScene/components/BackgroundScene";
 import { PyroPanel } from "../features/HomeScreenPanels/PyroPanel/PyroPanel";
+import { GimbalPanel } from "../features/HomeScreenPanels/GimbalPanel/GimbalPanel";
 
 export default function HomeScreen() {
 	const {
 		connected,
-		setGimbalPos,
 		setRotation,
 		beepBuzzer,
 		requestIMU,
@@ -23,9 +23,6 @@ export default function HomeScreen() {
 	const [plannedRotationX, setPlannedRotationX] = useState("0");
 	const [plannedRotationY, setPlannedRotationY] = useState("0");
 	const [plannedRotationZ, setPlannedRotationZ] = useState("0");
-
-	const [plannedGimbalX, setPlannedGimbalX] = useState("0");
-	const [plannedGimbalY, setPlannedGimbalY] = useState("0");
 
 	const [commandError, setCommandError] = useState<string | null>(null);
 
@@ -159,6 +156,7 @@ export default function HomeScreen() {
 				</div>
 
 				<div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto pointer-events-none ml-auto">
+					{/*
 					<Card className="p-3 flex flex-col gap-2">
 						<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Accummulated Rotation</span>
 						<div className="flex gap-2">
@@ -168,20 +166,16 @@ export default function HomeScreen() {
 						</div>
 						<Button variant="primary" className="px-3 py-1.5 text-xs self-start" disabled={!connected} onClick={() => run(() => setRotation(Number(plannedRotationX), Number(plannedRotationY), Number(plannedRotationZ)))}>Set Rotation</Button>
 					</Card>
+					*/}
 					
-					<Card className="p-3 flex flex-col gap-2">
-						<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Set Gimbal Position</span>
-						<div className="flex gap-2">
-							<Input type="number" value={plannedGimbalX} onChange={e => setPlannedGimbalX(e.target.value)} placeholder="X deg" disabled={!connected} className="w-1/2" />
-							<Input type="number" value={plannedGimbalY} onChange={e => setPlannedGimbalY(e.target.value)} placeholder="Y deg" disabled={!connected} className="w-1/2" />
-						</div>
-						<Button variant="primary" className="px-3 py-1.5 text-xs self-start" disabled={!connected} onClick={() => run(() => setGimbalPos(Number(plannedGimbalX), Number(plannedGimbalY)))}>Send Gimbal</Button>
-					</Card>
+					<GimbalPanel />
 
+					{/* 
 					<Card className="p-3 flex flex-col gap-2">
 						<span className={`text-xs font-semibold tracking-wide uppercase ${connected ? "text-zinc-300" : "text-zinc-600"}`}>Buzzer</span>
 						<Button variant="primary" className="px-3 py-1.5 text-xs self-start" disabled={!connected} onClick={() => run(beepBuzzer)}>Beep Buzzer</Button>
 					</Card>
+					*/}
 
 					<PyroPanel />
 

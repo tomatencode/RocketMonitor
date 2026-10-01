@@ -21,7 +21,7 @@ const RocketLinkContext = createContext<RocketLinkContextValue | null>(null);
 // How often to ping the HC12 module with "AT" while USB-connected.
 // Note the firmware puts the HC12 into AT mode for this (~400ms: enter+exit),
 // during which radio TX/RX is blocked, so keep the interval generous.
-const HC12_ALIVE_CHECK_INTERVAL_MS = 5000;
+const HC12_ALIVE_CHECK_INTERVAL_MS = 60000;
 
 // The HC12 echoes "OK\r\n" for a bare "AT" ping.
 function isHc12AtOk(response: string): boolean {

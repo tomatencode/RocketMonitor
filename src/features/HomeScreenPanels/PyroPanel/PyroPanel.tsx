@@ -36,7 +36,7 @@ export function PyroPanel({
     className = "",
 }: PyroPanelProps) {
     const { connected, firePyroChanel, setPyroSoftwareArmed } = useRadioLink();
-    const { hardwareArmed, softwareArmed, continuity, isLoading, error: pollError, lastUpdatedAt, refresh } =
+    const { hardwareArmed, softwareArmed, continuity, error: pollError, lastUpdatedAt, refresh } =
         usePyroStatus({ channels, pollIntervalMs, enabled: connected });
 
     const [firingChannel, setFiringChannel] = useState<number | null>(null);

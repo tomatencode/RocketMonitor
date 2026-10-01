@@ -46,6 +46,12 @@ option {
 }
 
 /* Number input — hide the default spinner and replace with styled ones */
+/* The Tauri webview paints a default focus ring on click; interactions in this
+   app provide their own feedback, so suppress the browser default globally. */
+:focus {
+  outline: none;
+}
+
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;

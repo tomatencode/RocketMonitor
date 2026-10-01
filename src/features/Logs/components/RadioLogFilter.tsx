@@ -19,7 +19,7 @@ interface RadioLogFilterProps {
 export function RadioLogFilter({ messageTypes, excludedTypes, onToggle, isOpen }: RadioLogFilterProps) {
     return (
         <div className={`grid shrink-0 transition-[grid-template-rows] duration-200 ease-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr] pointer-events-none"}`}>
-            <div className="overflow-hidden">
+            <div className="overflow-auto">
                 <div className={`h-9 flex items-center gap-1.5 px-2 border-b transition-[transform,opacity] duration-200 ease-out ${isOpen ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"} ${dividerBorder}`}>
                     {messageTypes.map(messageType => (
                         <Button

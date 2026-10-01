@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { MessageType } from "./Protocol";
 import { useMessageTransport, LogEntry } from "./useMessageTransport";
-import { useRadioCommands, IMUData, BaroData, RotationData } from "./useRadioCommands";
+import { useRadioCommands, IMUData, BaroData, RotationData, GimbalData } from "./useRadioCommands";
 
 export type { LogEntry };
 
@@ -16,6 +16,7 @@ interface RadioLinkContextValue {
     requestIMU: () => Promise<IMUData>;
     requestBaro: () => Promise<BaroData>;
     requestRotation: () => Promise<RotationData>;
+    requestGimbal: () => Promise<GimbalData>;
     queueSetRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
     requestPyroContinuity: (channel: number) => Promise<boolean>;
     requestPyroSoftwareArmed: () => Promise<boolean>;
@@ -28,6 +29,7 @@ interface RadioLinkContextValue {
     getIMU: () => Promise<IMUData>;
     getBaro: () => Promise<BaroData>;
     getRotation: () => Promise<RotationData>;
+    getGimbal: () => Promise<GimbalData>;
     setRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
     getPyroContinuity: (channel: number) => Promise<boolean>;
     getPyroSoftwareArmed: () => Promise<boolean>;

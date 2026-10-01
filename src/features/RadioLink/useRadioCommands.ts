@@ -21,6 +21,11 @@ export interface RotationData {
     yaw_rad: number;
 }
 
+export interface GimbalData {
+    degX_deg: number;
+    degY_deg: number;
+}
+
 type QueueMessage = (
     messageType: MessageType,
     payload?: Uint8Array,
@@ -51,6 +56,32 @@ export function useRadioCommands({
         const pending = queueSetGimbalPos(degX, degY);
         sendFrame();
         await pending;
+    };
+
+    const requestGimbal = async (): Promise<GimbalData> => {
+        checkConnection();
+        const response = await queueMessage(MessageType.GET_GIMBAL);
+
+        if (!response.payload || response.payload.byteLength < 4) {
+            throw new Error("GET_GIMBAL response has an invalid payload");
+        }
+
+        const data = new DataView(
+            response.payload.buffer,
+            response.payload.byteOffset,
+            response.payload.byteLength,
+        );
+        return {
+            degX_deg: data.getInt16(0, true) / 100,
+            degY_deg: data.getInt16(2, true) / 100,
+        };
+    };
+
+    const getGimbal = async (): Promise<GimbalData> => {
+        checkConnection();
+        const pending = requestGimbal();
+        sendFrame();
+        return await pending;
     };
 
     const queueBeepBuzzer = async (): Promise<void> => {
@@ -260,6 +291,7 @@ export function useRadioCommands({
         requestIMU,
         requestBaro,
         requestRotation,
+        requestGimbal,
         queueSetRotation,
         requestPyroContinuity,
         requestPyroSoftwareArmed,
@@ -272,6 +304,7 @@ export function useRadioCommands({
         getIMU,
         getBaro,
         getRotation,
+        getGimbal,
         setRotation,
         getPyroContinuity,
         getPyroSoftwareArmed,
