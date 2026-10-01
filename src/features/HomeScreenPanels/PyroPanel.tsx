@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRadioLink } from "../RadioLink/RadioLinkContext";
 import { Button } from "../../shared/components/primitives/Button";
-import { Card } from "../../shared/components/primitives/Card";
+import { Card } from "../../shared/components/elements/Card";
 import { Input } from "../../shared/components/primitives/Input";
 import { usePyroStatus } from "./usePyroStatus";
 
@@ -52,7 +52,6 @@ export function PyroPanel({
     const [confirmChannel, setConfirmChannel] = useState<number | null>(null);
     const [swArming, setSwArming] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
-    const [firedFlash, setFiredFlash] = useState<number | null>(null);
     const [nowMs, setNowMs] = useState(() => Date.now());
     // Per-channel fire pulse length in ms (kept as strings for the inputs).
     const [durationsMs, setDurationsMs] = useState<string[]>(() =>
@@ -125,8 +124,6 @@ export function PyroPanel({
         setFiringChannel(channel);
         try {
             await firePyroChanel(channel, durationMs);
-            setFiredFlash(channel);
-            setTimeout(() => setFiredFlash((f) => (f === channel ? null : f)), 2500);
         } catch (e) {
             setActionError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -177,18 +174,6 @@ export function PyroPanel({
                         {isLoading && connected ? " - sync..." : ""}
                     </span>
                 </div>
-                <span
-                    className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                        !connected
-                            ? "border-zinc-700/60 bg-zinc-800/50 text-zinc-500"
-                            : fullyArmed
-                              ? "border-red-700/60 bg-red-950/50 text-red-300"
-                              : "border-emerald-800/60 bg-emerald-950/40 text-emerald-300"
-                    }`}
-                >
-                    <span className={`h-1.5 w-1.5 rounded-full ${!connected ? "bg-zinc-600" : fullyArmed ? "bg-red-400 animate-pulse" : "bg-emerald-400"}`} />
-                    {!connected ? "Offline" : fullyArmed ? "Armed" : "Safe"}
-                </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
                 <div
@@ -267,7 +252,6 @@ export function PyroPanel({
                     const confirming = confirmChannel === channel;
                     const canFire = canFireChannel(i);
                     const label = channelLabels?.[i] ?? `CH ${channel}`;
-                    const justFired = firedFlash === channel;
                     // Clamp to the uint16 range the protocol supports; fall back to default on bad input.
                     const rawDuration = Number.parseInt(durationsMs[i] ?? "", 10);
                     const parsedDurationMs =
@@ -276,11 +260,9 @@ export function PyroPanel({
                         <div
                             key={channel}
                             className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-colors ${
-                                justFired
-                                    ? "border-amber-500/70 bg-amber-950/40"
-                                    : cont === true
-                                      ? "border-zinc-700/50 bg-zinc-800/40"
-                                      : "border-zinc-700/50 bg-zinc-900/40 opacity-80"
+                                cont === true
+                                    ? "border-zinc-700/50 bg-zinc-800/40"
+                                    : "border-zinc-700/50 bg-zinc-900/40 opacity-80"
                             }`}
                         >
                             <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -336,13 +318,13 @@ export function PyroPanel({
                                 />
                                 <span className="text-[10px] text-zinc-500">ms</span>
                                 <Button
-                                    variant={confirming ? "warning" : justFired ? "success" : "danger"}
+                                    variant={confirming ? "warning" : "danger"}
                                     className="px-3 py-1.5 text-xs shrink-0 min-w-20"
                                     disabled={!canFire}
                                     title={confirming ? `Click again to confirm firing for ${parsedDurationMs}ms` : fireDisabledReason(i) || `Fire channel ${channel} for ${parsedDurationMs}ms`}
                                     onClick={() => handleFireClick(channel, parsedDurationMs)}
                                 >
-                                    {firing ? "Firing..." : justFired ? "Fired" : confirming ? "Confirm?" : "Fire"}
+                                    {firing ? "Firing..." : confirming ? "Confirm?" : "Fire"}
                                 </Button>
                             </div>
                         </div>

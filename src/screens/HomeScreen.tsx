@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useRadioLink } from "../features/RadioLink/RadioLinkContext";
 import { Button } from "../shared/components/primitives/Button";
-import { Card } from "../shared/components/primitives/Card";
+import { Card } from "../shared/components/elements/Card";
 import { Input } from "../shared/components/primitives/Input";
-import { LineGraph } from "../shared/components/primitives/LineGraph";
+import { LineGraph } from "../shared/components/elements/LineGraph";
 import BackgroundScene from "../features/3DScene/components/BackgroundScene";
 import { PyroPanel } from "../features/HomeScreenPanels/PyroPanel";
 

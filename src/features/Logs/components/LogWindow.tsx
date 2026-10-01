@@ -2,7 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef } from "react";
 import { appBackground, dividerBorder, radius } from "../../../shared/styles";
 import { Button } from "../../../shared/components/primitives/Button";
-import { Card } from "../../../shared/components/primitives/Card";
+import { Card } from "../../../shared/components/elements/Card";
 
 export function LogWindow({ title, titleButtons, children }: { title: string; titleButtons: { label: string; onClick: () => void }[]; children: React.ReactNode }) {
     return (
