@@ -2,12 +2,11 @@ import { useRef, useState } from "react";
 import { useRadioLink } from "../../RadioLink/RadioLinkContext";
 import { Button } from "../../../shared/components/primitives/Button";
 import { Card } from "../../../shared/components/elements/Card";
-import { Input } from "../../../shared/components/primitives/Input";
 import { StatusPill } from "../../../shared/components/elements/StatusPill";
 import { StatusTile } from "../../../shared/components/elements/StatusTile";
 import { PanelHeader } from "../../../shared/components/elements/PanelHeader";
 import { StatusDot } from "../../../shared/components/elements/StatusDot";
-import { GimbalView, clampAngles, type GimbalAngles } from "./GimbalView";
+import { GimbalView, type GimbalAngles } from "./GimbalView";
 import { useGimbalStatus } from "./useGimbalStatus";
 
 export interface GimbalPanelProps {
@@ -37,12 +36,9 @@ export function GimbalPanel({
     // Commanded (target) position. Only ever moved by the user — never synced
     // from the rocket. The ghost handle shows the actual position instead.
     const [commanded, setCommanded] = useState<GimbalAngles>({ degX_deg: 0, degY_deg: 0 });
-    const [inputX, setInputX] = useState("0.0");
-    const [inputY, setInputY] = useState("0.0");
     const [dragging, setDragging] = useState(false);
     const [sending, setSending] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
-    const [lastSentAt, setLastSentAt] = useState<number | null>(null);
 
     const actual: GimbalAngles | null = actualX !== null && actualY !== null
         ? { degX_deg: actualX, degY_deg: actualY }
@@ -67,7 +63,6 @@ export function GimbalPanel({
         setActionError(null);
         Promise.resolve()
             .then(() => setGimbalPos(next.degX_deg, next.degY_deg))
-            .then(() => setLastSentAt(Date.now()))
             .catch((e) => setActionError(e instanceof Error ? e.message : String(e)))
             .finally(() => {
                 inFlightRef.current = false;
@@ -106,8 +101,6 @@ export function GimbalPanel({
 
     const handleDrag = (a: GimbalAngles) => {
         setCommanded(a);
-        setInputX(a.degX_deg.toFixed(1));
-        setInputY(a.degY_deg.toFixed(1));
         sendAngles(a);
     };
 
@@ -122,24 +115,9 @@ export function GimbalPanel({
         sendAngles(commanded, { force: true });
         refresh();
     };
-
-    const applyInputs = () => {
-        const x = Number.parseFloat(inputX);
-        const y = Number.parseFloat(inputY);
-        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-        const a = clampAngles(x, y, maxDeflectionDeg);
-        setCommanded(a);
-        setInputX(a.degX_deg.toFixed(1));
-        setInputY(a.degY_deg.toFixed(1));
-        sendAngles(a, { force: true });
-        refresh();
-    };
-
     const handleCenter = () => {
         const a: GimbalAngles = { degX_deg: 0, degY_deg: 0 };
         setCommanded(a);
-        setInputX("0.0");
-        setInputY("0.0");
         sendAngles(a, { force: true });
         refresh();
     };
