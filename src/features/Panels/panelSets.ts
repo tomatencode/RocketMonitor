@@ -34,7 +34,7 @@ export const PANEL_SETS: PanelSet[] = [
     {
         id: "launch",
         label: "Launch",
-        description: "Flight-ready readouts",
+        description: "Configure flight",
         icon: LaunchIcon,
         color: accentColor1,
         Component: LaunchPanels,
@@ -42,7 +42,7 @@ export const PANEL_SETS: PanelSet[] = [
     {
         id: "test",
         label: "Test",
-        description: "Full sensor & actuator set",
+        description: "Validate systems",
         icon: TestIcon,
         color: accentColor2,
         Component: TestPanels,
