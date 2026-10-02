@@ -1,5 +1,6 @@
 import { Card } from "../../../../shared/components/elements/Card";
 import { LineGraph } from "../../../../shared/components/elements/LineGraph";
+import { PanelHeader } from "../../../../shared/components/elements/PanelHeader";
 import { accentColor1, accentColor2, accentColor3 } from "../../../../shared/styles";
 import { useAccelerometerStatus } from "./useAccelerometerStatus";
 
@@ -12,7 +13,13 @@ export function AccelerometerPanel({ className = "" }: AccelerometerPanelProps) 
 
     return (
         <Card className={`p-3 flex flex-col gap-2 ${className}`}>
-            <span className="text-xs font-semibold tracking-wide uppercase text-zinc-300">Accelerometer Linechart</span>
+            <PanelHeader
+                icon="A"
+                title="Accelerometer Linechart"
+                subtitle="real-time"
+                alert={false}
+                connected={true}
+            />
             <LineGraph
                 series={[
                     { label: "accelX", color: accentColor1, data: accelX },

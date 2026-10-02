@@ -25,7 +25,7 @@ function App() {
         <RocketStatusProvider>
           <div className={`relative flex flex-col h-screen overflow-hidden ${radius} ${appBackground}`}>
             <TitleBar />
-            <div className="relative flex h-full bg-transparent text-zinc-200 font-mono text-sm overflow-hidden p-3 gap-3">
+            <div className="relative flex h-full bg-transparent text-zinc-200 font-mono text-sm overflow-hidden gap-3">
               <BackgroundScene />
               <PanelSetSelector activeSetId={activeSetId} onChange={setActiveSetId} />
 
