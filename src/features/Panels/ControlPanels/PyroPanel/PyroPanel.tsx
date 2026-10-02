@@ -238,7 +238,7 @@ export function PyroPanel({
                                 >
                                     {connected
                                         ? cont === true
-                                            ? "Continuity"
+                                            ? "cont."
                                             : cont === false
                                               ? "no cont."
                                               : "Probing..."

@@ -129,7 +129,7 @@ export function GimbalPanel({
                 />
             </div>
             <div className="flex">
-                <Button variant="primary" className="px-3 py-1.5 text-xs w-full" disabled={!connected} onClick={handleCenter} title="Return gimbal to center (0, 0)">
+                <Button variant="ghost" className="px-3 py-1.5 text-xs w-full" disabled={!connected} onClick={handleCenter} title="Return gimbal to center (0, 0)">
                     Center
                 </Button>
             </div>
