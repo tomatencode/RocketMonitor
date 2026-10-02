@@ -240,7 +240,7 @@ export function PyroPanel({
                                         ? cont === true
                                             ? "Continuity"
                                             : cont === false
-                                              ? "Open / no cont."
+                                              ? "no cont."
                                               : "Probing..."
                                         : "Unknown"}
                                 </InlineStatus>
@@ -268,7 +268,7 @@ export function PyroPanel({
                                     <span className="text-[10px] text-zinc-500">ms</span>
                                     <Button
                                         variant={confirming ? "warning" : "danger"}
-                                        className="px-3 py-1.5 text-xs shrink-0 min-w-20"
+                                        className="px-3 py-1.5 text-xs shrink-0 min-w-16"
                                         disabled={!canFire}
                                         title={confirming ? `Click again to confirm firing for ${parsedDurationMs}ms` : fireDisabledReason(i) || `Fire channel ${channel} for ${parsedDurationMs}ms`}
                                         onClick={() => handleFireClick(channel, parsedDurationMs)}

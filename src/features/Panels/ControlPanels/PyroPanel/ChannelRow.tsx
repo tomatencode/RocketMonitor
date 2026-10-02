@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { IconBadge } from "../../../../shared/components/elements/IconBadge";
 
 type ChannelRowTone = "neutral" | "ok";
 
@@ -27,15 +28,7 @@ export function ChannelRow({ index, label, status, controls, tone = "neutral", d
             className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-colors ${toneStyles[tone]} ${dimmed ? "opacity-80" : ""} ${className}`}
         >
             <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold ${
-                        tone === "ok"
-                            ? "border-emerald-700/60 bg-emerald-950/50 text-emerald-300"
-                            : "border-zinc-700 bg-zinc-800/60 text-zinc-500"
-                    }`}
-                >
-                    {index + 1}
-                </span>
+                <IconBadge tone={tone === "ok" ? "ok" : "muted"} bold char={index + 1} />
                 <div className="flex min-w-0 flex-col leading-tight">
                     <span className="truncate text-xs font-semibold text-zinc-200">{label}</span>
                     {status}
