@@ -8,4 +8,10 @@ export { GyroscopePanel, type GyroscopePanelProps } from "./GyroscopePanel/Gyros
 export { useGyroscopeStatus, type GyroscopeStatus } from "./GyroscopePanel/useGyroscopeStatus";
 export { BarometerPanel, type BarometerPanelProps } from "./BarometerPanel/BarometerPanel";
 export { useBarometerStatus, type BarometerStatus } from "./BarometerPanel/useBarometerStatus";
+export { GimbalChartPanel, type GimbalChartPanelProps } from "./GimbalChartPanel/GimbalChartPanel";
+export { useGimbalHistory, type GimbalHistory } from "./GimbalChartPanel/useGimbalHistory";
+export { RotationChartPanel, type RotationChartPanelProps } from "./RotationChartPanel/RotationChartPanel";
+export { useRotationHistory, type RotationHistory } from "./RotationChartPanel/useRotationHistory";
+export { AltitudeChartPanel, type AltitudeChartPanelProps } from "./AltitudeChartPanel/AltitudeChartPanel";
+export { useAltitudeHistory, type AltitudeHistory } from "./AltitudeChartPanel/useAltitudeHistory";
 export type { LineSample } from "./types";
