@@ -1,9 +1,9 @@
 // Mirrors the C++ radioLink/Protocol.hpp/.cpp framing (frames of multiple messages)
 export enum MessageType {
     PING = 0x00,
-    TELEMETRY = 0x01,
-    GET_GIMBAL = 0x02,
-    SET_GIMBAL = 0x03,
+    GET_GIMBAL = 0x01,
+    SET_GIMBAL = 0x02,
+    FLASH_LED = 0x03,
     DO_BEEP = 0x04,
     FIRE_PYRO = 0x05,
     GET_PYRO_CONTINUITY = 0x06,
@@ -14,6 +14,13 @@ export enum MessageType {
     GET_ROTATION = 0x0B,
     SET_ROTATION = 0x0C,
     SET_PYRO_SOFTWARE_ARMED = 0x0D,
+    ABORT_FLIGHT = 0x0E,
+    END_FLIGHT = 0x0F,
+    GET_BARO_HEIGHT = 0x10,
+    GET_FLIGHT_LOCATION = 0x11,
+    GET_FLIGHT_STATE = 0x12,
+    GET_COUNTDOWN_TIME = 0x13,
+    CALIBRATE_BARO_HEIGHT = 0x15,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome
@@ -76,7 +83,7 @@ export function createParser(): Parser {
         messagesExpectedLen: 0,
         messagesBytesCount: 0,
         messages: [],
-        currentMessage: { type: MessageType.TELEMETRY, seqId: 0, status: JobStatus.BUSY, payload: new Uint8Array(0) },
+        currentMessage: { type: MessageType.PING, seqId: 0, status: JobStatus.BUSY, payload: new Uint8Array(0) },
         messagePayloadIndex: 0,
         ready: false,
         pendingFrame: { messages: [] },

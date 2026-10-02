@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { MessageType } from "./Protocol";
 import { useMessageTransport, LogEntry } from "./useMessageTransport";
-import { useRadioCommands, IMUData, BaroData, RotationData, GimbalData } from "./useRadioCommands";
+import { useRadioCommands, IMUData, BaroData, RotationData, GimbalData, FlightLocationData, FlightState } from "./useRadioCommands";
 
 export type { LogEntry };
 
@@ -22,6 +22,14 @@ interface RadioLinkContextValue {
     getBaro: () => Promise<BaroData>;
     getRotation: () => Promise<RotationData>;
     setRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
+    abortFlight: () => Promise<void>;
+    endFlight: () => Promise<void>;
+    getBaroHeight: () => Promise<number>;
+    calibrateBaroHeight: (height_m: number) => Promise<void>;
+    getFlightLocation: () => Promise<FlightLocationData>;
+    getFlightState: () => Promise<FlightState>;
+    getCountdownTime: () => Promise<number | null>;
+    flashLed: (durationMs?: number) => Promise<void>;
 
     log: LogEntry[];
 }

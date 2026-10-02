@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useSyncExternalStore } from "react";
 import { useRadioLink } from "../RadioLink/RadioLinkContext";
-import type { IMUData, BaroData, RotationData, GimbalData } from "../RadioLink/useRadioCommands";
+import type { IMUData, BaroData, RotationData, GimbalData, FlightLocationData, FlightState } from "../RadioLink/useRadioCommands";
 
 /**
  * Polled telemetry topics. Each topic maps to the value returned by one GET_*
@@ -11,6 +11,11 @@ export interface RocketStatusTopics {
     baro: BaroData;
     rotation: RotationData;
     gimbal: GimbalData;
+    baroHeight: number;
+    flightLocation: FlightLocationData;
+    flightState: FlightState;
+    /** Remaining countdown ms; null while no countdown is active. */
+    countdownTime: number | null;
 }
 export type RocketStatusTopic = keyof RocketStatusTopics;
 
@@ -116,12 +121,21 @@ const RocketStatusContext = createContext<RocketStatusStore | null>(null);
  * RadioLinkProvider (it polls through the radio commands).
  */
 export function RocketStatusProvider({ children }: { children: React.ReactNode }) {
-    const { getIMU, getBaro, getRotation, getGimbal } = useRadioLink();
+    const { getIMU, getBaro, getRotation, getGimbal, getBaroHeight, getFlightLocation, getFlightState, getCountdownTime } = useRadioLink();
 
     // Latest-ref pattern: the store reads the commands through this ref so it
     // doesn't need to be recreated when the command identities change.
     const pollersRef = useRef<TopicPollers | null>(null);
-    pollersRef.current = { imu: getIMU, baro: getBaro, rotation: getRotation, gimbal: getGimbal };
+    pollersRef.current = {
+        imu: getIMU,
+        baro: getBaro,
+        rotation: getRotation,
+        gimbal: getGimbal,
+        baroHeight: getBaroHeight,
+        flightLocation: getFlightLocation,
+        flightState: getFlightState,
+        countdownTime: getCountdownTime,
+    };
 
     const storeRef = useRef<RocketStatusStore | null>(null);
     if (!storeRef.current) storeRef.current = new RocketStatusStore(() => pollersRef.current!);

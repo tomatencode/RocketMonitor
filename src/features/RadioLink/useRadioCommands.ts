@@ -26,6 +26,26 @@ export interface GimbalData {
     degY_deg: number;
 }
 
+export interface FlightLocationData {
+    posX_m: number;
+    posY_m: number;
+    velX_m_s: number;
+    velY_m_s: number;
+    height_m: number;
+    verticalVelocity_m_s: number;
+}
+
+/** Mirrors the firmware's FlightState enum (stateManagement/FlightStateManager.hpp). */
+export enum FlightState {
+    IDLE = 0,
+    COUNTDOWN = 1,
+    BURNING = 2,
+    COASTING = 3,
+    DESCENDING = 4,
+    LANDED = 5,
+    ABORTED = 6,
+}
+
 type SendMessage = (
     messageType: MessageType,
     payload?: Uint8Array,
@@ -37,6 +57,16 @@ interface UseRadioCommandsOptions {
 
 function toDataView(payload: Uint8Array): DataView {
     return new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+}
+
+/**
+ * Some requests use FAILURE as a normal "refused" outcome (e.g. ABORT_FLIGHT in
+ * a state that doesn't allow it), so their status must not be dropped on the floor.
+ */
+function ensureSuccess(status: ResponseStatus, command: string): void {
+    if (status === ResponseStatus.FAILURE) {
+        throw new Error(`${command} was rejected`);
+    }
 }
 
 /**
@@ -176,6 +206,100 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         await sendMessage(MessageType.SET_ROTATION, payload);
     };
 
+    // Throws if the current flight state refuses the abort.
+    const abortFlight = async (): Promise<void> => {
+        const response = await sendMessage(MessageType.ABORT_FLIGHT);
+        ensureSuccess(response.status, "ABORT_FLIGHT");
+    };
+
+    // Throws if the firmware refuses to return to IDLE (already IDLE or mid flight).
+    const endFlight = async (): Promise<void> => {
+        const response = await sendMessage(MessageType.END_FLIGHT);
+        ensureSuccess(response.status, "END_FLIGHT");
+    };
+
+    const getBaroHeight = async (): Promise<number> => {
+        const response = await sendMessage(MessageType.GET_BARO_HEIGHT);
+
+        // FAILURE means the calculator has no valid height yet (never calibrated / no measurement).
+        if (response.status === ResponseStatus.FAILURE) {
+            throw new Error("Baro height is not available yet — calibrate the sensor first");
+        }
+
+        if (!response.payload || response.payload.byteLength < 4) {
+            throw new Error("GET_BARO_HEIGHT response has an invalid payload");
+        }
+
+        return toDataView(response.payload).getInt32(0, true) / 100;
+    };
+
+    // Re-bases the barometric height so the current measurement reads `height_m`
+    // (0 on the launch pad). Throws if the firmware has no valid measurement yet.
+    const calibrateBaroHeight = async (height_m: number): Promise<void> => {
+        const payload = new Uint8Array(4);
+        const view = new DataView(payload.buffer);
+        view.setInt32(0, height_m * 100, true);
+        const response = await sendMessage(MessageType.CALIBRATE_BARO_HEIGHT, payload);
+        ensureSuccess(response.status, "CALIBRATE_BARO_HEIGHT");
+    };
+
+    const getFlightLocation = async (): Promise<FlightLocationData> => {
+        const response = await sendMessage(MessageType.GET_FLIGHT_LOCATION);
+
+        if (!response.payload || response.payload.byteLength < 24) {
+            throw new Error("GET_FLIGHT_LOCATION response has an invalid payload");
+        }
+
+        const data = toDataView(response.payload);
+        return {
+            posX_m: data.getInt32(0, true) / 100,
+            posY_m: data.getInt32(4, true) / 100,
+            velX_m_s: data.getInt32(8, true) / 100,
+            velY_m_s: data.getInt32(12, true) / 100,
+            height_m: data.getInt32(16, true) / 100,
+            verticalVelocity_m_s: data.getInt32(20, true) / 100,
+        };
+    };
+
+    const getFlightState = async (): Promise<FlightState> => {
+        const response = await sendMessage(MessageType.GET_FLIGHT_STATE);
+
+        if (!response.payload || response.payload.byteLength < 1) {
+            throw new Error("GET_FLIGHT_STATE response has an invalid payload");
+        }
+
+        return response.payload[0] as FlightState;
+    };
+
+    /** Remaining countdown time in ms; null when no countdown is active. */
+    const getCountdownTime = async (): Promise<number | null> => {
+        const response = await sendMessage(MessageType.GET_COUNTDOWN_TIME);
+
+        // FAILURE is the normal "not counting down" outcome, not an error.
+        if (response.status === ResponseStatus.FAILURE) {
+            return null;
+        }
+
+        if (!response.payload || response.payload.byteLength < 4) {
+            throw new Error("GET_COUNTDOWN_TIME response has an invalid payload");
+        }
+
+        return toDataView(response.payload).getUint32(0, true);
+    };
+
+    // Omitting durationMs flashes with the LED's default duration.
+    // Throws if a duration was given but is 0.
+    const flashLed = async (durationMs?: number): Promise<void> => {
+        let payload: Uint8Array | undefined;
+        if (durationMs !== undefined) {
+            payload = new Uint8Array(2);
+            const view = new DataView(payload.buffer);
+            view.setUint16(0, durationMs, true);
+        }
+        const response = await sendMessage(MessageType.FLASH_LED, payload);
+        ensureSuccess(response.status, "FLASH_LED");
+    };
+
     return {
         setGimbalPos,
         getGimbal,
@@ -189,6 +313,14 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         getBaro,
         getRotation,
         setRotation,
+        abortFlight,
+        endFlight,
+        getBaroHeight,
+        calibrateBaroHeight,
+        getFlightLocation,
+        getFlightState,
+        getCountdownTime,
+        flashLed,
     };
 }
 

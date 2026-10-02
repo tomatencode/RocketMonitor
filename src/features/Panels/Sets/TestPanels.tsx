@@ -7,6 +7,7 @@ import { AltitudeChartPanel } from "../ControlPanels/AltitudeChartPanel/Altitude
 import { GimbalPanel } from "../ControlPanels/GimbalPanel/GimbalPanel";
 import { PyroPanel } from "../ControlPanels/PyroPanel/PyroPanel";
 import { BuzzerPanel } from "../ControlPanels/BuzzerPanel/BuzzerPanel";
+import { LedPanel } from "../ControlPanels/LedPanel/LedPanel";
 
 export default function TestPanels() {
 	return (
@@ -24,6 +25,7 @@ export default function TestPanels() {
 				<GimbalPanel />
 				<PyroPanel />
 				<BuzzerPanel />
+				<LedPanel />
 			</div>
 		</div>
 	);

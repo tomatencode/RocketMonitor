@@ -44,3 +44,14 @@ export function BuzzerIcon(props: SVGProps<SVGSVGElement>) {
         </IconBase>
     );
 }
+
+/** Glowing light bulb — header icon for the LED panel. */
+export function LedIcon(props: SVGProps<SVGSVGElement>) {
+    return (
+        <IconBase {...props}>
+            <path d="M12 3a6 6 0 0 0-4 10.5c.6.7 1 1.5 1 2.5h6c0-1 .4-1.8 1-2.5A6 6 0 0 0 12 3z" />
+            <path d="M9.5 18.5h5" />
+            <path d="M10.5 21h3" />
+        </IconBase>
+    );
+}

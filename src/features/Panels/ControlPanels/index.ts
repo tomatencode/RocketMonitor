@@ -14,4 +14,6 @@ export { RotationChartPanel, type RotationChartPanelProps } from "./RotationChar
 export { useRotationHistory, type RotationHistory } from "./RotationChartPanel/useRotationHistory";
 export { AltitudeChartPanel, type AltitudeChartPanelProps } from "./AltitudeChartPanel/AltitudeChartPanel";
 export { useAltitudeHistory, type AltitudeHistory } from "./AltitudeChartPanel/useAltitudeHistory";
+export { BuzzerPanel } from "./BuzzerPanel/BuzzerPanel";
+export { LedPanel, type LedPanelProps } from "./LedPanel/LedPanel";
 export type { LineSample } from "./types";

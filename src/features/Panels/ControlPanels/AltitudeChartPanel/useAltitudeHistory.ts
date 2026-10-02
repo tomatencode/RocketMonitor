@@ -1,22 +1,41 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRocketStatus } from "../../../RocketStatus/RocketStatusContext";
 import type { LineSample } from "../types";
 
 export interface AltitudeHistory {
+    /** Latest height above the launch pad in metres; null before the first reading. */
+    height: number | null;
     altitude: LineSample[];
     error: string | null;
-    /** True while there is no altitude state to read; the panel shows a placeholder note. */
-    pending: boolean;
+    /** Drops all plotted samples — used after a recalibration invalidates the history. */
+    reset: () => void;
 }
 
+/** Memory bound only; the visible window is LineGraph's `maxXinFrame`. */
+const MAX_SAMPLES = 100;
+
 /**
- * Altitude is not implemented yet, so this returns an empty series and flags
- * `pending` to let the panel explain why nothing is plotting.
- *
- * TODO(altitude): once the state exists, follow the same pattern as the other
- * chart hooks — subscribe with `useRocketStatus("<topic>")` (or read whatever
- * holds the state), push `{ x, y }` samples into an `altitude` array bounded by
- * `MAX_SAMPLES`, and return `pending: false`. Only this hook needs to change;
- * the panel already renders whatever comes back.
+ * Reads the shared barometric-height stream (GET_BARO_HEIGHT) and records the
+ * height above the launch pad as time-stamped samples for plotting. Shares the
+ * same `baroHeight` poll as any other consumer, so it costs no extra radio
+ * traffic.
  */
 export function useAltitudeHistory(): AltitudeHistory {
-    return { altitude: [], error: null, pending: true };
+    const { value: height, error } = useRocketStatus("baroHeight");
+
+    const [altitude, setAltitude] = useState<LineSample[]>([]);
+    const startRef = useRef(Date.now());
+
+    useEffect(() => {
+        if (height === null) return;
+        const t = (Date.now() - startRef.current) / 1000;
+        setAltitude(prev => [...prev.slice(-MAX_SAMPLES), { x: t, y: height }]);
+    }, [height]);
+
+    const reset = useCallback(() => {
+        startRef.current = Date.now();
+        setAltitude([]);
+    }, []);
+
+    return { height, altitude, error, reset };
 }
