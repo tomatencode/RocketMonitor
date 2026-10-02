@@ -1,4 +1,5 @@
 import { Card } from "../../../../shared/components/elements/Card";
+import { LineChartIcon } from "../../../../shared/components/elements/Icons";
 import { LineGraph } from "../../../../shared/components/elements/LineGraph";
 import { useBarometerStatus } from "./useBarometerStatus";
 import { accentColor1 } from "../../../../shared/styles";
@@ -14,7 +15,7 @@ export function BarometerPanel({ className = "" }: BarometerPanelProps) {
     return (
         <Card className={`p-3 flex flex-col gap-2 ${className}`}>
             <PanelHeader
-                icon="B"
+                icon={<LineChartIcon />}
                 title="Barometer Linechart"
                 subtitle="real-time"
                 alert={false}

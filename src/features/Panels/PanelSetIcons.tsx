@@ -1,26 +1,10 @@
 import type { SVGProps } from "react";
+import { IconBase } from "../../shared/components/elements/Icons";
 
 /**
- * Monochrome SVG icons for panel sets. Each inherits the surrounding colour via
- * `stroke="currentColor"`, so the selector's icon badge controls the tone, and a
- * size class such as `h-4 w-4` controls the dimensions.
+ * Monochrome SVG icons for the panel-set selector. They share `IconBase` with
+ * the panel-header icons so every glyph in the app is drawn the same way.
  */
-function IconBase({ className = "h-4 w-4", children, ...props }: SVGProps<SVGSVGElement>) {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={className}
-            {...props}
-        >
-            {children}
-        </svg>
-    );
-}
 
 /** Rocket, used for the "Launch" panel set. */
 export function LaunchIcon(props: SVGProps<SVGSVGElement>) {
