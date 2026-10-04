@@ -7,7 +7,6 @@ import { usePacketTransport, LogEntry } from "./usePacketTransport";
 interface RocketLinkContextValue {
     connected: boolean;
     portName: string | null;
-    hc12Alive: boolean;
 
     sendRadio: (data: number[]) => Promise<void>;
     onReceiveRadio: (callback: (data: number[]) => void) => () => void;
@@ -18,18 +17,9 @@ interface RocketLinkContextValue {
 
 const RocketLinkContext = createContext<RocketLinkContextValue | null>(null);
 
-
-// The HC12 echoes "OK\r\n" for a bare "AT" ping.
-function isHc12AtOk(response: string): boolean {
-    return response.includes("OK");
-}
-
 export function RocketLinkProvider({ children }: { children: React.ReactNode }) {
     const [connected, setConnected] = useState(false);
     const [portName, setPortName] = useState<string | null>(null);
-    // True while the HC12 has not proven dead: reset on (dis)connect, cleared on failed AT check.
-    const [hc12Alive, setHc12Alive] = useState(true);
-
     const { log, sendAndReceivePacket, subscribeToPacketType} = usePacketTransport();
 
     const sendAndReceivePacketRef = useRef(sendAndReceivePacket);
@@ -41,12 +31,10 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
         const unlistenFound = listen<string>("rocket-link-found", (e) => {
             setPortName(e.payload);
             setConnected(true);
-            setHc12Alive(true); // assume alive until an AT check proves otherwise
         });
         const unlistenLost = listen("rocket-link-lost", () => {
             setConnected(false);
             setPortName(null);
-            setHc12Alive(true); // reset so the icon goes gray, not red
         });
 
         return () => {
@@ -83,7 +71,6 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
         <RocketLinkContext.Provider value={{
             connected,
             portName,
-            hc12Alive,
             sendRadio: sendRadio,
             onReceiveRadio: onReceiveRadio,
             sendAT: sendAT,
