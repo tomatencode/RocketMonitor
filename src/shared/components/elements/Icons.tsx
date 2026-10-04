@@ -68,3 +68,13 @@ export function BatteryIcon(props: SVGProps<SVGSVGElement>) {
         </IconBase>
     );
 }
+
+/** Circular arrow — header icon for the rotation/attitude panel. */
+export function RotationIcon(props: SVGProps<SVGSVGElement>) {
+    return (
+        <IconBase {...props}>
+            <path d="M19.9 12a8 8 0 1 1-2.4-5.7" />
+            <path d="M20 5.5V10h-4.5" />
+        </IconBase>
+    );
+}

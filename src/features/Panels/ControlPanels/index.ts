@@ -18,4 +18,6 @@ export { BuzzerPanel } from "./BuzzerPanel/BuzzerPanel";
 export { LedPanel, type LedPanelProps } from "./LedPanel/LedPanel";
 export { BatteryPanel, type BatteryPanelProps } from "./BatteryPanel/BatteryPanel";
 export { useBatteryStatus, type BatteryStatus } from "./BatteryPanel/useBatteryStatus";
+export { RotationPanel, type RotationPanelProps } from "./RotationPanel/RotationPanel";
+export { useRotationStatus, type RotationStatus } from "./RotationPanel/useRotationStatus";
 export type { LineSample } from "./types";

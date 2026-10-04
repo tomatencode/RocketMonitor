@@ -22,6 +22,7 @@ interface RadioLinkContextValue {
     getBaro: () => Promise<BaroData>;
     getRotation: () => Promise<RotationData>;
     setRotation: (roll_rad: number, pitch_rad: number, yaw_rad: number) => Promise<void>;
+    setAccumulatingRotation: (accumulating: boolean) => Promise<void>;
     abortFlight: () => Promise<void>;
     endFlight: () => Promise<void>;
     getBaroHeight: () => Promise<number>;

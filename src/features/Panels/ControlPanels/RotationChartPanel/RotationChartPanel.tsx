@@ -29,11 +29,11 @@ export function RotationChartPanel({ className = "" }: RotationChartPanelProps) 
                     { label: "yaw", color: accentColor3, data: yaw },
                 ]}
                 scale={1.2}
-                yAutoscaleMin={-10}
-                yAutoscaleMax={10}
+                yAutoscaleMin={-30}
+                yAutoscaleMax={30}
                 maxXinFrame={15}
                 xAxis={{ label: "Time", tickInterval: 2, labelEvery: 0, atZero: true }}
-                yAxis={{ label: "Angle", unit: "°", tickInterval: 5, labelEvery: 2 }}
+                yAxis={{ label: "Angle", unit: "°", tickInterval: 10, labelEvery: 2 }}
             />
             {error && (
                 <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-2.5 py-1.5">

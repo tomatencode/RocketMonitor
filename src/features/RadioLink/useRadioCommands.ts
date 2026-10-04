@@ -254,6 +254,13 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         await sendMessage(MessageType.SET_ROTATION, payload);
     };
 
+    // Enables/disables integrating the IMU gyro into the accumulated attitude.
+    // Throws if the firmware rejects the request.
+    const setAccumulatingRotation = async (accumulating: boolean): Promise<void> => {
+        const response = await sendMessage(MessageType.SET_ACCUMULATING_ROTATION, new Uint8Array([accumulating ? 1 : 0]));
+        ensureSuccess(response.status, "SET_ACCUMULATING_ROTATION");
+    };
+
     // Throws if the current flight state refuses the abort.
     const abortFlight = async (): Promise<void> => {
         const response = await sendMessage(MessageType.ABORT_FLIGHT);
@@ -467,6 +474,7 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         getBaro,
         getRotation,
         setRotation,
+        setAccumulatingRotation,
         abortFlight,
         endFlight,
         getBaroHeight,

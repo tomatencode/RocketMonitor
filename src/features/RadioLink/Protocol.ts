@@ -30,6 +30,7 @@ export enum MessageType {
     SET_PID_TARGET = 0x1C,
     GET_PID_TARGET = 0x1D,
     GET_BATTERY_VOLTAGE = 0x1E,
+    SET_ACCUMULATING_ROTATION = 0x1F,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome

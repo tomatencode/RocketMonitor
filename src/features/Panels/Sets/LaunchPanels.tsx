@@ -1,4 +1,5 @@
 import { BatteryPanel } from "../ControlPanels/BatteryPanel/BatteryPanel";
+import { RotationPanel } from "../ControlPanels/RotationPanel/RotationPanel";
 import { AltitudeChartPanel } from "../ControlPanels/AltitudeChartPanel/AltitudeChartPanel";
 import { GimbalChartPanel } from "../ControlPanels/GimbalChartPanel/GimbalChartPanel";
 import { RotationChartPanel } from "../ControlPanels/RotationChartPanel/RotationChartPanel";
@@ -9,8 +10,9 @@ export default function LaunchPanels() {
             <div className="w-80 shrink-0 flex flex-col p-3 gap-3 overflow-y-auto pointer-events-none [&>*]:shrink-0">
                 <BatteryPanel />
                 <GimbalChartPanel />
-                <AltitudeChartPanel />
+                <AltitudeChartPanel  showButtons={false} />
                 <RotationChartPanel />
+                <RotationPanel />
 
             </div>
 
