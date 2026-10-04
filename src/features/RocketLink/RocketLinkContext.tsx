@@ -18,10 +18,6 @@ interface RocketLinkContextValue {
 
 const RocketLinkContext = createContext<RocketLinkContextValue | null>(null);
 
-// How often to ping the HC12 module with "AT" while USB-connected.
-// Note the firmware puts the HC12 into AT mode for this (~400ms: enter+exit),
-// during which radio TX/RX is blocked, so keep the interval generous.
-const HC12_ALIVE_CHECK_INTERVAL_MS = 60000;
 
 // The HC12 echoes "OK\r\n" for a bare "AT" ping.
 function isHc12AtOk(response: string): boolean {
@@ -82,38 +78,6 @@ export function RocketLinkProvider({ children }: { children: React.ReactNode }) 
         if (responsePacket.type !== PacketType.AT_RESP) throw new Error(`Unexpected packet type: ${responsePacket.type}`);
         return new TextDecoder().decode(responsePacket.payload);
     }, []);
-
-    // Periodically verify the HC12 module is alive via an AT ping while USB-connected.
-    // The firmware puts the HC12 into AT mode for this (~400ms: enter+exit), during
-    // which radio TX/RX is blocked, so keep the interval generous.
-    useEffect(() => {
-        if (!connected) {
-            setHc12Alive(true);
-            return;
-        }
-        let cancelled = false;
-        let checkInFlight = false;
-        const checkHc12 = async () => {
-            if (checkInFlight) return;
-            checkInFlight = true;
-            try {
-                const response = await sendAT("AT");
-                if (!cancelled && !isHc12AtOk(response)) {
-                    setHc12Alive(false);
-                }
-            } catch {
-                if (!cancelled) setHc12Alive(false);
-            } finally {
-                checkInFlight = false;
-            }
-        };
-        void checkHc12();
-        const intervalId = setInterval(checkHc12, HC12_ALIVE_CHECK_INTERVAL_MS);
-        return () => {
-            cancelled = true;
-            clearInterval(intervalId);
-        };
-    }, [connected, sendAT]);
 
     return (
         <RocketLinkContext.Provider value={{
