@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { MessageType } from "./Protocol";
 import { useMessageTransport, LogEntry } from "./useMessageTransport";
-import { useRadioCommands, IMUData, BaroData, RotationData, GimbalData, FlightLocationData, FlightState } from "./useRadioCommands";
+import { useRadioCommands, IMUData, BaroData, RotationData, GimbalData, FlightLocationData, FlightState, PIDParameters, Quaternion, FlightProfile } from "./useRadioCommands";
 
 export type { LogEntry };
 
@@ -30,6 +30,15 @@ interface RadioLinkContextValue {
     getFlightState: () => Promise<FlightState>;
     getCountdownTime: () => Promise<number | null>;
     flashLed: (durationMs?: number) => Promise<void>;
+    startCountdown: (profile: FlightProfile) => Promise<void>;
+    retryDeployParachute: () => Promise<void>;
+    setPIDParameters: (kp: number, ki: number, kd: number) => Promise<void>;
+    getPIDParameters: () => Promise<PIDParameters | null>;
+    setControlling: (controlling: boolean) => Promise<void>;
+    getControlling: () => Promise<boolean>;
+    setPIDTarget: (target: Quaternion) => Promise<void>;
+    getPIDTarget: () => Promise<Quaternion | null>;
+    getBatteryVoltage: () => Promise<number>;
 
     log: LogEntry[];
 }

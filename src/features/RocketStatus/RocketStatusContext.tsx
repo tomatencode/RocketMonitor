@@ -16,6 +16,8 @@ export interface RocketStatusTopics {
     flightState: FlightState;
     /** Remaining countdown ms; null while no countdown is active. */
     countdownTime: number | null;
+    /** Main battery pack voltage in volts. */
+    batteryVoltage: number;
 }
 export type RocketStatusTopic = keyof RocketStatusTopics;
 
@@ -121,7 +123,7 @@ const RocketStatusContext = createContext<RocketStatusStore | null>(null);
  * RadioLinkProvider (it polls through the radio commands).
  */
 export function RocketStatusProvider({ children }: { children: React.ReactNode }) {
-    const { getIMU, getBaro, getRotation, getGimbal, getBaroHeight, getFlightLocation, getFlightState, getCountdownTime } = useRadioLink();
+    const { getIMU, getBaro, getRotation, getGimbal, getBaroHeight, getFlightLocation, getFlightState, getCountdownTime, getBatteryVoltage } = useRadioLink();
 
     // Latest-ref pattern: the store reads the commands through this ref so it
     // doesn't need to be recreated when the command identities change.
@@ -135,6 +137,7 @@ export function RocketStatusProvider({ children }: { children: React.ReactNode }
         flightLocation: getFlightLocation,
         flightState: getFlightState,
         countdownTime: getCountdownTime,
+        batteryVoltage: getBatteryVoltage,
     };
 
     const storeRef = useRef<RocketStatusStore | null>(null);

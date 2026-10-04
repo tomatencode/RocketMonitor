@@ -21,6 +21,15 @@ export enum MessageType {
     GET_FLIGHT_STATE = 0x12,
     GET_COUNTDOWN_TIME = 0x13,
     CALIBRATE_BARO_HEIGHT = 0x15,
+    START_COUNTDOWN = 0x16,
+    RETRY_DEPLOY_PARACHUTE = 0x17,
+    SET_PID_PARAMETERS = 0x18,
+    GET_PID_PARAMETERS = 0x19,
+    SET_CONTROLLING = 0x1A,
+    GET_CONTROLLING = 0x1B,
+    SET_PID_TARGET = 0x1C,
+    GET_PID_TARGET = 0x1D,
+    GET_BATTERY_VOLTAGE = 0x1E,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome

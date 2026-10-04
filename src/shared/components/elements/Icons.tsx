@@ -55,3 +55,16 @@ export function LedIcon(props: SVGProps<SVGSVGElement>) {
         </IconBase>
     );
 }
+
+/** Battery cell with charge bars — header icon for the battery panel. */
+export function BatteryIcon(props: SVGProps<SVGSVGElement>) {
+    return (
+        <IconBase {...props}>
+            <rect x="2.5" y="7" width="16" height="10" rx="2" />
+            <path d="M21 10v4" />
+            <path d="M6.5 10.5v3" />
+            <path d="M10 10.5v3" />
+            <path d="M13.5 10.5v3" />
+        </IconBase>
+    );
+}

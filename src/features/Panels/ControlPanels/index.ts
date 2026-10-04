@@ -16,4 +16,6 @@ export { AltitudeChartPanel, type AltitudeChartPanelProps } from "./AltitudeChar
 export { useAltitudeHistory, type AltitudeHistory } from "./AltitudeChartPanel/useAltitudeHistory";
 export { BuzzerPanel } from "./BuzzerPanel/BuzzerPanel";
 export { LedPanel, type LedPanelProps } from "./LedPanel/LedPanel";
+export { BatteryPanel, type BatteryPanelProps } from "./BatteryPanel/BatteryPanel";
+export { useBatteryStatus, type BatteryStatus } from "./BatteryPanel/useBatteryStatus";
 export type { LineSample } from "./types";

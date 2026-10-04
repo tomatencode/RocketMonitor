@@ -8,6 +8,7 @@ import { GimbalPanel } from "../ControlPanels/GimbalPanel/GimbalPanel";
 import { PyroPanel } from "../ControlPanels/PyroPanel/PyroPanel";
 import { BuzzerPanel } from "../ControlPanels/BuzzerPanel/BuzzerPanel";
 import { LedPanel } from "../ControlPanels/LedPanel/LedPanel";
+import { BatteryPanel } from "../ControlPanels/BatteryPanel/BatteryPanel";
 
 export default function TestPanels() {
 	return (
@@ -22,6 +23,7 @@ export default function TestPanels() {
 			</div>
 
 			<div className="w-80 shrink-0 flex flex-col p-3 gap-3 overflow-y-auto pointer-events-none ml-auto [&>*]:shrink-0">
+				<BatteryPanel />
 				<GimbalPanel />
 				<PyroPanel />
 				<BuzzerPanel />

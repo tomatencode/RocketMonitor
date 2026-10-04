@@ -46,6 +46,35 @@ export enum FlightState {
     ABORTED = 6,
 }
 
+/** Attitude quaternion (x, y, z, w) as used by the firmware's Eigen::Quaternionf. */
+export interface Quaternion {
+    x: number;
+    y: number;
+    z: number;
+    w: number;
+}
+
+/** Mirrors the firmware's ControlPID::PIDParameters (controlPID/ControlPID.hpp). */
+export interface PIDParameters {
+    kp: number;
+    ki: number;
+    kd: number;
+}
+
+/** Mirrors the firmware's FlightProfile (stateManagement/FlightStateManager.hpp). */
+export interface FlightProfile {
+    countdownDuration_ms: number;
+    motorBurnDuration_ms: number;
+    initialRotation: Quaternion;
+    targetAngle: Quaternion;
+    pidKp: number;
+    pidKi: number;
+    pidKd: number;
+    motorIgniterChannel: number;
+    parachutePyroChannel: number;
+    initialHeight_m: number;
+}
+
 type SendMessage = (
     messageType: MessageType,
     payload?: Uint8Array,
@@ -67,6 +96,25 @@ function ensureSuccess(status: ResponseStatus, command: string): void {
     if (status === ResponseStatus.FAILURE) {
         throw new Error(`${command} was rejected`);
     }
+}
+
+const FIXED_POINT_SCALE = 100;
+
+// Quaternions travel as (x, y, z, w), each an int32 fixed-point value scaled by 100.
+function encodeQuaternion(view: DataView, offset: number, quaternion: Quaternion): void {
+    view.setInt32(offset + 0, quaternion.x * FIXED_POINT_SCALE, true);
+    view.setInt32(offset + 4, quaternion.y * FIXED_POINT_SCALE, true);
+    view.setInt32(offset + 8, quaternion.z * FIXED_POINT_SCALE, true);
+    view.setInt32(offset + 12, quaternion.w * FIXED_POINT_SCALE, true);
+}
+
+function decodeQuaternion(data: DataView, offset: number): Quaternion {
+    return {
+        x: data.getInt32(offset + 0, true) / FIXED_POINT_SCALE,
+        y: data.getInt32(offset + 4, true) / FIXED_POINT_SCALE,
+        z: data.getInt32(offset + 8, true) / FIXED_POINT_SCALE,
+        w: data.getInt32(offset + 12, true) / FIXED_POINT_SCALE,
+    };
 }
 
 /**
@@ -300,6 +348,112 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         ensureSuccess(response.status, "FLASH_LED");
     };
 
+    // Starts the launch countdown; throws if the firmware refuses (not IDLE or preflight failed).
+    // See FlightProfile for the countdown/burn durations, attitude, PID gains, pyro channels and start height.
+    const startCountdown = async (profile: FlightProfile): Promise<void> => {
+        const payload = new Uint8Array(58);
+        const view = new DataView(payload.buffer);
+        view.setUint32(0, profile.countdownDuration_ms, true);
+        view.setUint32(4, profile.motorBurnDuration_ms, true);
+        encodeQuaternion(view, 8, profile.initialRotation);
+        encodeQuaternion(view, 24, profile.targetAngle);
+        view.setInt32(40, profile.pidKp * FIXED_POINT_SCALE, true);
+        view.setInt32(44, profile.pidKi * FIXED_POINT_SCALE, true);
+        view.setInt32(48, profile.pidKd * FIXED_POINT_SCALE, true);
+        view.setUint8(52, profile.motorIgniterChannel);
+        view.setUint8(53, profile.parachutePyroChannel);
+        view.setInt32(54, profile.initialHeight_m * FIXED_POINT_SCALE, true);
+        const response = await sendMessage(MessageType.START_COUNTDOWN, payload);
+        ensureSuccess(response.status, "START_COUNTDOWN");
+    };
+
+    // Only accepted while ABORTED; throws otherwise (or if deployment was refused).
+    const retryDeployParachute = async (): Promise<void> => {
+        const response = await sendMessage(MessageType.RETRY_DEPLOY_PARACHUTE);
+        ensureSuccess(response.status, "RETRY_DEPLOY_PARACHUTE");
+    };
+
+    const setPIDParameters = async (kp: number, ki: number, kd: number): Promise<void> => {
+        const payload = new Uint8Array(12);
+        const view = new DataView(payload.buffer);
+        view.setInt32(0, kp * FIXED_POINT_SCALE, true);
+        view.setInt32(4, ki * FIXED_POINT_SCALE, true);
+        view.setInt32(8, kd * FIXED_POINT_SCALE, true);
+        const response = await sendMessage(MessageType.SET_PID_PARAMETERS, payload);
+        ensureSuccess(response.status, "SET_PID_PARAMETERS");
+    };
+
+    /** Returns null until all three gains have been configured on the firmware. */
+    const getPIDParameters = async (): Promise<PIDParameters | null> => {
+        const response = await sendMessage(MessageType.GET_PID_PARAMETERS);
+
+        // FAILURE is the normal "not configured yet" outcome, not an error.
+        if (response.status === ResponseStatus.FAILURE) {
+            return null;
+        }
+
+        if (!response.payload || response.payload.byteLength < 12) {
+            throw new Error("GET_PID_PARAMETERS response has an invalid payload");
+        }
+
+        const data = toDataView(response.payload);
+        return {
+            kp: data.getInt32(0, true) / FIXED_POINT_SCALE,
+            ki: data.getInt32(4, true) / FIXED_POINT_SCALE,
+            kd: data.getInt32(8, true) / FIXED_POINT_SCALE,
+        };
+    };
+
+    // Throws if starting was refused (PID parameters or target not configured).
+    const setControlling = async (controlling: boolean): Promise<void> => {
+        const response = await sendMessage(MessageType.SET_CONTROLLING, new Uint8Array([controlling ? 1 : 0]));
+        ensureSuccess(response.status, "SET_CONTROLLING");
+    };
+
+    const getControlling = async (): Promise<boolean> => {
+        const response = await sendMessage(MessageType.GET_CONTROLLING);
+
+        if (!response.payload || response.payload.byteLength < 1) {
+            throw new Error("GET_CONTROLLING response has an invalid payload");
+        }
+
+        return response.payload[0] !== 0;
+    };
+
+    const setPIDTarget = async (target: Quaternion): Promise<void> => {
+        const payload = new Uint8Array(16);
+        const view = new DataView(payload.buffer);
+        encodeQuaternion(view, 0, target);
+        const response = await sendMessage(MessageType.SET_PID_TARGET, payload);
+        ensureSuccess(response.status, "SET_PID_TARGET");
+    };
+
+    /** Returns null until a target attitude has been configured on the firmware. */
+    const getPIDTarget = async (): Promise<Quaternion | null> => {
+        const response = await sendMessage(MessageType.GET_PID_TARGET);
+
+        // FAILURE is the normal "not configured yet" outcome, not an error.
+        if (response.status === ResponseStatus.FAILURE) {
+            return null;
+        }
+
+        if (!response.payload || response.payload.byteLength < 16) {
+            throw new Error("GET_PID_TARGET response has an invalid payload");
+        }
+
+        return decodeQuaternion(toDataView(response.payload), 0);
+    };
+
+    const getBatteryVoltage = async (): Promise<number> => {
+        const response = await sendMessage(MessageType.GET_BATTERY_VOLTAGE);
+
+        if (!response.payload || response.payload.byteLength < 2) {
+            throw new Error("GET_BATTERY_VOLTAGE response has an invalid payload");
+        }
+
+        return toDataView(response.payload).getInt16(0, true) / FIXED_POINT_SCALE;
+    };
+
     return {
         setGimbalPos,
         getGimbal,
@@ -321,6 +475,15 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         getFlightState,
         getCountdownTime,
         flashLed,
+        startCountdown,
+        retryDeployParachute,
+        setPIDParameters,
+        getPIDParameters,
+        setControlling,
+        getControlling,
+        setPIDTarget,
+        getPIDTarget,
+        getBatteryVoltage,
     };
 }
 
