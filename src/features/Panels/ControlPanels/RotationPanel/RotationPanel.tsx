@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { eulerXYZToQuaternion } from "../../../RadioLink/useRadioCommands";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { Card } from "../../../../shared/components/elements/Card";
 import { Input } from "../../../../shared/components/primitives/Input";
@@ -38,7 +39,7 @@ function accumulationPill(state: AccumulationState) {
 
 /**
  * Sets the accumulated attitude (roll/pitch/yaw in degrees, converted to the
- * radians the protocol expects) and starts/stops the firmware's gyro
+ * quaternion the protocol expects) and starts/stops the firmware's gyro
  * accumulation. Shows the live attitude reported by GET_ROTATION.
  */
 export function RotationPanel({ className = "" }: RotationPanelProps) {
@@ -65,7 +66,7 @@ export function RotationPanel({ className = "" }: RotationPanelProps) {
         setActionError(null);
         setSending(true);
         try {
-            await setRotation(roll * DEG_TO_RAD, pitch * DEG_TO_RAD, yaw * DEG_TO_RAD);
+            await setRotation(eulerXYZToQuaternion(roll * DEG_TO_RAD, pitch * DEG_TO_RAD, yaw * DEG_TO_RAD));
         } catch (e) {
             setActionError(e instanceof Error ? e.message : String(e));
         } finally {

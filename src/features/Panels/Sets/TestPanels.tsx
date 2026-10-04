@@ -14,22 +14,30 @@ import { RotationPanel } from "../ControlPanels/RotationPanel/RotationPanel";
 export default function TestPanels() {
 	return (
 		<div className="relative z-10 flex flex-row min-h-0 gap-3 overflow-x-auto w-full pointer-events-none">
-			<div className="w-80 shrink-0 flex flex-col p-3 gap-3 overflow-y-auto pointer-events-none [&>*]:shrink-0">
-				<AccelerometerPanel />
-				<GyroscopePanel />
-				<BarometerPanel />
-				<GimbalChartPanel />
-				<RotationChartPanel />
-				<AltitudeChartPanel />
+			<div className="shrink-0 flex flex-row overflow-y-auto pointer-events-none [&>*]:shrink-0">
+				<div className="w-80 shrink-0 flex flex-col py-3 pl-3 gap-3 overflow-y-auto pointer-events-none [&>*]:shrink-0">
+					<GimbalChartPanel />
+					<RotationChartPanel />
+					<AltitudeChartPanel />
+				</div>
+				<div className="w-80 shrink-0 flex flex-col p-3 gap-3 overflow-y-auto pointer-events-none [&>*]:shrink-0">
+					<AccelerometerPanel />
+					<GyroscopePanel />
+					<BarometerPanel />
+				</div>
 			</div>
 
-			<div className="w-80 shrink-0 flex flex-col p-3 gap-3 overflow-y-auto pointer-events-none ml-auto [&>*]:shrink-0">
-				<BatteryPanel />
-				<GimbalPanel />
-				<RotationPanel />
-				<PyroPanel />
-				<BuzzerPanel />
-				<LedPanel />
+			<div className="shrink-0 flex flex-row overflow-y-auto pointer-events-none ml-auto [&>*]:shrink-0">
+				<div className="w-80 shrink-0 flex flex-col p-3 gap-3 overflow-y-auto pointer-events-none [&>*]:shrink-0">
+					<PyroPanel />
+					<BuzzerPanel />
+					<LedPanel />
+				</div>
+				<div className="w-80 shrink-0 flex flex-col py-3 pr-3 gap-3 overflow-y-auto pointer-events-none [&>*]:shrink-0">
+					<BatteryPanel />
+					<GimbalPanel />
+					<RotationPanel />
+				</div>
 			</div>
 		</div>
 	);

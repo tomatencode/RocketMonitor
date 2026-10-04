@@ -1,5 +1,18 @@
 import { MessageType } from "./Protocol";
 import { ResponseStatus } from "./useMessageTransport";
+import {
+    decode as decodeQuaternion,
+    encode as encodeQuaternion,
+    ENCODED_SIZE as QUATERNION_ENCODED_SIZE,
+} from "./codecs/quaternion";
+import type { Quaternion } from "./codecs/quaternion";
+import { decode16, decode32, encode16, encode32 } from "./codecs/fixedPoint";
+import { decodeU32, encodeU16, encodeU32 } from "./codecs/littleEndian";
+
+/** Re-exported so existing `... from "./useRadioCommands"` imports keep working. */
+export type { Quaternion };
+export { normalizeQuaternion, quaternionToEulerXYZ, eulerXYZToQuaternion } from "./codecs/quaternion";
+export type { EulerXYZ } from "./codecs/quaternion";
 
 export interface IMUData {
     accelX_m_s2: number;
@@ -15,11 +28,8 @@ export interface BaroData {
     temperature_C: number;
 }
 
-export interface RotationData {
-    roll_rad: number;
-    pitch_rad: number;
-    yaw_rad: number;
-}
+/** Live attitude — a quaternion (x, y, z, w), see `codecs/quaternion.ts`. */
+export type RotationData = Quaternion;
 
 export interface GimbalData {
     degX_deg: number;
@@ -46,22 +56,6 @@ export enum FlightState {
     ABORTED = 6,
 }
 
-/** Attitude quaternion (x, y, z, w) as used by the firmware's Eigen::Quaternionf. */
-export interface Quaternion {
-    x: number;
-    y: number;
-    z: number;
-    w: number;
-}
-
-/** Mirrors the firmware's ControlPID::PIDParameters (controlPID/ControlPID.hpp). */
-export interface PIDParameters {
-    kp: number;
-    ki: number;
-    kd: number;
-}
-
-/** Mirrors the firmware's FlightProfile (stateManagement/FlightStateManager.hpp). */
 export interface FlightProfile {
     countdownDuration_ms: number;
     motorBurnDuration_ms: number;
@@ -75,6 +69,13 @@ export interface FlightProfile {
     initialHeight_m: number;
 }
 
+/** Mirrors the firmware's ControlPID::PIDParameters (controlPID/ControlPID.hpp). */
+export interface PIDParameters {
+    kp: number;
+    ki: number;
+    kd: number;
+}
+
 type SendMessage = (
     messageType: MessageType,
     payload?: Uint8Array,
@@ -82,10 +83,6 @@ type SendMessage = (
 
 interface UseRadioCommandsOptions {
     sendMessage: SendMessage;
-}
-
-function toDataView(payload: Uint8Array): DataView {
-    return new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
 }
 
 /**
@@ -98,25 +95,6 @@ function ensureSuccess(status: ResponseStatus, command: string): void {
     }
 }
 
-const FIXED_POINT_SCALE = 100;
-
-// Quaternions travel as (x, y, z, w), each an int32 fixed-point value scaled by 100.
-function encodeQuaternion(view: DataView, offset: number, quaternion: Quaternion): void {
-    view.setInt32(offset + 0, quaternion.x * FIXED_POINT_SCALE, true);
-    view.setInt32(offset + 4, quaternion.y * FIXED_POINT_SCALE, true);
-    view.setInt32(offset + 8, quaternion.z * FIXED_POINT_SCALE, true);
-    view.setInt32(offset + 12, quaternion.w * FIXED_POINT_SCALE, true);
-}
-
-function decodeQuaternion(data: DataView, offset: number): Quaternion {
-    return {
-        x: data.getInt32(offset + 0, true) / FIXED_POINT_SCALE,
-        y: data.getInt32(offset + 4, true) / FIXED_POINT_SCALE,
-        z: data.getInt32(offset + 8, true) / FIXED_POINT_SCALE,
-        w: data.getInt32(offset + 12, true) / FIXED_POINT_SCALE,
-    };
-}
-
 /**
  * Thin, typed wrappers around the radio transport's `sendMessage`.
  *
@@ -127,9 +105,8 @@ function decodeQuaternion(data: DataView, offset: number): Quaternion {
 export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     const setGimbalPos = async (degX: number, degY: number): Promise<void> => {
         const payload = new Uint8Array(4);
-        const view = new DataView(payload.buffer);
-        view.setInt16(0, degX * 100, true);
-        view.setInt16(2, degY * 100, true);
+        encode16(degX, payload, 0);
+        encode16(degY, payload, 2);
         await sendMessage(MessageType.SET_GIMBAL, payload);
     };
 
@@ -140,10 +117,9 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             throw new Error("GET_GIMBAL response has an invalid payload");
         }
 
-        const data = toDataView(response.payload);
         return {
-            degX_deg: data.getInt16(0, true) / 100,
-            degY_deg: data.getInt16(2, true) / 100,
+            degX_deg: decode16(response.payload, 0),
+            degY_deg: decode16(response.payload, 2),
         };
     };
 
@@ -157,9 +133,8 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             payload = new Uint8Array([channel]);
         } else {
             payload = new Uint8Array(3);
-            const view = new DataView(payload.buffer);
-            view.setUint8(0, channel);
-            view.setUint16(1, durationMs, true);
+            payload[0] = channel;
+            encodeU16(durationMs, payload, 1);
         }
         await sendMessage(MessageType.FIRE_PYRO, payload);
     };
@@ -205,14 +180,14 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             throw new Error("GET_IMU response has an invalid payload");
         }
 
-        const data = toDataView(response.payload);
+        const payload = response.payload;
         return {
-            accelX_m_s2: data.getInt16(0, true) / 100,
-            accelY_m_s2: data.getInt16(2, true) / 100,
-            accelZ_m_s2: data.getInt16(4, true) / 100,
-            gyroX_rad_s: data.getInt16(6, true) / 100,
-            gyroY_rad_s: data.getInt16(8, true) / 100,
-            gyroZ_rad_s: data.getInt16(10, true) / 100,
+            accelX_m_s2: decode16(payload, 0),
+            accelY_m_s2: decode16(payload, 2),
+            accelZ_m_s2: decode16(payload, 4),
+            gyroX_rad_s: decode16(payload, 6),
+            gyroY_rad_s: decode16(payload, 8),
+            gyroZ_rad_s: decode16(payload, 10),
         };
     };
 
@@ -223,34 +198,33 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             throw new Error("GET_BARO response has an invalid payload");
         }
 
-        const data = toDataView(response.payload);
         return {
-            pressure_Pa: data.getInt32(0, true) / 100,
-            temperature_C: data.getInt32(4, true) / 100,
+            pressure_Pa: decode32(response.payload, 0),
+            temperature_C: decode32(response.payload, 4),
         };
     };
 
+    /**
+     * Current attitude as a quaternion (x, y, z, w). Use
+     * `quaternionToEulerXYZ` from `codecs/quaternion` for roll/pitch/yaw.
+     */
     const getRotation = async (): Promise<RotationData> => {
         const response = await sendMessage(MessageType.GET_ROTATION);
 
-        if (!response.payload || response.payload.byteLength < 12) {
+        if (!response.payload || response.payload.byteLength < QUATERNION_ENCODED_SIZE) {
             throw new Error("GET_ROTATION response has an invalid payload");
         }
 
-        const data = toDataView(response.payload);
-        return {
-            roll_rad: data.getInt32(0, true) / 100,
-            pitch_rad: data.getInt32(4, true) / 100,
-            yaw_rad: data.getInt32(8, true) / 100,
-        };
+        return decodeQuaternion(response.payload, 0);
     };
 
-    const setRotation = async (roll_rad: number, pitch_rad: number, yaw_rad: number): Promise<void> => {
-        const payload = new Uint8Array(12);
-        const view = new DataView(payload.buffer);
-        view.setInt32(0, roll_rad * 100, true);
-        view.setInt32(4, pitch_rad * 100, true);
-        view.setInt32(8, yaw_rad * 100, true);
+    /**
+     * Overwrites the accumulated attitude. Build the quaternion with
+     * `eulerXYZToQuaternion` when working from roll/pitch/yaw angles.
+     */
+    const setRotation = async (quaternion: Quaternion): Promise<void> => {
+        const payload = new Uint8Array(QUATERNION_ENCODED_SIZE);
+        encodeQuaternion(quaternion, payload, 0);
         await sendMessage(MessageType.SET_ROTATION, payload);
     };
 
@@ -285,15 +259,14 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             throw new Error("GET_BARO_HEIGHT response has an invalid payload");
         }
 
-        return toDataView(response.payload).getInt32(0, true) / 100;
+        return decode32(response.payload, 0);
     };
 
     // Re-bases the barometric height so the current measurement reads `height_m`
     // (0 on the launch pad). Throws if the firmware has no valid measurement yet.
     const calibrateBaroHeight = async (height_m: number): Promise<void> => {
         const payload = new Uint8Array(4);
-        const view = new DataView(payload.buffer);
-        view.setInt32(0, height_m * 100, true);
+        encode32(height_m, payload, 0);
         const response = await sendMessage(MessageType.CALIBRATE_BARO_HEIGHT, payload);
         ensureSuccess(response.status, "CALIBRATE_BARO_HEIGHT");
     };
@@ -305,14 +278,14 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             throw new Error("GET_FLIGHT_LOCATION response has an invalid payload");
         }
 
-        const data = toDataView(response.payload);
+        const payload = response.payload;
         return {
-            posX_m: data.getInt32(0, true) / 100,
-            posY_m: data.getInt32(4, true) / 100,
-            velX_m_s: data.getInt32(8, true) / 100,
-            velY_m_s: data.getInt32(12, true) / 100,
-            height_m: data.getInt32(16, true) / 100,
-            verticalVelocity_m_s: data.getInt32(20, true) / 100,
+            posX_m: decode32(payload, 0),
+            posY_m: decode32(payload, 4),
+            velX_m_s: decode32(payload, 8),
+            velY_m_s: decode32(payload, 12),
+            height_m: decode32(payload, 16),
+            verticalVelocity_m_s: decode32(payload, 20),
         };
     };
 
@@ -339,7 +312,7 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             throw new Error("GET_COUNTDOWN_TIME response has an invalid payload");
         }
 
-        return toDataView(response.payload).getUint32(0, true);
+        return decodeU32(response.payload, 0);
     };
 
     // Omitting durationMs flashes with the LED's default duration.
@@ -348,8 +321,7 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         let payload: Uint8Array | undefined;
         if (durationMs !== undefined) {
             payload = new Uint8Array(2);
-            const view = new DataView(payload.buffer);
-            view.setUint16(0, durationMs, true);
+            encodeU16(durationMs, payload, 0);
         }
         const response = await sendMessage(MessageType.FLASH_LED, payload);
         ensureSuccess(response.status, "FLASH_LED");
@@ -359,17 +331,16 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     // See FlightProfile for the countdown/burn durations, attitude, PID gains, pyro channels and start height.
     const startCountdown = async (profile: FlightProfile): Promise<void> => {
         const payload = new Uint8Array(58);
-        const view = new DataView(payload.buffer);
-        view.setUint32(0, profile.countdownDuration_ms, true);
-        view.setUint32(4, profile.motorBurnDuration_ms, true);
-        encodeQuaternion(view, 8, profile.initialRotation);
-        encodeQuaternion(view, 24, profile.targetAngle);
-        view.setInt32(40, profile.pidKp * FIXED_POINT_SCALE, true);
-        view.setInt32(44, profile.pidKi * FIXED_POINT_SCALE, true);
-        view.setInt32(48, profile.pidKd * FIXED_POINT_SCALE, true);
-        view.setUint8(52, profile.motorIgniterChannel);
-        view.setUint8(53, profile.parachutePyroChannel);
-        view.setInt32(54, profile.initialHeight_m * FIXED_POINT_SCALE, true);
+        encodeU32(profile.countdownDuration_ms, payload, 0);
+        encodeU32(profile.motorBurnDuration_ms, payload, 4);
+        encodeQuaternion(profile.initialRotation, payload, 8);
+        encodeQuaternion(profile.targetAngle, payload, 24);
+        encode32(profile.pidKp, payload, 40);
+        encode32(profile.pidKi, payload, 44);
+        encode32(profile.pidKd, payload, 48);
+        payload[52] = profile.motorIgniterChannel;
+        payload[53] = profile.parachutePyroChannel;
+        encode32(profile.initialHeight_m, payload, 54);
         const response = await sendMessage(MessageType.START_COUNTDOWN, payload);
         ensureSuccess(response.status, "START_COUNTDOWN");
     };
@@ -382,10 +353,9 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
 
     const setPIDParameters = async (kp: number, ki: number, kd: number): Promise<void> => {
         const payload = new Uint8Array(12);
-        const view = new DataView(payload.buffer);
-        view.setInt32(0, kp * FIXED_POINT_SCALE, true);
-        view.setInt32(4, ki * FIXED_POINT_SCALE, true);
-        view.setInt32(8, kd * FIXED_POINT_SCALE, true);
+        encode32(kp, payload, 0);
+        encode32(ki, payload, 4);
+        encode32(kd, payload, 8);
         const response = await sendMessage(MessageType.SET_PID_PARAMETERS, payload);
         ensureSuccess(response.status, "SET_PID_PARAMETERS");
     };
@@ -403,11 +373,11 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             throw new Error("GET_PID_PARAMETERS response has an invalid payload");
         }
 
-        const data = toDataView(response.payload);
+        const payload = response.payload;
         return {
-            kp: data.getInt32(0, true) / FIXED_POINT_SCALE,
-            ki: data.getInt32(4, true) / FIXED_POINT_SCALE,
-            kd: data.getInt32(8, true) / FIXED_POINT_SCALE,
+            kp: decode32(payload, 0),
+            ki: decode32(payload, 4),
+            kd: decode32(payload, 8),
         };
     };
 
@@ -428,9 +398,8 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     };
 
     const setPIDTarget = async (target: Quaternion): Promise<void> => {
-        const payload = new Uint8Array(16);
-        const view = new DataView(payload.buffer);
-        encodeQuaternion(view, 0, target);
+        const payload = new Uint8Array(QUATERNION_ENCODED_SIZE);
+        encodeQuaternion(target, payload, 0);
         const response = await sendMessage(MessageType.SET_PID_TARGET, payload);
         ensureSuccess(response.status, "SET_PID_TARGET");
     };
@@ -444,11 +413,11 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             return null;
         }
 
-        if (!response.payload || response.payload.byteLength < 16) {
+        if (!response.payload || response.payload.byteLength < QUATERNION_ENCODED_SIZE) {
             throw new Error("GET_PID_TARGET response has an invalid payload");
         }
 
-        return decodeQuaternion(toDataView(response.payload), 0);
+        return decodeQuaternion(response.payload, 0);
     };
 
     const getBatteryVoltage = async (): Promise<number> => {
@@ -458,7 +427,7 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             throw new Error("GET_BATTERY_VOLTAGE response has an invalid payload");
         }
 
-        return toDataView(response.payload).getInt16(0, true) / FIXED_POINT_SCALE;
+        return decode16(response.payload, 0);
     };
 
     return {

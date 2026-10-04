@@ -1,5 +1,4 @@
 import { BatteryPanel } from "../ControlPanels/BatteryPanel/BatteryPanel";
-import { RotationPanel } from "../ControlPanels/RotationPanel/RotationPanel";
 import { AltitudeChartPanel } from "../ControlPanels/AltitudeChartPanel/AltitudeChartPanel";
 import { GimbalChartPanel } from "../ControlPanels/GimbalChartPanel/GimbalChartPanel";
 import { RotationChartPanel } from "../ControlPanels/RotationChartPanel/RotationChartPanel";
@@ -12,7 +11,6 @@ export default function LaunchPanels() {
                 <GimbalChartPanel />
                 <AltitudeChartPanel  showButtons={false} />
                 <RotationChartPanel />
-                <RotationPanel />
 
             </div>
 
