@@ -19,11 +19,11 @@ const RAD_TO_DEG = 180 / Math.PI;
 export function useRotationStatus(): RotationStatus {
     const { value, error } = useRocketStatus("rotation");
     if (!value) return { roll_deg: null, pitch_deg: null, yaw_deg: null, error };
-    const { roll_rad, pitch_rad, yaw_rad } = quaternionToEulerXYZ(value);
+    const { x_rad, y_rad, z_rad } = quaternionToEulerXYZ(value);
     return {
-        roll_deg: roll_rad * RAD_TO_DEG,
-        pitch_deg: pitch_rad * RAD_TO_DEG,
-        yaw_deg: yaw_rad * RAD_TO_DEG,
+        roll_deg: z_rad * RAD_TO_DEG,
+        pitch_deg: y_rad * RAD_TO_DEG,
+        yaw_deg: x_rad * RAD_TO_DEG,
         error,
     };
 }

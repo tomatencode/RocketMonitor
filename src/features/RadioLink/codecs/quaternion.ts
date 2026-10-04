@@ -41,12 +41,11 @@ export function decode(buffer: Uint8Array, offset: number): Quaternion {
 /**
  * Quaternion <-> XYZ-Euler conversions matching the firmware's Eigen convention.
  *
- * The firmware builds its attitude as R = Rx(roll) * Ry(pitch) * Rz(yaw)
- * (see `RotationAccumulator::setEulerAngles_rad`, and `getEulerAngles_rad`
- * which reads it back via `eulerAngles(0, 1, 2)`). Three.js consumes Euler
- * triples in its default 'XYZ' order, which produces the same
- * R = Rx * Ry * Rz matrix — so these helpers keep the 3D scene, the chart
- * and the panel in agreement with the rocket.
+ * The firmware builds its attitude as R = Rx * Ry * Rz (see
+ * `RotationAccumulator::setEulerAngles_rad`). Three.js consumes Euler triples
+ * in its default 'XYZ' order, which produces the same matrix. These helpers
+ * deliberately use axis names rather than flight-axis labels: firmware defines
+ * X as yaw, Y as pitch, and Z as roll.
  */
 
 /** Returns a unit-length copy of `q` (identity when `q` has zero length). */
@@ -57,14 +56,14 @@ export function normalizeQuaternion(q: Quaternion): Quaternion {
 }
 
 export interface EulerXYZ {
-    roll_rad: number;
-    pitch_rad: number;
-    yaw_rad: number;
+    x_rad: number;
+    y_rad: number;
+    z_rad: number;
 }
 
 /**
  * Converts a (possibly unnormalised, e.g. fixed-point x100 wire) quaternion
- * to XYZ-Euler angles in radians, with R = Rx(roll) * Ry(pitch) * Rz(yaw).
+ * to XYZ-Euler angles in radians, with R = Rx * Ry * Rz.
  */
 export function quaternionToEulerXYZ(q: Quaternion): EulerXYZ {
     const n = normalizeQuaternion(q);
@@ -81,30 +80,30 @@ export function quaternionToEulerXYZ(q: Quaternion): EulerXYZ {
 
     const pitch_rad = Math.asin(Math.min(1, Math.max(-1, m02)));
 
-    // Gimbal lock (|pitch| ~= pi/2): fold everything into roll, report yaw 0.
+    // Gimbal lock (|Y| ~= pi/2): fold everything into X, report Z as 0.
     if (Math.abs(m02) >= 1) {
-        const roll_rad = Math.atan2(m02 > 0 ? m10 : -m10, m11);
-        return { roll_rad, pitch_rad, yaw_rad: 0 };
+        const x_rad = Math.atan2(m02 > 0 ? m10 : -m10, m11);
+        return { x_rad, y_rad: pitch_rad, z_rad: 0 };
     }
 
     return {
-        roll_rad: Math.atan2(-m12, m22),
-        pitch_rad,
-        yaw_rad: Math.atan2(-m01, m00),
+        x_rad: Math.atan2(-m12, m22),
+        y_rad: pitch_rad,
+        z_rad: Math.atan2(-m01, m00),
     };
 }
 
 /**
- * Builds the quaternion for R = Rx(roll) * Ry(pitch) * Rz(yaw),
+ * Builds the quaternion for R = Rx * Ry * Rz,
  * matching `RotationAccumulator::setEulerAngles_rad`.
  */
-export function eulerXYZToQuaternion(roll_rad: number, pitch_rad: number, yaw_rad: number): Quaternion {
-    const cx = Math.cos(roll_rad / 2);
-    const sx = Math.sin(roll_rad / 2);
-    const cy = Math.cos(pitch_rad / 2);
-    const sy = Math.sin(pitch_rad / 2);
-    const cz = Math.cos(yaw_rad / 2);
-    const sz = Math.sin(yaw_rad / 2);
+export function eulerXYZToQuaternion(x_rad: number, y_rad: number, z_rad: number): Quaternion {
+    const cx = Math.cos(x_rad / 2);
+    const sx = Math.sin(x_rad / 2);
+    const cy = Math.cos(y_rad / 2);
+    const sy = Math.sin(y_rad / 2);
+    const cz = Math.cos(z_rad / 2);
+    const sz = Math.sin(z_rad / 2);
 
     // qx = (sx, 0, 0, cx), qy = (0, sy, 0, cy), qz = (0, 0, sz, cz);
     // q = qx * qy * qz (Hamilton product, w last).

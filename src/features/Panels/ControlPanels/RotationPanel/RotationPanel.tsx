@@ -66,7 +66,7 @@ export function RotationPanel({ className = "" }: RotationPanelProps) {
         setActionError(null);
         setSending(true);
         try {
-            await setRotation(eulerXYZToQuaternion(roll * DEG_TO_RAD, pitch * DEG_TO_RAD, yaw * DEG_TO_RAD));
+            await setRotation(eulerXYZToQuaternion(yaw * DEG_TO_RAD, pitch * DEG_TO_RAD, roll * DEG_TO_RAD));
         } catch (e) {
             setActionError(e instanceof Error ? e.message : String(e));
         } finally {

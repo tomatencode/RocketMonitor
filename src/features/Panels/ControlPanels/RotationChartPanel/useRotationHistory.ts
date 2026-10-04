@@ -31,11 +31,11 @@ export function useRotationHistory(): RotationHistory {
 
     useEffect(() => {
         if (!rotation) return;
-        const { roll_rad, pitch_rad, yaw_rad } = quaternionToEulerXYZ(rotation);
+        const { x_rad, y_rad, z_rad } = quaternionToEulerXYZ(rotation);
         const t = (Date.now() - startRef.current) / 1000;
-        setRoll(prev => [...prev.slice(-MAX_SAMPLES), { x: t, y: roll_rad * RAD_TO_DEG }]);
-        setPitch(prev => [...prev.slice(-MAX_SAMPLES), { x: t, y: pitch_rad * RAD_TO_DEG }]);
-        setYaw(prev => [...prev.slice(-MAX_SAMPLES), { x: t, y: yaw_rad * RAD_TO_DEG }]);
+        setRoll(prev => [...prev.slice(-MAX_SAMPLES), { x: t, y: z_rad * RAD_TO_DEG }]);
+        setPitch(prev => [...prev.slice(-MAX_SAMPLES), { x: t, y: y_rad * RAD_TO_DEG }]);
+        setYaw(prev => [...prev.slice(-MAX_SAMPLES), { x: t, y: x_rad * RAD_TO_DEG }]);
     }, [rotation]);
 
     return { roll, pitch, yaw, error };

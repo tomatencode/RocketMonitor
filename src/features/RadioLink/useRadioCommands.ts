@@ -205,8 +205,9 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     };
 
     /**
-     * Current attitude as a quaternion (x, y, z, w). Use
-     * `quaternionToEulerXYZ` from `codecs/quaternion` for roll/pitch/yaw.
+    * Current attitude as a quaternion (x, y, z, w). Use
+    * `quaternionToEulerXYZ` from `codecs/quaternion` for XYZ angles;
+    * firmware labels X as yaw, Y as pitch, and Z as roll.
      */
     const getRotation = async (): Promise<RotationData> => {
         const response = await sendMessage(MessageType.GET_ROTATION);
@@ -219,8 +220,9 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     };
 
     /**
-     * Overwrites the accumulated attitude. Build the quaternion with
-     * `eulerXYZToQuaternion` when working from roll/pitch/yaw angles.
+    * Overwrites the accumulated attitude. Build the quaternion with
+    * `eulerXYZToQuaternion(x, y, z)`; firmware labels X as yaw, Y as pitch,
+    * and Z as roll.
      */
     const setRotation = async (quaternion: Quaternion): Promise<void> => {
         const payload = new Uint8Array(QUATERNION_ENCODED_SIZE);
