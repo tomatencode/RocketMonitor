@@ -10,6 +10,7 @@ import { BuzzerPanel } from "../ControlPanels/BuzzerPanel/BuzzerPanel";
 import { LedPanel } from "../ControlPanels/LedPanel/LedPanel";
 import { BatteryPanel } from "../ControlPanels/BatteryPanel/BatteryPanel";
 import { RotationPanel } from "../ControlPanels/RotationPanel/RotationPanel";
+import { PIDPanel } from "../ControlPanels/PIDPanel/PIDPanel";
 
 export default function TestPanels() {
 	return (
@@ -29,14 +30,15 @@ export default function TestPanels() {
 
 			<div className="shrink-0 flex flex-row overflow-y-auto pointer-events-none ml-auto [&>*]:shrink-0">
 				<div className="w-80 shrink-0 flex flex-col p-3 gap-3 overflow-y-auto pointer-events-none [&>*]:shrink-0">
-					<PyroPanel />
 					<BuzzerPanel />
 					<LedPanel />
+					<PyroPanel />
 				</div>
 				<div className="w-80 shrink-0 flex flex-col py-3 pr-3 gap-3 overflow-y-auto pointer-events-none [&>*]:shrink-0">
 					<BatteryPanel />
 					<GimbalPanel />
 					<RotationPanel />
+					<PIDPanel />
 				</div>
 			</div>
 		</div>

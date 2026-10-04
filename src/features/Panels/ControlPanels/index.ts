@@ -20,4 +20,6 @@ export { BatteryPanel, type BatteryPanelProps } from "./BatteryPanel/BatteryPane
 export { useBatteryStatus, type BatteryStatus } from "./BatteryPanel/useBatteryStatus";
 export { RotationPanel, type RotationPanelProps } from "./RotationPanel/RotationPanel";
 export { useRotationStatus, type RotationStatus } from "./RotationPanel/useRotationStatus";
+export { PIDPanel, type PIDPanelProps } from "./PIDPanel/PIDPanel";
+export { usePIDStatus, type PIDStatus } from "./PIDPanel/usePIDStatus";
 export type { LineSample } from "./types";
