@@ -190,14 +190,18 @@ export function LineGraph({
 		const xSpan = xMax - xMin || 1;
 
 		// Drop ticks computeTicks rounded outside the real domain so they don't render past the axis.
+		// The Y axis needs this too: valueToY maps values against [yLo, yHi], so a floor-rounded tick
+		// below yLo (e.g. -25 for a domain starting at -1) would otherwise be drawn at a different
+		// scale than the series and make the plot look shifted.
 		const xTickTolerance = xSpan * 1e-6;
+		const yTickTolerance = ySpan * 1e-6;
 		return {
 			pointsPerSeries,
 			yLo,
 			ySpan,
 			xMin,
 			xSpan,
-			yTicks: computeTicks(yLo, yHi, yAxis?.tickInterval, 4),
+			yTicks: computeTicks(yLo, yHi, yAxis?.tickInterval, 4).filter(t => t >= yLo - yTickTolerance && t <= yHi + yTickTolerance),
 			xTicks: computeTicks(xMin, xMax, xAxis?.tickInterval, 5).filter(t => t >= xMin - xTickTolerance && t <= xMax + xTickTolerance),
 		};
 	}, [series, maxPoints, yMin, yMax, yAutoscaleMin, yAutoscaleMax, yAxis?.tickInterval, xAxis?.tickInterval, xOffset, maxXinFrame]);
@@ -223,12 +227,9 @@ export function LineGraph({
 		[pointsPerSeries, xMin, xSpan, yLo, ySpan, axisX, marginTop, plotWidth, plotHeight]
 	);
 
-	const valueToY = (value: number) => {
-		const min = yTicks[0];
-		const max = yTicks[yTicks.length - 1];
-		const span = max - min || 1;
-		return marginTop + plotHeight - ((value - min) / span) * plotHeight;
-	};
+	// Map a value into plot pixel space using the same [yLo, yHi] domain as buildPath, so ticks and
+	// the atZero X axis stay aligned with the plotted series regardless of how ticks get rounded.
+	const valueToY = (value: number) => marginTop + plotHeight - ((value - yLo) / ySpan) * plotHeight;
 	const indexToX = (value: number) => axisX + (plotWidth * (value - xMin)) / xSpan;
 
 	const xAxisY = xAxis?.atZero ? Math.min(Math.max(valueToY(0), marginTop), axisY) : axisY;
