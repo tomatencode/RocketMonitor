@@ -150,24 +150,15 @@ export function RotationPanel({ className = "" }: RotationPanelProps) {
             >
                 {sending ? "Setting..." : "Set Rotation"}
             </Button>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
                 <Button
-                    variant={accumulating === true ? "success" : "neutral"}
+                    variant={accumulating === true ? "neutral" : "success"}
                     className="px-3 py-1.5 text-xs"
-                    disabled={!connected || accumulationBusy || accumulating === true}
+                    disabled={!connected || accumulationBusy }
                     title="Start integrating the IMU gyro into the attitude"
-                    onClick={() => handleAccumulation(true)}
+                    onClick={() => handleAccumulation(!accumulating)}
                 >
-                    Start Accum.
-                </Button>
-                <Button
-                    variant="ghost"
-                    className="px-3 py-1.5 text-xs"
-                    disabled={!connected || accumulationBusy || accumulating === false}
-                    title="Stop integrating the IMU gyro"
-                    onClick={() => handleAccumulation(false)}
-                >
-                    Stop Accum.
+                    {accumulationBusy ? "Sending..." : accumulating === true ? "Stop Accumulating" : "Start Accumulating"}
                 </Button>
             </div>
             <div className="grid grid-cols-3 gap-2">

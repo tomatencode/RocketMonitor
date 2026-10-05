@@ -95,18 +95,10 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
         }
     };
 
-    // Explicit "pull current values from the rocket": let the poll win over
-    // whatever the user had typed.
-    const handleRefresh = () => {
-        setEditing(false);
-        refresh();
-    };
-
     const statusError = actionError ?? pollError;
     const pill = controllingPill(controlling);
 
-    const startDisabled = !connected || controllingBusy || controlling === true || parameters === null;
-    const stopDisabled = !connected || controllingBusy || controlling === false;
+    const startStopDisabled = !connected || controllingBusy || parameters === null;
 
     return (
         <Card className={`p-3 flex flex-col gap-2 ${className}`}>
@@ -116,20 +108,9 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
                 subtitle="Kp / Ki / Kd gains"
                 connected={connected}
                 end={
-                    <div className="flex items-center gap-1.5">
-                        <StatusPill tone={pill.tone} pulse={pill.pulse}>
-                            {pill.label}
-                        </StatusPill>
-                        <Button
-                            variant="ghost"
-                            className="px-2.5 py-1.5 text-xs"
-                            disabled={!connected}
-                            title="Re-poll the gains and controlling state now"
-                            onClick={handleRefresh}
-                        >
-                            ⟳
-                        </Button>
-                    </div>
+                    <StatusPill tone={pill.tone} pulse={pill.pulse}>
+                        {pill.label}
+                    </StatusPill>
                 }
             />
             <div className="grid grid-cols-3 gap-2">
@@ -188,28 +169,19 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
             >
                 {sending ? "Setting..." : "Set Parameters"}
             </Button>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
                 <Button
-                    variant={controlling === true ? "success" : "neutral"}
+                    variant={controlling === true ? "neutral" : "success"}
                     className="px-3 py-1.5 text-xs"
-                    disabled={startDisabled}
+                    disabled={startStopDisabled}
                     title={
                         parameters === null
                             ? "Configure the gains first — starting is refused without them"
                             : "Start driving the gimbal with the attitude controller"
                     }
-                    onClick={() => handleSetControlling(true)}
+                    onClick={() => handleSetControlling(!controlling)}
                 >
-                    Start Controlling
-                </Button>
-                <Button
-                    variant="ghost"
-                    className="px-3 py-1.5 text-xs"
-                    disabled={stopDisabled}
-                    title="Stop the attitude controller"
-                    onClick={() => handleSetControlling(false)}
-                >
-                    Stop Controlling
+                    {controllingBusy ? "Sending..." : controlling === true ? "Stop Controlling" : "Start Controlling"}
                 </Button>
             </div>
             <div className="grid grid-cols-3 gap-2">
