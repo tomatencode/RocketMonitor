@@ -14,6 +14,7 @@ export type RocketRotation = [x: number, y: number, z: number];
 export function useRocketOrientation(): RocketRotation {
     const { value } = useRocketStatus("rotation");
     if (!value) return [0, 0, 0];
-    const { x_rad, y_rad, z_rad } = quaternionToEulerXYZ(value);
-    return [x_rad, y_rad, z_rad];
+    const {x_rad,y_rad,z_rad} = quaternionToEulerXYZ({x:value.x,y:value.z,z:-value.y,w:value.w}); // sceene y up
+    return [x_rad,y_rad,z_rad];
+
 }
