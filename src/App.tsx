@@ -3,7 +3,7 @@ import { useState } from "react";
 import TitleBar from "./shared/components/TitleBar";
 import { RocketLinkProvider } from "./features/RocketLink/RocketLinkContext";
 import { RadioLinkProvider } from "./features/RadioLink/RadioLinkContext";
-import { RocketStatusProvider } from "./features/RocketStatus/RocketStatusContext";
+import { RadioRocketProvider } from "./features/RadioLink/RadioRocketProvider";
 import { radius, appBackground } from "./shared/styles";
 import { RadioLogMonitor } from "./features/Logs/windows/RadioLogMonitor";
 import { RocketLogMonitor } from "./features/Logs/windows/RocketLogMonitor";
@@ -22,7 +22,7 @@ function App() {
   return (
     <RocketLinkProvider>
       <RadioLinkProvider>
-        <RocketStatusProvider>
+        <RadioRocketProvider>
           <div className={`relative flex flex-col h-screen overflow-hidden ${radius} ${appBackground}`}>
             <TitleBar />
             <div className="relative flex h-full bg-transparent text-zinc-200 font-mono text-sm overflow-hidden gap-3">
@@ -33,7 +33,7 @@ function App() {
 
             </div>
           </div>
-        </RocketStatusProvider>
+        </RadioRocketProvider>
       </RadioLinkProvider>
     </RocketLinkProvider>
   );

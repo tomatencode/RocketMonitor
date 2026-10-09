@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
+import { useRocketConnected } from "../../../RocketStatus/RocketStatusContext";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { Card } from "../../../../shared/components/elements/Card";
 import { Input } from "../../../../shared/components/primitives/Input";
@@ -13,7 +14,6 @@ import { usePyroStatus } from "./usePyroStatus";
 export interface PyroPanelProps {
     channels?: number[];
     channelLabels?: string[];
-    pollIntervalMs?: number;
     /** Default fire pulse length in ms applied to every channel input. */
     defaultFireDurationMs?: number;
     className?: string;
@@ -31,13 +31,13 @@ function armLabel(state: ArmState, armedText: string): string {
 export function PyroPanel({
     channels = DEFAULT_CHANNELS,
     channelLabels,
-    pollIntervalMs = 1500,
     defaultFireDurationMs = 200,
     className = "",
 }: PyroPanelProps) {
-    const { connected, firePyroChanel, setPyroSoftwareArmed } = useRadioLink();
+    const connected = useRocketConnected();
+    const { firePyroChanel, setPyroSoftwareArmed } = useRocketCommander();
     const { hardwareArmed, softwareArmed, continuity, error: pollError, lastUpdatedAt, refresh } =
-        usePyroStatus({ channels, pollIntervalMs, enabled: connected });
+        usePyroStatus({ channels, enabled: connected });
 
     const [firingChannel, setFiringChannel] = useState<number | null>(null);
     const [confirmChannel, setConfirmChannel] = useState<number | null>(null);
@@ -68,8 +68,7 @@ export function PyroPanel({
 
     const secondsSinceUpdate =
         lastUpdatedAt !== null ? Math.max(0, Math.floor((nowMs - lastUpdatedAt) / 1000)) : null;
-    // Manual re-poll is only offered when data has gone stale — normal polling
-    // already refreshes every `pollIntervalMs`, so a button would just be clutter.
+    // Manual re-poll is only offered when data has gone stale.
     const showRepoll = connected && (secondsSinceUpdate === null || secondsSinceUpdate > 30);
 
     useEffect(() => {
@@ -119,7 +118,6 @@ export function PyroPanel({
             setActionError(e instanceof Error ? e.message : String(e));
         } finally {
             setFiringChannel(null);
-            refresh();
         }
     };
 
@@ -133,7 +131,6 @@ export function PyroPanel({
             setActionError(e instanceof Error ? e.message : String(e));
         } finally {
             setSwArming(false);
-            refresh();
         }
     };
 

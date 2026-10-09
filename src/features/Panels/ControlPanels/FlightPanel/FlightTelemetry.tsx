@@ -1,4 +1,4 @@
-import type { FlightLocationData } from "../../../RadioLink/useRadioCommands";
+import type { FlightLocationData } from "../../../RocketStatus/rocketTypes";
 import { StatusDot } from "../../../../shared/components/elements/StatusDot";
 import { StatusTile } from "../../../../shared/components/elements/StatusTile";
 

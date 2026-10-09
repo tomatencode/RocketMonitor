@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { FlightProfile } from "../../../RadioLink/useRadioCommands";
-import { eulerXYZToQuaternion } from "../../../RadioLink/useRadioCommands";
+import type { FlightProfile } from "../../../RocketStatus/rocketTypes";
+import { eulerXYZToQuaternion } from "../../../RocketStatus/rocketTypes";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { Input } from "../../../../shared/components/primitives/Input";
-import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
+import { useRocketStatus } from "../../../RocketStatus/RocketStatusContext";
 
 interface FlightProfileFormProps {
     connected: boolean;
@@ -72,40 +73,13 @@ function Field({ label, value, onChange, step = "any", min, max }: {
 }
 
 export function FlightProfileForm({ connected, launching, onLaunch }: FlightProfileFormProps) {
-    const { getPyroSoftwareArmed, setPyroSoftwareArmed } = useRadioLink();
+    const { setPyroSoftwareArmed } = useRocketCommander();
+    const { value: softwareArmed } = useRocketStatus("pyroSoftwareArmed");
     const [values, setValues] = useState<ProfileValues>(DEFAULT_VALUES);
     const [validationError, setValidationError] = useState<string | null>(null);
-    const [softwareArmed, setSoftwareArmed] = useState<boolean | null>(null);
     const [armingPyro, setArmingPyro] = useState(false);
     const [confirmingLaunch, setConfirmingLaunch] = useState(false);
     const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const getPyroSoftwareArmedRef = useRef(getPyroSoftwareArmed);
-    getPyroSoftwareArmedRef.current = getPyroSoftwareArmed;
-
-    useEffect(() => {
-        if (!connected) {
-            setSoftwareArmed(null);
-            return;
-        }
-
-        let cancelled = false;
-        const poll = async () => {
-            try {
-                const armed = await getPyroSoftwareArmedRef.current();
-                if (!cancelled) setSoftwareArmed(armed);
-            } catch {
-                if (!cancelled) setSoftwareArmed(null);
-            }
-        };
-
-        void poll();
-        const intervalId = setInterval(() => void poll(), 1500);
-        return () => {
-            cancelled = true;
-            clearInterval(intervalId);
-        };
-    }, [connected]);
-
     useEffect(() => {
         if (!confirmingLaunch) return;
         confirmTimer.current = setTimeout(() => setConfirmingLaunch(false), 5000);
@@ -174,7 +148,6 @@ export function FlightProfileForm({ connected, launching, onLaunch }: FlightProf
         setArmingPyro(true);
         try {
             await setPyroSoftwareArmed(armed);
-            setSoftwareArmed(armed);
             setConfirmingLaunch(false);
         } catch (error) {
             setValidationError(error instanceof Error ? error.message : String(error));

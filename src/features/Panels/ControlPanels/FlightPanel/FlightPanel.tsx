@@ -3,10 +3,11 @@ import { Card } from "../../../../shared/components/elements/Card";
 import { PanelHeader } from "../../../../shared/components/elements/PanelHeader";
 import { StatusPill } from "../../../../shared/components/elements/StatusPill";
 import { Button } from "../../../../shared/components/primitives/Button";
-import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
+import { useRocketConnected } from "../../../RocketStatus/RocketStatusContext";
 import { useRocketStatus } from "../../../RocketStatus/RocketStatusContext";
-import type { FlightProfile } from "../../../RadioLink/useRadioCommands";
-import { FlightState } from "../../../RadioLink/useRadioCommands";
+import type { FlightProfile } from "../../../RocketStatus/rocketTypes";
+import { FlightState } from "../../../RocketStatus/rocketTypes";
 import { FlightProfileForm } from "./FlightProfileForm";
 import { FlightSummary } from "./FlightSummary";
 import { FlightTelemetry } from "./FlightTelemetry";
@@ -25,7 +26,8 @@ const isActiveFlight = (state: FlightState) => state >= FlightState.COUNTDOWN &&
 const isCompleteFlight = (state: FlightState) => state === FlightState.LANDED || state === FlightState.ABORTED;
 
 export function FlightPanel() {
-    const { connected, startCountdown, abortFlight, retryDeployParachute, endFlight } = useRadioLink();
+    const connected = useRocketConnected();
+    const { startCountdown, abortFlight, retryDeployParachute, endFlight } = useRocketCommander();
     const { value: state, error: stateError } = useRocketStatus("flightState");
     const { value: location, error: locationError } = useRocketStatus("flightLocation");
     const { value: countdownTime } = useRocketStatus("countdownTime");

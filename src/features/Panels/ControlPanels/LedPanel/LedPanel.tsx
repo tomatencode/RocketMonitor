@@ -4,7 +4,8 @@ import { LedIcon } from "../../../../shared/components/elements/Icons";
 import { PanelHeader } from "../../../../shared/components/elements/PanelHeader";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { Input } from "../../../../shared/components/primitives/Input";
-import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
+import { useRocketConnected } from "../../../RocketStatus/RocketStatusContext";
 
 export interface LedPanelProps {
     className?: string;
@@ -16,7 +17,8 @@ export interface LedPanelProps {
  * default duration, or set 1-65535 ms for a custom one.
  */
 export function LedPanel({ className = "" }: LedPanelProps) {
-    const { connected, flashLed } = useRadioLink();
+    const connected = useRocketConnected();
+    const { flashLed } = useRocketCommander();
     const [durationMs, setDurationMs] = useState("");
     const [flashing, setFlashing] = useState(false);
     const [error, setError] = useState<string | null>(null);

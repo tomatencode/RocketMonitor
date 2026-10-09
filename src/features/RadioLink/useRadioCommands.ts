@@ -9,72 +9,9 @@ import type { Quaternion } from "./codecs/quaternion";
 import { decode16, decode32, encode16, encode32 } from "./codecs/fixedPoint";
 import { decodeU32, encodeU16, encodeU32 } from "./codecs/littleEndian";
 
-/** Re-exported so existing `... from "./useRadioCommands"` imports keep working. */
-export type { Quaternion };
-export { normalizeQuaternion, quaternionToEulerXYZ, eulerXYZToQuaternion } from "./codecs/quaternion";
-export type { EulerXYZ } from "./codecs/quaternion";
-
-export interface IMUData {
-    accelX_m_s2: number;
-    accelY_m_s2: number;
-    accelZ_m_s2: number;
-    gyroX_rad_s: number;
-    gyroY_rad_s: number;
-    gyroZ_rad_s: number;
-}
-
-export interface BaroData {
-    pressure_Pa: number;
-    temperature_C: number;
-}
-
-/** Live attitude — a quaternion (x, y, z, w), see `codecs/quaternion.ts`. */
-export type RotationData = Quaternion;
-
-export interface GimbalData {
-    degX_deg: number;
-    degY_deg: number;
-}
-
-export interface FlightLocationData {
-    posX_m: number;
-    posY_m: number;
-    velX_m_s: number;
-    velY_m_s: number;
-    height_m: number;
-    verticalVelocity_m_s: number;
-}
-
-/** Mirrors the firmware's FlightState enum (stateManagement/FlightStateManager.hpp). */
-export enum FlightState {
-    IDLE = 0,
-    COUNTDOWN = 1,
-    BURNING = 2,
-    COASTING = 3,
-    DESCENDING = 4,
-    LANDED = 5,
-    ABORTED = 6,
-}
-
-export interface FlightProfile {
-    countdownDuration_ms: number;
-    motorBurnDuration_ms: number;
-    initialRotation: Quaternion;
-    targetAngle: Quaternion;
-    pidKp: number;
-    pidKi: number;
-    pidKd: number;
-    motorIgniterChannel: number;
-    parachutePyroChannel: number;
-    initialHeight_m: number;
-}
-
-/** Mirrors the firmware's ControlPID::PIDParameters (controlPID/ControlPID.hpp). */
-export interface PIDParameters {
-    kp: number;
-    ki: number;
-    kd: number;
-}
+import type { IMUData, BaroData, RotationData, GimbalData, FlightLocationData, PIDParameters, FlightProfile } from "../RocketStatus/rocketTypes";
+import { FlightState } from "../RocketStatus/rocketTypes";
+export * from "../RocketStatus/rocketTypes";
 
 type SendMessage = (
     messageType: MessageType,
@@ -107,7 +44,8 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         const payload = new Uint8Array(4);
         encode16(degX, payload, 0);
         encode16(degY, payload, 2);
-        await sendMessage(MessageType.SET_GIMBAL, payload);
+        const response = await sendMessage(MessageType.SET_GIMBAL, payload);
+        ensureSuccess(response.status, "SET_GIMBAL");
     };
 
     const getGimbal = async (): Promise<GimbalData> => {
@@ -124,7 +62,8 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     };
 
     const beepBuzzer = async (): Promise<void> => {
-        await sendMessage(MessageType.DO_BEEP);
+        const response = await sendMessage(MessageType.DO_BEEP);
+        ensureSuccess(response.status, "DO_BEEP");
     };
 
     const firePyroChanel = async (channel: number, durationMs?: number): Promise<void> => {
@@ -136,7 +75,8 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             payload[0] = channel;
             encodeU16(durationMs, payload, 1);
         }
-        await sendMessage(MessageType.FIRE_PYRO, payload);
+        const response = await sendMessage(MessageType.FIRE_PYRO, payload);
+        ensureSuccess(response.status, "FIRE_PYRO");
     };
 
     const getPyroContinuity = async (channel: number): Promise<boolean> => {
@@ -160,7 +100,8 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     };
 
     const setPyroSoftwareArmed = async (armed: boolean): Promise<void> => {
-        await sendMessage(MessageType.SET_PYRO_SOFTWARE_ARMED, new Uint8Array([armed ? 1 : 0]));
+        const response = await sendMessage(MessageType.SET_PYRO_SOFTWARE_ARMED, new Uint8Array([armed ? 1 : 0]));
+        ensureSuccess(response.status, "SET_PYRO_SOFTWARE_ARMED");
     };
 
     const getPyroHardwareArmed = async (): Promise<boolean> => {
@@ -227,7 +168,8 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     const setRotation = async (quaternion: Quaternion): Promise<void> => {
         const payload = new Uint8Array(QUATERNION_ENCODED_SIZE);
         encodeQuaternion(quaternion, payload, 0);
-        await sendMessage(MessageType.SET_ROTATION, payload);
+        const response = await sendMessage(MessageType.SET_ROTATION, payload);
+        ensureSuccess(response.status, "SET_ROTATION");
     };
 
     // Enables/disables integrating the IMU gyro into the accumulated attitude.

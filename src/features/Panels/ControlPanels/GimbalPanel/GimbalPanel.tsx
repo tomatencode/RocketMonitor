@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
+import { useRocketConnected } from "../../../RocketStatus/RocketStatusContext";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { Card } from "../../../../shared/components/elements/Card";
 import { StatusPill } from "../../../../shared/components/elements/StatusPill";
@@ -22,7 +23,8 @@ export function GimbalPanel({
     maxDeflectionDeg = 10,
     className = "",
 }: GimbalPanelProps) {
-    const { connected, setGimbalPos } = useRadioLink();
+    const connected = useRocketConnected();
+    const { setGimbalPos } = useRocketCommander();
     const { degX_deg: actualX, degY_deg: actualY, error: pollError } = useGimbalStatus();
 
     // Commanded (target) position. Only ever moved by the user — never synced

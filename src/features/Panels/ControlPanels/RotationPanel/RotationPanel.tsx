@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
-import { eulerXYZToQuaternion } from "../../../RadioLink/useRadioCommands";
+import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
+import { useRocketConnected } from "../../../RocketStatus/RocketStatusContext";
+import { eulerXYZToQuaternion } from "../../../RocketStatus/rocketTypes";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { Card } from "../../../../shared/components/elements/Card";
 import { Input } from "../../../../shared/components/primitives/Input";
@@ -43,7 +44,8 @@ function accumulationPill(state: AccumulationState) {
  * accumulation. Shows the live attitude reported by GET_ROTATION.
  */
 export function RotationPanel({ className = "" }: RotationPanelProps) {
-    const { connected, setRotation, setAccumulatingRotation } = useRadioLink();
+    const connected = useRocketConnected();
+    const { setRotation, setAccumulatingRotation } = useRocketCommander();
     const { roll_deg, pitch_deg, yaw_deg, error: pollError } = useRotationStatus();
 
     // Angle inputs in degrees — the unit the rest of the UI quotes.

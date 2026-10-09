@@ -1,7 +1,7 @@
-import type { FlightState } from "../../../RadioLink/useRadioCommands";
+import type { FlightState } from "../../../RocketStatus/rocketTypes";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { FlightTelemetry } from "./FlightTelemetry";
-import type { FlightLocationData } from "../../../RadioLink/useRadioCommands";
+import type { FlightLocationData } from "../../../RocketStatus/rocketTypes";
 
 interface FlightSummaryProps {
     state: FlightState;

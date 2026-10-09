@@ -93,7 +93,7 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
     // Commands must fail fast while the link is down instead of queueing radio
     // traffic that can never be answered. The transport flushes the frame itself.
     const sendCommand = (messageType: MessageType, payload?: Uint8Array) => {
-        if (!connected) {
+        if (!connected || !usbConnected) {
             throw new Error("Not connected to the radio link");
         }
         return sendMessage(messageType, payload);

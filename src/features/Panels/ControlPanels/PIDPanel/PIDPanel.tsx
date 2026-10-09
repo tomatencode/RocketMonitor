@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
+import { useRocketConnected } from "../../../RocketStatus/RocketStatusContext";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { Card } from "../../../../shared/components/elements/Card";
 import { Input } from "../../../../shared/components/primitives/Input";
@@ -39,8 +40,9 @@ function controllingPill(state: ControllingState) {
  * controller. Shows the live gains + controlling state polled from the rocket.
  */
 export function PIDPanel({ className = "" }: PIDPanelProps) {
-    const { connected, setPIDParameters, setControlling } = useRadioLink();
-    const { parameters, controlling, error: pollError, refresh } = usePIDStatus();
+    const connected = useRocketConnected();
+    const { setPIDParameters, setControlling } = useRocketCommander();
+    const { parameters, controlling, error: pollError } = usePIDStatus();
 
     // Gain inputs mirror the last polled values until the user edits them.
     const [kpInput, setKpInput] = useState("");
@@ -72,9 +74,7 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
         setSending(true);
         try {
             await setPIDParameters(kp, ki, kd);
-            // Keep `editing` set so the inputs keep showing what we just sent;
-            // the refresh confirms the rocket now reports the same gains.
-            refresh();
+            // Commander requests confirmed status; preserve inputs until editing ends.
         } catch (e) {
             setActionError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -87,7 +87,6 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
         setControllingBusy(true);
         try {
             await setControlling(next);
-            refresh();
         } catch (e) {
             setActionError(e instanceof Error ? e.message : String(e));
         } finally {

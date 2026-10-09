@@ -3,13 +3,13 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { useRocketLink } from "../../features/RocketLink/RocketLinkContext";
 import { appBackground, dividerBorder } from "../styles";
-import { useRadioLink } from "../../features/RadioLink/RadioLinkContext";
+import { useRocketConnected } from "../../features/RocketStatus/RocketStatusContext";
 
 export default function TitleBar() {
   const appWindow = useRef(getCurrentWindow());
   const [isMaximized, setIsMaximized] = useState(false);
   const { connected: usbConnected, portName } = useRocketLink();
-  const { connected: rocketConnected } = useRadioLink();
+  const rocketConnected = useRocketConnected();
 
   useEffect(() => {
     const win = appWindow.current;

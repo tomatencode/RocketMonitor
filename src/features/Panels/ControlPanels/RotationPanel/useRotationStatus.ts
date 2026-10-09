@@ -1,5 +1,5 @@
 import { useRocketStatus } from "../../../RocketStatus/RocketStatusContext";
-import { quaternionToEulerXYZ } from "../../../RadioLink/useRadioCommands";
+import { quaternionToEulerXYZ } from "../../../RocketStatus/rocketTypes";
 
 export interface RotationStatus {
     roll_deg: number | null;

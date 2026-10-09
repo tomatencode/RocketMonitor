@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRocketStatus } from "../../../RocketStatus/RocketStatusContext";
-import { quaternionToEulerXYZ } from "../../../RadioLink/useRadioCommands";
+import { quaternionToEulerXYZ } from "../../../RocketStatus/rocketTypes";
 import type { LineSample } from "../types";
 
 export interface RotationHistory {

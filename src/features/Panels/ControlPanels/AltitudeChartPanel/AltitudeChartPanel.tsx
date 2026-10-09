@@ -7,7 +7,8 @@ import { StatusPill } from "../../../../shared/components/elements/StatusPill";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { Input } from "../../../../shared/components/primitives/Input";
 import { accentColor1 } from "../../../../shared/styles";
-import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
+import { useRocketConnected } from "../../../RocketStatus/RocketStatusContext";
 import { useAltitudeHistory } from "./useAltitudeHistory";
 
 export interface AltitudeChartPanelProps {
@@ -17,7 +18,8 @@ export interface AltitudeChartPanelProps {
 
 /** Plots height above the launch pad (baro height) over time. */
 export function AltitudeChartPanel({ className = "", showButtons = true }: AltitudeChartPanelProps) {
-    const { connected, calibrateBaroHeight } = useRadioLink();
+    const connected = useRocketConnected();
+    const { calibrateBaroHeight } = useRocketCommander();
     const { altitude, height, error, reset } = useAltitudeHistory();
 
     // Reference height the current barometric measurement should represent (0 on the pad).

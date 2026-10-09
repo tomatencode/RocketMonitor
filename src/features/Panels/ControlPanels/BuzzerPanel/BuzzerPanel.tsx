@@ -2,10 +2,12 @@ import { Card } from "../../../../shared/components/elements/Card";
 import { BuzzerIcon } from "../../../../shared/components/elements/Icons";
 import { PanelHeader } from "../../../../shared/components/elements/PanelHeader";
 import { Button } from "../../../../shared/components/primitives/Button";
-import { useRadioLink } from "../../../RadioLink/RadioLinkContext";
+import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
+import { useRocketConnected } from "../../../RocketStatus/RocketStatusContext";
 
 export function BuzzerPanel({ className = "" }: { className?: string }) {
-    const { connected, beepBuzzer } = useRadioLink();
+    const connected = useRocketConnected();
+    const { beepBuzzer } = useRocketCommander();
     return (
         <Card className={`p-3 flex flex-col gap-2 ${className}`}>
             <PanelHeader
