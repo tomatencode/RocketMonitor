@@ -149,8 +149,8 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
         setError(null);
         setSavedPath(null);
         try {
-            const bytes = await commander.withLogDownload(reader => downloadLog(reader, filename, controller.signal,
-                (received, total) => setProgress({ received, total })), controller.signal);
+            const bytes = await downloadLog(commander, filename, controller.signal,
+                (received, total) => setProgress({ received, total }));
             controller.signal.throwIfAborted();
             setSaving(true);
             const path = await invoke<string>("save_rocket_log", { filename, data: Array.from(bytes) });
@@ -202,12 +202,15 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
                         aria-label={`Delete ${filename} from rocket`} onClick={() => setPendingDelete({ filename })}>Delete</Button>
                 </div>)}
             </div>
+            <Button variant="danger" className="px-2.5 py-1.5 text-xs" disabled={!canDeleteAll}
+                title={logging.value !== false ? "Stop logging before deleting all logs" : "Delete all rocket logs and reclaim flash space"}
+                onClick={() => setPendingDelete({ all: true })}>{deleting ? "Deleting..." : "Delete All Logs"}</Button>
+            {logging.value === true && <p className="text-[10px] text-zinc-500">Stop logging to delete all logs. Individual completed logs can still be deleted.</p>}
             {pendingDelete && <DeleteLogConfirmation deletion={pendingDelete}
                 disabled={"all" in pendingDelete ? !canDeleteAll : !canDelete}
                 onConfirm={() => void confirmDelete()} onCancel={() => setPendingDelete(null)} />}
             {deleteMessage && <p className="text-[11px] text-emerald-300 break-all" role="status">{deleteMessage}</p>}
             {downloading !== null && <div className="flex flex-col gap-1.5" aria-live="polite">
-                {!saving && <span className="text-[10px] text-amber-300">Telemetry paused; downloading in batched frames.</span>}
                 <span className="text-[11px] text-zinc-400 break-all">{saving ? "Saving " : "Downloading "}{downloading}: {progress.received} / {progress.total} bytes</span>
                 <progress className="w-full h-1.5" value={progress.received} max={progress.total || 1} aria-label="Log download progress" />
                 <Button variant="ghost" className="px-2 py-1 text-xs" disabled={saving} onClick={cancelDownload}>Cancel Download</Button>
