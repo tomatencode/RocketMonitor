@@ -73,7 +73,7 @@ export function useMessageTransport(onResponse?: () => void) {
 
                 for (const message of frame.messages) {
                     const pending = pendingResponses.current.get(message.seqId);
-                    if (!pending) continue;
+                    if (!pending || pending.message.type !== message.type) continue;
 
                     onResponse?.();
 

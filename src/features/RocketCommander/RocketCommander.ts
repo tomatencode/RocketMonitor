@@ -63,9 +63,7 @@ export class RocketCommander implements RocketCommands, RocketLogReader {
 
     /** Log file reads are explicit operations, not status polls. */
     listLogs = (startIndex?: number) => this.readLog(reader => reader.listLogs(startIndex));
-    getLogInfo = (filename: string) => this.readLog(reader => reader.getLogInfo(filename));
-    getLogBytes = (filename: string, offset: number, length: number) =>
-        this.readLog(reader => reader.getLogBytes(filename, offset, length));
+    getLogSize = (filename: string) => this.readLog(reader => reader.getLogSize(filename));
 
     private readLog<T>(read: (reader: RocketLogReader) => Promise<T>): Promise<T> {
         return this.track(async () => {
@@ -94,7 +92,7 @@ export class RocketCommander implements RocketCommands, RocketLogReader {
         return result;
     }
 
-    /** Wait for already-started application operations, including their readbacks. */
+    /** Wait for already-started application operations; status leases defer their readbacks. */
     waitForIdle = () => Promise.allSettled([...this.activeRequests]).then(() => {});
 
     private flightTopics(): RocketStatusTopic[] {

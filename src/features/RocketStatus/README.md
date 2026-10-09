@@ -34,17 +34,19 @@ On-demand reads are also available on commander so callers need no radio imports
 - `listLogs(startIndex = 0)` returns `{ totalFiles, nextIndex, filenames }`.
   Continue from `nextIndex` until it equals `totalFiles`. Only completed/recovered
   files are listed; the open log is excluded.
-- `getLogInfo(filename)` returns `{ sizeBytes, maxChunkBytes }` after firmware
-  verifies the file. Unknown, open, or corrupt files reject the operation.
-- `getLogBytes(filename, offset, length)` returns `{ offset, bytes }`. Request
-  chunks of 1..`maxChunkBytes` (currently at most 240). Near EOF, the returned bytes may be shorter;
-  at EOF they are empty. These are raw log payload bytes, without flash framing.
+- `getLogSize(filename)` returns the verified payload size in bytes via
+  `GET_LOG_SIZE` (0x24), whose response is exactly four little-endian bytes.
+  Unknown, open, or corrupt files reject the operation.
+
+The old `getLogInfo`/`getLogBytes` APIs and message 0x25 are removed, matching
+the current firmware. Full-file transfers use the session protocol below, through
+the downloader rather than Commander. Log payloads have no flash framing.
 
 RadioLink also exposes the firmware-named `isLogging()` and its status-compatible
 alias `getLogging()`. Log contents are not decoded into events by this API.
 The test screen's Rocket Logs panel provides recording controls and file downloads.
 Recording is started only by the user, never automatically.
-Firmware restricts start/finish and file info/byte reads to ground operation;
+Firmware restricts start/finish, file-size queries and download sessions to ground operation;
 logging-state and file-list queries are also allowed during flight. Refused
 operations reject their promises rather than appearing successful.
 
@@ -88,20 +90,51 @@ deleted by these commands.
 - `getProgress()` returns a stable snapshot containing `filename`, `running`,
   `received`, `total`, `state`, and `error`. States are `idle`, `downloading`,
   `stopping`, `completed`, `cancelled`, and `failed`; byte totals are unknown (zero)
-  until file info arrives. Completed/failed/cancelled snapshots are retained until
+  until START responds. Completed/failed/cancelled snapshots are retained until
   the next transfer. An empty file completes with zero received/total bytes.
 
 `useLogDownloadProgress()` subscribes React consumers to those snapshots using
 `useSyncExternalStore`; non-React consumers can use `subscribe(listener)`.
-Cancellation rejects the start promise with `AbortError`; failures also reject and
-are reflected in the snapshot. Firmware remains responsible for ground-state checks.
+User cancellation rejects the start promise with `AbortError`; connection changes
+may instead reject with a connection-change error. Failures also reject and are
+reflected in the snapshot. Firmware remains responsible for ground-state checks.
+
+### Firmware session wire format
+
+`RocketLogDownloadTransport` is implemented by the radio command wrappers.
+All integers below are unsigned little-endian:
+
+| Message | Request | Success response |
+| --- | --- | --- |
+| `START_LOG_DOWNLOAD` (0x28) | StringCodec filename + u32 client token | u32 session ID + u32 size + u16 chunk bytes + u32 chunk count (14 bytes) |
+| `GET_LOG_CHUNK` (0x29) | u32 session ID + u32 zero-based chunk index | u32 session ID + u32 index + raw bytes |
+| `STOP_LOG_DOWNLOAD` (0x2A) | u32 session ID | Empty |
+
+The service generates a new client token per start; transport retries resend the
+same request/token, allowing firmware to return the same active session. Session
+IDs must be nonzero. Chunk count must equal `ceil(size / chunkBytes)`, with chunk
+bytes in 1..240. Each response must match its requested session/index and exact
+expected length (only the last chunk can be shorter). Empty files have zero chunks
+but still require STOP. Firmware remains active after EOF for retry safety.
+
+After all pending chunks settle, the service sends STOP on success, failure, and
+user cancellation, including a late START response received after cancellation.
+Both local leases remain held until STOP settles. A disconnected/changed connection
+skips STOP rather than sending an old session ID to a new connection. Firmware
+expires idle sessions after 60 seconds; STOP is ground-only and may be refused if
+the rocket enters flight. Cleanup errors are displayed and local leases are still
+released. A STOP failure after otherwise successful transfer rejects the download,
+so the panel does not silently report a successful save with a stuck remote session.
+If START times out before a session ID is received, its remote outcome is unknown;
+the service cannot safely send STOP without the ID, and a new start may be refused
+until the firmware session expires. There is no automatic fallback to the old protocol.
 
 The service pauses all status polls (without clearing the last readings), stops
 idle radio pings, rejects unrelated commander requests, and waits for previously
 started requests to settle before downloading. Commander only uses the minimal
 `LogDownloadControl` interlock and exposes `waitForIdle()` for draining its existing
 operations; no transfer protocol lives in Commander. The radio adapter wires the
-raw reader, traffic lease, status store, and command-drain callback into the service.
+session transport, traffic lease, status store, and command-drain callback into the service.
 Leases are released in `finally` on success, error, cancellation, or disconnect.
 The service lives at provider level: panel unmounts do not cancel a transfer, and
 the initiating handler still saves successfully received bytes locally. Disconnect,
@@ -109,16 +142,17 @@ provider teardown, and Abort Flight request cancellation. Local file saving happ
 after radio exclusivity is released and is not part of download progress/lifetime.
 
 The service's `downloadLog` protocol helper issues each batch synchronously so the transport combines requests
-in one frame. Responses are assembled at their verified offsets, even if they arrive
+in one frame. Responses are assembled at offsets derived from verified chunk indices, even if they arrive
 out of order. Batch size respects 16 messages and the firmware's 1024-byte full
-response-frame limit: four 240-byte chunks produce a 998-byte response frame.
+response-frame limit: four 240-byte chunks produce a 1014-byte response frame
+(`6 + 4 * (4 + 8 + 240)`). Requests are 12 bytes each, including their message headers.
 Smaller chunk sizes allow more messages. The next batch starts only after all
 responses settle, including failures/retries; cancellation also drains the current
 batch rather than leaving radio requests running behind resumed polling.
 
-Log-byte requests use a 5-second timeout, since a nearly 1 KB response exceeds
-one second at 9600 baud before turnaround and flash verification. All other requests
-retain their existing timeout. Abort Flight is an intentional emergency exception:
+START, chunk, and file-size requests use a 5-second timeout for flash verification
+and nearly 1 KB batched responses, which exceed one second at 9600 baud before
+turnaround. Other requests retain their existing timeout. Abort Flight is an intentional emergency exception:
 it cancels the download and remains sendable immediately. Telemetry is stale while
 paused, and downloads should only be initiated on the ground. Hardware throughput
 and timing should be measured before further tuning chunk size/timeouts.

@@ -10,6 +10,7 @@ import { RocketCommander } from "../src/features/RocketCommander/RocketCommander
 import { RocketLogDownloader } from "../src/features/RocketLogDownloader/RocketLogDownloader.ts";
 import { RocketLogDownloaderProvider } from "../src/features/RocketLogDownloader/RocketLogDownloaderContext.tsx";
 import { DownloadTrafficGate } from "../src/features/RadioLink/DownloadTrafficGate.ts";
+import { sessionTransport } from "./session-download-fixture.mjs";
 
 async function renderPanel(t, connected, recording) {
     const pollers = { logging: async () => recording, flightState: async () => 0 };
@@ -45,7 +46,7 @@ test("logging panel renders service-owned download progress and cancellation", a
     let finish;
     let entered;
     const ready = new Promise(resolve => { entered = resolve; });
-    const downloader = new RocketLogDownloader(() => ({
+    const downloader = new RocketLogDownloader(() => sessionTransport({
         getLogInfo: async () => ({ sizeBytes: 12, maxChunkBytes: 240 }),
         getLogBytes: () => { entered(); return new Promise(resolve => { finish = resolve; }); },
     }), store, new DownloadTrafficGate(), async () => {});
@@ -56,7 +57,8 @@ test("logging panel renders service-owned download progress and cancellation", a
     const render = () => renderToStaticMarkup(createElement(RocketStatusProvider, { store },
         createElement(RocketCommanderProvider, { commander },
             createElement(RocketLogDownloaderProvider, { downloader }, createElement(LoggingPanel)))));
-    assert.match(render(), /Downloading flight: 0 \/ 12 bytes/);
+    assert.match(render(), /Downloading flight:/);
+    assert.match(render(), /0 \/ 12 bytes/);
     assert.match(render(), /Cancel Download/);
     downloader.stopDownload();
     assert.match(render(), /Cancelling\.\.\./);

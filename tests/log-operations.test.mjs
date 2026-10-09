@@ -1,12 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createLogFilename, createLogMetadata, listAllLogs } from "../src/features/Panels/ControlPanels/LoggingPanel/logOperations.ts";
-import { downloadLog, logDownloadBatchSize } from "../src/features/RocketLogDownloader/downloadLog.ts";
+import { downloadLog as downloadSession, logDownloadBatchSize } from "../src/features/RocketLogDownloader/downloadLog.ts";
+import { sessionTransport } from "./session-download-fixture.mjs";
+
+async function downloadLog(reader, filename, signal, onProgress) {
+    signal.throwIfAborted();
+    const transport = sessionTransport(reader);
+    const session = await transport.startLogDownload(filename, 123);
+    return downloadSession(transport, session, signal, onProgress);
+}
 
 test("recording names fit firmware limits and metadata uses current status", () => {
     const date = new Date("2026-10-09T12:34:56.789Z");
     const name = createLogFilename(date);
-    assert.equal(name, "testlog-20261009T123456Z");
+    assert.equal(name, "test-20261009T123456Z");
     assert.ok(new TextEncoder().encode(name).length <= 32);
     const rotation = { x: 0, y: 0.1, z: 0, w: 1 };
     const target = { x: 0.2, y: 0, z: 0, w: 1 };
@@ -111,9 +119,8 @@ test("batch size keeps responses under 1024 bytes and requests under 16 messages
     for (let chunk = 1; chunk <= 240; chunk++) {
         const count = logDownloadBatchSize(chunk);
         assert.ok(count <= 16);
-        assert.ok(6 + count * (8 + chunk) <= 1024);
-        // Largest filename: each GET_LOG_BYTES request occupies 4 + 33 + 6 bytes.
-        assert.ok(6 + count * 43 <= 1024);
+        assert.ok(6 + count * (12 + chunk) <= 1024);
+        assert.ok(6 + count * 12 <= 1024);
     }
 });
 

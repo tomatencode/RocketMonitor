@@ -8,8 +8,9 @@ export class DownloadTrafficGate {
     isDownloading = () => this.downloading;
 
     async request<T>(type: MessageType, send: () => Promise<T>): Promise<T> {
-        if (this.downloading && type !== MessageType.GET_LOG_INFO &&
-            type !== MessageType.GET_LOG_BYTES && type !== MessageType.ABORT_FLIGHT) {
+        if (this.downloading && type !== MessageType.START_LOG_DOWNLOAD &&
+            type !== MessageType.GET_LOG_CHUNK && type !== MessageType.STOP_LOG_DOWNLOAD &&
+            type !== MessageType.ABORT_FLIGHT) {
             throw new Error("Radio requests are paused during a log download");
         }
         const result = send();

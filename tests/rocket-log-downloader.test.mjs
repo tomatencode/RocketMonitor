@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { RocketLogDownloader } from "../src/features/RocketLogDownloader/RocketLogDownloader.ts";
 import { RocketStatusStore } from "../src/features/RocketStatus/RocketStatusStore.ts";
 import { DownloadTrafficGate } from "../src/features/RadioLink/DownloadTrafficGate.ts";
+import { sessionTransport } from "./session-download-fixture.mjs";
 
 function setup(t, reader, connected = true, traffic = new DownloadTrafficGate()) {
     const store = new RocketStatusStore(() => ({}));
     store.setConnected(connected);
     t.after(() => store.suspend());
-    return { store, traffic, downloader: new RocketLogDownloader(() => reader, store, traffic, async () => {}) };
+    return { store, traffic, downloader: new RocketLogDownloader(() => sessionTransport(reader), store, traffic, async () => {}) };
 }
 
 test("downloader publishes stable snapshots, exact byte progress, and completion", async t => {

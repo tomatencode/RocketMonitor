@@ -74,7 +74,8 @@ export function RadioLinkProvider({ children }: { children: React.ReactNode }) {
         }
         // A nearly 1 KB batched response takes >1 second at 9600 baud, before
         // HC12 turnaround and flash verification. Avoid premature duplicate retries.
-        const timeout = messageType === MessageType.GET_LOG_BYTES ? 5000 : 500;
+        const timeout = messageType === MessageType.GET_LOG_SIZE || messageType === MessageType.GET_LOG_CHUNK ||
+            messageType === MessageType.START_LOG_DOWNLOAD ? 5000 : 500;
         return traffic.request(messageType, () => sendMessage(messageType, payload, timeout));
     };
 

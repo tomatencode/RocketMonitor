@@ -173,7 +173,7 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
             if (!controller.signal.aborted) setSavedPath(path);
         } catch (e) {
             if (!controller.signal.aborted && !(e instanceof Error && e.name === "AbortError")) {
-                setError(e instanceof Error ? e.message : String(e));
+                setError(downloader.getProgress().error ?? (e instanceof Error ? e.message : String(e)));
             }
         } finally {
             if (!controller.signal.aborted && saveController.current === controller) {

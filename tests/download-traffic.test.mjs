@@ -6,6 +6,7 @@ import { MessageType } from "../src/features/RadioLink/Protocol.ts";
 import { RocketStatusStore } from "../src/features/RocketStatus/RocketStatusStore.ts";
 import { RocketCommander } from "../src/features/RocketCommander/RocketCommander.ts";
 import { RocketLogDownloader } from "../src/features/RocketLogDownloader/RocketLogDownloader.ts";
+import { sessionTransport } from "./session-download-fixture.mjs";
 
 function deferred() {
     let resolve;
@@ -20,18 +21,18 @@ test("traffic gate blocks telemetry, pings, and mutations but permits download a
     await lease.ready;
     let sends = 0;
     for (const type of [MessageType.PING, MessageType.GET_IMU, MessageType.LIST_LOGS,
-        MessageType.DELETE_LOG, MessageType.START_COUNTDOWN]) {
+        MessageType.DELETE_LOG, MessageType.START_COUNTDOWN, MessageType.GET_LOG_SIZE]) {
         await assert.rejects(gate.request(type, async () => { sends++; }), /paused/);
     }
     assert.equal(sends, 0);
-    for (const type of [MessageType.GET_LOG_INFO, MessageType.GET_LOG_BYTES, MessageType.ABORT_FLIGHT]) {
+    for (const type of [MessageType.START_LOG_DOWNLOAD, MessageType.GET_LOG_CHUNK, MessageType.STOP_LOG_DOWNLOAD, MessageType.ABORT_FLIGHT]) {
         await gate.request(type, async () => { sends++; });
     }
-    assert.equal(sends, 3);
+    assert.equal(sends, 4);
     assert.throws(() => gate.acquireDownload(), /already/);
     lease.release(); lease.release();
     await gate.request(MessageType.PING, async () => { sends++; });
-    assert.equal(sends, 4);
+    assert.equal(sends, 5);
 });
 
 test("traffic lease waits for prior requests to settle, including failures", async () => {
@@ -108,7 +109,7 @@ function services(t, reader = {}) {
     t.after(() => store.suspend());
     store.subscribe("batteryVoltage", () => {});
     const gate = new DownloadTrafficGate();
-    const downloader = new RocketLogDownloader(() => ({
+    const downloader = new RocketLogDownloader(() => sessionTransport({
         getLogInfo: async () => ({ sizeBytes: 1, maxChunkBytes: 240 }),
         ...reader,
     }), store, gate, () => commander.waitForIdle());
@@ -131,7 +132,7 @@ test("exclusive download pauses status, rejects unrelated commander requests, an
     assert.equal(s.reads(), count);
     await assert.rejects(s.commander.beepBuzzer(), /paused/);
     await assert.rejects(s.commander.listLogs(), /paused/);
-    await assert.rejects(s.commander.getLogBytes("f", 0, 1), /paused/);
+    await assert.rejects(s.commander.getLogSize("f"), /paused/);
     await assert.rejects(s.downloader.startDownload("other"), /already/);
     assert.equal(s.mutations(), 0);
     finish.resolve({ offset: 0, bytes: new Uint8Array([42]) });
@@ -149,7 +150,7 @@ test("downloads drain existing commander operations before issuing chunks", asyn
     store.setConnected(true);
     t.after(() => store.suspend());
     let entered = false;
-    const downloader = new RocketLogDownloader(() => ({ getLogInfo: async () => {
+    const downloader = new RocketLogDownloader(() => sessionTransport({ getLogInfo: async () => {
         entered = true; return { sizeBytes: 0, maxChunkBytes: 240 };
     } }), store, new DownloadTrafficGate(), () => commander.waitForIdle());
     const commander = new RocketCommander(() => ({ beepBuzzer: () => old.promise }), store, undefined, downloader);

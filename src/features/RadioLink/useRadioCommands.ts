@@ -12,7 +12,7 @@ import { encodeLogFilename, decodeLogFilename } from "./codecs/logFilename";
 
 import type { IMUData, BaroData, RotationData, GimbalData, FlightLocationData, PIDParameters, FlightProfile } from "../RocketStatus/rocketTypes";
 import { FlightState } from "../RocketStatus/rocketTypes";
-import type { LogMetadata, LogListPage, LogInfo, LogBytes } from "../RocketStatus/rocketTypes";
+import type { LogMetadata, LogListPage, LogDownloadSession, LogDownloadChunk } from "../RocketStatus/rocketTypes";
 export * from "../RocketStatus/rocketTypes";
 
 type SendMessage = (
@@ -446,35 +446,60 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         return { totalFiles, nextIndex, filenames };
     };
 
-    const getLogInfo = async (filename: string): Promise<LogInfo> => {
-        const response = await sendMessage(MessageType.GET_LOG_INFO, encodeLogFilename(filename));
-        ensureSuccess(response.status, "GET_LOG_INFO");
-        if (!response.payload || response.payload.length !== 6) {
-            throw new Error("GET_LOG_INFO response has an invalid payload");
+    const getLogSize = async (filename: string): Promise<number> => {
+        const response = await sendMessage(MessageType.GET_LOG_SIZE, encodeLogFilename(filename));
+        ensureSuccess(response.status, "GET_LOG_SIZE");
+        if (!response.payload || response.payload.length !== 4) {
+            throw new Error("GET_LOG_SIZE response has an invalid payload");
         }
-        const maxChunkBytes = decodeU16(response.payload, 4);
-        if (maxChunkBytes === 0 || maxChunkBytes > 240) {
-            throw new Error("GET_LOG_INFO response has an invalid maximum chunk size");
-        }
-        return { sizeBytes: decodeU32(response.payload, 0), maxChunkBytes };
+        return decodeU32(response.payload, 0);
     };
 
-    const getLogBytes = async (filename: string, offset: number, length: number): Promise<LogBytes> => {
+    const startLogDownload = async (filename: string, clientToken: number): Promise<LogDownloadSession> => {
         const name = encodeLogFilename(filename);
-        ensureUnsigned(offset, 0xffffffff, "Log offset");
-        ensureUnsigned(length, 240, "Log chunk length");
-        if (length === 0) throw new Error("Log chunk length must be between 1 and 240");
-        const payload = new Uint8Array(name.length + 6);
+        ensureUnsigned(clientToken, 0xffffffff, "Download client token");
+        const payload = new Uint8Array(name.length + 4);
         payload.set(name);
-        encodeU32(offset, payload, name.length);
-        encodeU16(length, payload, name.length + 4);
-        const response = await sendMessage(MessageType.GET_LOG_BYTES, payload);
-        ensureSuccess(response.status, "GET_LOG_BYTES");
-        if (!response.payload || response.payload.length < 4 || response.payload.length > 4 + length ||
-            decodeU32(response.payload, 0) !== offset) {
-            throw new Error("GET_LOG_BYTES response has an invalid payload or offset");
+        encodeU32(clientToken, payload, name.length);
+        const response = await sendMessage(MessageType.START_LOG_DOWNLOAD, payload);
+        ensureSuccess(response.status, "START_LOG_DOWNLOAD");
+        if (!response.payload || response.payload.length !== 14 || decodeU32(response.payload, 0) === 0) {
+            throw new Error("START_LOG_DOWNLOAD response has an invalid payload or session");
         }
-        return { offset, bytes: response.payload.slice(4) };
+        // The service validates geometry after obtaining the ID, so it can STOP
+        // even a session whose advertised chunk size/count is malformed.
+        return {
+            sessionId: decodeU32(response.payload, 0), sizeBytes: decodeU32(response.payload, 4),
+            chunkBytes: decodeU16(response.payload, 8), chunkCount: decodeU32(response.payload, 10),
+        };
+    };
+
+    const getLogChunk = async (sessionId: number, index: number): Promise<LogDownloadChunk> => {
+        ensureUnsigned(sessionId, 0xffffffff, "Download session");
+        if (sessionId === 0) throw new Error("Download session must be nonzero");
+        ensureUnsigned(index, 0xffffffff, "Log chunk index");
+        const payload = new Uint8Array(8);
+        encodeU32(sessionId, payload, 0);
+        encodeU32(index, payload, 4);
+        const response = await sendMessage(MessageType.GET_LOG_CHUNK, payload);
+        ensureSuccess(response.status, "GET_LOG_CHUNK");
+        if (!response.payload || response.payload.length < 9 || response.payload.length > 248 ||
+            decodeU32(response.payload, 0) !== sessionId || decodeU32(response.payload, 4) !== index) {
+            throw new Error("GET_LOG_CHUNK response has an invalid payload, session or index");
+        }
+        return { sessionId, index, bytes: response.payload.slice(8) };
+    };
+
+    const stopLogDownload = async (sessionId: number): Promise<void> => {
+        ensureUnsigned(sessionId, 0xffffffff, "Download session");
+        if (sessionId === 0) throw new Error("Download session must be nonzero");
+        const payload = new Uint8Array(4);
+        encodeU32(sessionId, payload, 0);
+        const response = await sendMessage(MessageType.STOP_LOG_DOWNLOAD, payload);
+        ensureSuccess(response.status, "STOP_LOG_DOWNLOAD");
+        if (response.payload && response.payload.length !== 0) {
+            throw new Error("STOP_LOG_DOWNLOAD response has an invalid payload");
+        }
     };
 
     const deleteLog = async (filename: string): Promise<void> => {
@@ -523,8 +548,10 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         isLogging,
         getLogging: isLogging,
         listLogs,
-        getLogInfo,
-        getLogBytes,
+        getLogSize,
+        startLogDownload,
+        getLogChunk,
+        stopLogDownload,
         deleteLog,
         deleteAllLogs,
     };

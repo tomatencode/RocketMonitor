@@ -35,10 +35,12 @@ export enum MessageType {
     FINISH_LOG = 0x21,
     IS_LOGGING = 0x22,
     LIST_LOGS = 0x23,
-    GET_LOG_INFO = 0x24,
-    GET_LOG_BYTES = 0x25,
+    GET_LOG_SIZE = 0x24,
     DELETE_LOG = 0x26,
     DELETE_ALL_LOGS = 0x27,
+    START_LOG_DOWNLOAD = 0x28,
+    GET_LOG_CHUNK = 0x29,
+    STOP_LOG_DOWNLOAD = 0x2A,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome

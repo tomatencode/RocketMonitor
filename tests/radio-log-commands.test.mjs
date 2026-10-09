@@ -27,7 +27,7 @@ function nameBytes(name) {
 }
 
 test("firmware log message IDs match and survive framing", () => {
-    const names = ["START_LOG", "FINISH_LOG", "IS_LOGGING", "LIST_LOGS", "GET_LOG_INFO", "GET_LOG_BYTES"];
+    const names = ["START_LOG", "FINISH_LOG", "IS_LOGGING", "LIST_LOGS", "GET_LOG_SIZE"];
     const parser = createParser();
     const messages = names.map((name, i) => {
         assert.equal(MessageType[name], 0x20 + i);
@@ -73,29 +73,20 @@ test("LIST_LOGS decodes pages, Unicode filenames, and terminal empty pages", asy
         { totalFiles: 3, nextIndex: 3, filenames: [] });
 });
 
-test("GET_LOG_INFO encodes filename and decodes unsigned size and chunk limit", async () => {
-    const payload = new Uint8Array([0x78, 0x56, 0x34, 0xf2, 240, 0]);
+test("GET_LOG_SIZE encodes filename and decodes unsigned size", async () => {
+    const payload = new Uint8Array([0x78, 0x56, 0x34, 0xf2]);
     const { commands, calls } = mock(success(payload));
-    assert.deepEqual(await commands.getLogInfo("flight"), { sizeBytes: 0xf2345678, maxChunkBytes: 240 });
-    assert.equal(calls[0].type, MessageType.GET_LOG_INFO);
+    assert.equal(await commands.getLogSize("flight"), 0xf2345678);
+    assert.equal(calls[0].type, MessageType.GET_LOG_SIZE);
     assert.deepEqual([...calls[0].payload], nameBytes("flight"));
 });
 
-test("GET_LOG_BYTES encodes unsigned offset/length, accepts short chunks and EOF", async () => {
-    const { commands, calls } = mock(success(new Uint8Array([0x78, 0x56, 0x34, 0xf2, 1, 2, 3])));
-    assert.deepEqual(await commands.getLogBytes("f", 0xf2345678, 240),
-        { offset: 0xf2345678, bytes: new Uint8Array([1, 2, 3]) });
-    assert.equal(calls[0].type, MessageType.GET_LOG_BYTES);
-    assert.deepEqual([...calls[0].payload], [1, 102, 0x78, 0x56, 0x34, 0xf2, 240, 0]);
-    assert.deepEqual(await mock(success(new Uint8Array([10, 0, 0, 0]))).commands.getLogBytes("f", 10, 1),
-        { offset: 10, bytes: new Uint8Array() });
-});
-
-test("all six handlers surface firmware rejection", async () => {
+test("all log handlers surface firmware rejection", async () => {
     const { commands } = mock({ status: 1 });
     for (const [name, args] of [
         ["startLog", ["f", metadata]], ["finishLog", []], ["isLogging", []],
-        ["listLogs", []], ["getLogInfo", ["f"]], ["getLogBytes", ["f", 0, 1]],
+        ["listLogs", []], ["getLogSize", ["f"]], ["startLogDownload", ["f", 1]],
+        ["getLogChunk", [1, 0]], ["stopLogDownload", [1]],
     ]) await assert.rejects(commands[name](...args), /was rejected/, name);
 });
 
@@ -103,12 +94,12 @@ test("invalid filenames and numeric ranges fail before sending", async () => {
     const { commands, calls } = mock(success());
     for (const filename of ["", "a".repeat(33), "é".repeat(17), "a\0b"]) {
         await assert.rejects(commands.startLog(filename, metadata), /filename/);
-        await assert.rejects(commands.getLogInfo(filename), /filename/);
-        await assert.rejects(commands.getLogBytes(filename, 0, 1), /filename/);
+        await assert.rejects(commands.getLogSize(filename), /filename/);
+        await assert.rejects(commands.startLogDownload(filename, 1), /filename/);
     }
     for (const start of [-1, 256, 1.5, NaN]) await assert.rejects(commands.listLogs(start), /index/);
-    for (const offset of [-1, 0x100000000, 0.5]) await assert.rejects(commands.getLogBytes("f", offset, 1), /offset/);
-    for (const length of [0, -1, 241, 1.5]) await assert.rejects(commands.getLogBytes("f", 0, length), /length/);
+    for (const index of [-1, 0x100000000, 0.5]) await assert.rejects(commands.getLogChunk(1, index), /index/);
+    for (const session of [0, -1, 0x100000000, 1.5]) await assert.rejects(commands.stopLogDownload(session), /session/);
     await assert.rejects(commands.startLog("f", { ...metadata, timestamp_unix: -1 }), /timestamp/);
     await assert.rejects(commands.startLog("f", { ...metadata, pidKp: Infinity }), /fixed-point/);
     assert.equal(calls.length, 0);
@@ -121,13 +112,12 @@ test("filename limits are measured in UTF-8 bytes, not JS characters", async () 
     assert.equal(calls[0].payload.length, 85);
 });
 
-test("malformed boolean and info responses are rejected", async () => {
+test("malformed boolean and size responses are rejected", async () => {
     for (const payload of [undefined, new Uint8Array(), new Uint8Array([2]), new Uint8Array([1, 0])]) {
         await assert.rejects(mock(success(payload)).commands.isLogging(), /invalid/);
     }
-    for (const payload of [undefined, new Uint8Array(5), new Uint8Array(7),
-        new Uint8Array(6), new Uint8Array([0, 0, 0, 0, 241, 0])]) {
-        await assert.rejects(mock(success(payload)).commands.getLogInfo("f"), /invalid/);
+    for (const payload of [undefined, new Uint8Array(3), new Uint8Array(5), new Uint8Array(6)]) {
+        await assert.rejects(mock(success(payload)).commands.getLogSize("f"), /invalid/);
     }
 });
 
@@ -140,9 +130,9 @@ test("malformed list pages cannot truncate silently or loop forever", async () =
     ]) await assert.rejects(mock(success(new Uint8Array(payload))).commands.listLogs());
 });
 
-test("invalid chunk headers, mismatched offsets and oversized replies reject", async () => {
-    for (const payload of [undefined, new Uint8Array(3), new Uint8Array([1, 0, 0, 0]), new Uint8Array(6)]) {
-        await assert.rejects(mock(success(payload)).commands.getLogBytes("f", 0, 1), /invalid/);
+test("invalid chunk headers, mismatched sessions and oversized replies reject", async () => {
+    for (const payload of [undefined, new Uint8Array(3), new Uint8Array(8), new Uint8Array(9), new Uint8Array(249)]) {
+        await assert.rejects(mock(success(payload)).commands.getLogChunk(1, 0), /invalid/);
     }
 });
 
@@ -177,16 +167,18 @@ test("on-demand log reads are accessible without a radio import and reject stale
     let finish;
     const reader = {
         listLogs: async index => { calls.push(index); return { totalFiles: 0, nextIndex: 0, filenames: [] }; },
-        getLogInfo: async filename => { calls.push(filename); return { sizeBytes: 0, maxChunkBytes: 240 }; },
-        getLogBytes: () => new Promise(resolve => { finish = resolve; }),
+        getLogSize: filename => {
+            calls.push(filename);
+            return filename === "f" ? Promise.resolve(0) : new Promise(resolve => { finish = resolve; });
+        },
     };
     const commander = new RocketCommander(() => ({}), store, () => reader);
     await commander.listLogs(2);
-    await commander.getLogInfo("f");
+    await commander.getLogSize("f");
     assert.deepEqual(calls, [2, "f"]);
-    const pending = commander.getLogBytes("f", 0, 1);
+    const pending = commander.getLogSize("pending");
     store.setConnected(false);
-    finish({ offset: 0, bytes: new Uint8Array() });
+    finish(0);
     await assert.rejects(pending, /connection changed/);
     await assert.rejects(commander.listLogs(), /not connected/);
 });

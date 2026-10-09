@@ -82,23 +82,31 @@ export interface LogListPage {
     filenames: string[];
 }
 
-export interface LogInfo {
-    /** Verified payload size, excluding flash framing. Only closed/recovered files are readable. */
-    sizeBytes: number;
-    maxChunkBytes: number;
-}
-
-export interface LogBytes {
-    offset: number;
-    /** May be shorter than requested near EOF; empty at EOF. */
-    bytes: Uint8Array;
-}
-
 /** Parameterized reads are on-demand, not recurring telemetry topics. */
 export interface RocketLogReader {
     listLogs: (startIndex?: number) => Promise<LogListPage>;
-    getLogInfo: (filename: string) => Promise<LogInfo>;
-    getLogBytes: (filename: string, offset: number, length: number) => Promise<LogBytes>;
+    /** Verified payload size, excluding flash framing. */
+    getLogSize: (filename: string) => Promise<number>;
+}
+
+export interface LogDownloadSession {
+    sessionId: number;
+    sizeBytes: number;
+    chunkBytes: number;
+    chunkCount: number;
+}
+
+export interface LogDownloadChunk {
+    sessionId: number;
+    index: number;
+    bytes: Uint8Array;
+}
+
+/** Firmware session protocol; START retries must reuse the same client token. */
+export interface RocketLogDownloadTransport {
+    startLogDownload: (filename: string, clientToken: number) => Promise<LogDownloadSession>;
+    getLogChunk: (sessionId: number, index: number) => Promise<LogDownloadChunk>;
+    stopLogDownload: (sessionId: number) => Promise<void>;
 }
 
 /** Adapter-level traffic lease; already-sent requests settle before ready resolves. */
