@@ -9,9 +9,8 @@ export default function LaunchPanels() {
         <div className="relative z-10 flex flex-row min-h-0 gap-3 overflow-x-auto w-full pointer-events-none overflow-y-auto">
             <div className="w-80 shrink-0 flex flex-col p-3 gap-3 overflow-y-auto pointer-events-none [&>*]:shrink-0">
                 <GimbalChartPanel />
-                <AltitudeChartPanel  showButtons={false} />
                 <RotationChartPanel />
-
+                <AltitudeChartPanel  showButtons={false} />
             </div>
 
             <div className="w-80 shrink-0 flex flex-col p-3 gap-3 overflow-y-auto pointer-events-none ml-auto [&>*]:shrink-0">

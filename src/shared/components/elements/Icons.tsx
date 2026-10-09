@@ -92,3 +92,40 @@ export function PidIcon(props: SVGProps<SVGSVGElement>) {
         </IconBase>
     );
 }
+
+/** Document with text lines — onboard logs and individual log files. */
+export function LogFileIcon(props: SVGProps<SVGSVGElement>) {
+    return (
+        <IconBase {...props}>
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+            <path d="M14 3v6h6M8 13h8M8 17h5" />
+        </IconBase>
+    );
+}
+
+/** Arrow into a tray — save a file from the rocket. */
+export function DownloadIcon(props: SVGProps<SVGSVGElement>) {
+    return (
+        <IconBase {...props}>
+            <path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5" />
+        </IconBase>
+    );
+}
+
+/** Circular arrows — refresh a panel's data. */
+export function RefreshIcon(props: SVGProps<SVGSVGElement>) {
+    return (
+        <IconBase {...props}>
+            <path d="M20 4v5h-5M4 20v-5h5M20 9a8 8 0 0 0-14-3M4 15a8 8 0 0 0 14 3" />
+        </IconBase>
+    );
+}
+
+/** Waste bin — remove an onboard file. */
+export function TrashIcon(props: SVGProps<SVGSVGElement>) {
+    return (
+        <IconBase {...props}>
+            <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+        </IconBase>
+    );
+}

@@ -12,8 +12,8 @@ import { RocketLogDownloaderProvider } from "../src/features/RocketLogDownloader
 import { DownloadTrafficGate } from "../src/features/RadioLink/DownloadTrafficGate.ts";
 import { sessionTransport } from "./session-download-fixture.mjs";
 
-async function renderPanel(t, connected, recording) {
-    const pollers = { logging: async () => recording, flightState: async () => 0 };
+async function renderPanel(t, connected, recording, flightState = 0) {
+    const pollers = { logging: async () => recording, flightState: async () => flightState };
     const store = new RocketStatusStore(() => pollers);
     store.setConnected(connected);
     t.after(() => store.suspend());
@@ -36,6 +36,8 @@ test("logging panel renders recording indicator and stop control from shared sta
     assert.match(html, /Stop Logging/);
     assert.match(html, /Saved logs/);
     assert.match(html, /Downloads folder/);
+    assert.match(html, /aria-label="Saved logs"/);
+    assert.match(html, /aria-label="Refresh rocket logs"/);
     assert.doesNotMatch(html, /Confirm Delete/);
 });
 
@@ -60,6 +62,10 @@ test("logging panel renders service-owned download progress and cancellation", a
     assert.match(render(), /Downloading flight:/);
     assert.match(render(), /0 \/ 12 bytes/);
     assert.match(render(), /Cancel Download/);
+    assert.match(render(), /Log transfer/);
+    assert.match(render(), /0%/);
+    assert.match(render(), /role="progressbar"/);
+    assert.match(render(), /aria-label="Log download progress"/);
     downloader.stopDownload();
     assert.match(render(), /Cancelling\.\.\./);
     finish({ offset: 0, bytes: new Uint8Array(12) });
@@ -74,4 +80,18 @@ test("logging panel renders start control when stopped and offline state when di
     assert.match(offline, /Offline/);
     assert.match(offline, /disabled=""/);
     assert.match(offline, /Connect to the rocket/);
+    assert.match(offline, /Rocket offline/);
+    assert.doesNotMatch(offline, /Capturing telemetry/);
+});
+
+test("logging panel shows unknown recording status without claiming recording is stopped", async t => {
+    const html = await renderPanel(t, true, null);
+    assert.match(html, /Unknown/);
+    assert.match(html, /disabled=""[^>]*>[^<]*<span[^>]*><\/span>Start Logging/);
+});
+
+test("logging panel explains ground-state restrictions during flight", async t => {
+    const html = await renderPanel(t, true, true, 2);
+    assert.match(html, /Recording controls, downloads and deletion require ground state/);
+    assert.match(html, /disabled=""[^>]*>[^<]*<span[^>]*><\/span>Stop Logging/);
 });
