@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createLogFilename, createLogMetadata, listAllLogs, downloadLog, logDownloadBatchSize } from "../src/features/Panels/ControlPanels/LoggingPanel/logOperations.ts";
+import { createLogFilename, createLogMetadata, listAllLogs } from "../src/features/Panels/ControlPanels/LoggingPanel/logOperations.ts";
+import { downloadLog, logDownloadBatchSize } from "../src/features/RocketLogDownloader/downloadLog.ts";
 
 test("recording names fit firmware limits and metadata uses current status", () => {
     const date = new Date("2026-10-09T12:34:56.789Z");

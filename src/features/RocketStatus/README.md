@@ -6,8 +6,8 @@ transport. `rocketTypes.ts` and `quaternion.ts` contain transport-independent
 contracts, values, and attitude helpers.
 
 `RadioRocketProvider` is the adapter installed by the app. A simulator or another
-transport can instead construct `RocketStatusStore` and `RocketCommander`, and
-provide them with `RocketStatusProvider` and `RocketCommanderProvider`.
+transport can instead construct `RocketStatusStore`, `RocketCommander`, and
+`RocketLogDownloader`, and provide them with their corresponding providers.
 
 ## Topics
 
@@ -78,15 +78,37 @@ deleted by these commands.
 
 ## Exclusive, batched downloads
 
-The panel runs its transfer inside `commander.withLogDownload(reader => ..., signal)`.
-This pauses all status polls (without clearing the last readings), stops idle radio
-pings, rejects unrelated commander requests, and waits for previously started
-requests to settle before downloading. The callback receives a scoped reader for
-log info/bytes; normal commander read APIs remain blocked. Leases are released in
-`finally` on success, error, cancellation, or disconnect; expired scoped readers
-cannot be reused. File saving happens after radio exclusivity is released.
+`RocketLogDownloader` owns transfers separately from Commander and the panel.
+`useRocketLogDownloader()` exposes:
 
-`downloadLog` issues each batch synchronously so the transport combines requests
+- `startDownload(filename): Promise<Uint8Array>` starts one exclusive transfer and
+  resolves with verified raw bytes. Concurrent starts reject rather than queueing.
+- `stopDownload(): void` requests cancellation; safe when idle or already stopping.
+- `isRunning(): boolean` stays true until outstanding requests have drained.
+- `getProgress()` returns a stable snapshot containing `filename`, `running`,
+  `received`, `total`, `state`, and `error`. States are `idle`, `downloading`,
+  `stopping`, `completed`, `cancelled`, and `failed`; byte totals are unknown (zero)
+  until file info arrives. Completed/failed/cancelled snapshots are retained until
+  the next transfer. An empty file completes with zero received/total bytes.
+
+`useLogDownloadProgress()` subscribes React consumers to those snapshots using
+`useSyncExternalStore`; non-React consumers can use `subscribe(listener)`.
+Cancellation rejects the start promise with `AbortError`; failures also reject and
+are reflected in the snapshot. Firmware remains responsible for ground-state checks.
+
+The service pauses all status polls (without clearing the last readings), stops
+idle radio pings, rejects unrelated commander requests, and waits for previously
+started requests to settle before downloading. Commander only uses the minimal
+`LogDownloadControl` interlock and exposes `waitForIdle()` for draining its existing
+operations; no transfer protocol lives in Commander. The radio adapter wires the
+raw reader, traffic lease, status store, and command-drain callback into the service.
+Leases are released in `finally` on success, error, cancellation, or disconnect.
+The service lives at provider level: panel unmounts do not cancel a transfer, and
+the initiating handler still saves successfully received bytes locally. Disconnect,
+provider teardown, and Abort Flight request cancellation. Local file saving happens
+after radio exclusivity is released and is not part of download progress/lifetime.
+
+The service's `downloadLog` protocol helper issues each batch synchronously so the transport combines requests
 in one frame. Responses are assembled at their verified offsets, even if they arrive
 out of order. Batch size respects 16 messages and the firmware's 1024-byte full
 response-frame limit: four 240-byte chunks produce a 998-byte response frame.

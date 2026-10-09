@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
+import { useRocketLogDownloader, useLogDownloadProgress } from "../../../RocketLogDownloader/RocketLogDownloaderContext";
 import { useRocketConnected, useRocketStatus, useRocketStatusStore } from "../../../RocketStatus/RocketStatusContext";
 import { FlightState } from "../../../RocketStatus/rocketTypes";
 import { Card } from "../../../../shared/components/elements/Card";
@@ -8,13 +9,15 @@ import { PanelHeader } from "../../../../shared/components/elements/PanelHeader"
 import { StatusPill } from "../../../../shared/components/elements/StatusPill";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { ProgressBar } from "../../../../shared/components/primitives/ProgressBar";
-import { createLogFilename, createLogMetadata, downloadLog, listAllLogs, isLogDeleteConfirmed,
+import { createLogFilename, createLogMetadata, listAllLogs, isLogDeleteConfirmed,
     type LogDeletion, type LogDeleteConfirmation } from "./logOperations";
 
 export interface LoggingPanelProps { className?: string }
 
 export function LoggingPanel({ className = "" }: LoggingPanelProps) {
     const commander = useRocketCommander();
+    const downloader = useRocketLogDownloader();
+    const progress = useLogDownloadProgress();
     const store = useRocketStatusStore();
     const connected = useRocketConnected();
     const logging = useRocketStatus("logging");
@@ -30,18 +33,17 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
     const [deleting, setDeleting] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<LogDeleteConfirmation | null>(null);
     const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
-    const [downloading, setDownloading] = useState<string | null>(null);
+    const [savingFilename, setSavingFilename] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
-    const [progress, setProgress] = useState({ received: 0, total: 0 });
     const [error, setError] = useState<string | null>(null);
     const [savedPath, setSavedPath] = useState<string | null>(null);
     const listController = useRef<AbortController | null>(null);
-    const downloadController = useRef<AbortController | null>(null);
+    const saveController = useRef<AbortController | null>(null);
     const actionController = useRef<AbortController | null>(null);
-    const downloadActive = useRef(false);
     const mutationActive = useRef(false);
     const onGround = flightState === FlightState.IDLE || flightState === FlightState.LANDED || flightState === FlightState.ABORTED;
-    const busy = acting || deleting || downloading !== null;
+    const downloading = progress.running ? progress.filename : savingFilename;
+    const busy = acting || deleting || progress.running || saving;
     const canDelete = connected && onGround && !busy && !listing;
     const canDeleteAll = canDelete && logging.hasValue && logging.value === false;
 
@@ -71,18 +73,21 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
         setDeleting(false);
         setPendingDelete(null);
         setDeleteMessage(null);
-        setDownloading(null);
+        setSavingFilename(null);
         setSaving(false);
         setSavedPath(null);
         setError(null);
-        if (connected) void refreshLogs();
         return () => {
             listController.current?.abort();
-            downloadController.current?.abort();
-            downloadController.current = null;
+            saveController.current?.abort();
             actionController.current?.abort();
         };
-    }, [connected, refreshLogs]);
+    }, [connected, refreshLogs, downloader]);
+
+    // Also load the list after a transfer that outlived a previous panel instance.
+    useEffect(() => {
+        if (connected && !progress.running) void refreshLogs();
+    }, [connected, progress.running, refreshLogs]);
 
     // A confirmation must not survive a flight-state or recording-state change.
     useEffect(() => { setPendingDelete(null); }, [onGround, logging.value]);
@@ -94,7 +99,7 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
     }, [pendingDelete]);
 
     const toggleLogging = async () => {
-        if (!connected || !onGround || busy || listing || mutationActive.current || downloadActive.current ||
+        if (!connected || !onGround || busy || listing || mutationActive.current || downloader.isRunning() ||
             !logging.hasValue || logging.value === null) return;
         const controller = new AbortController();
         actionController.current = controller;
@@ -116,7 +121,7 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
     };
 
     const handleDeleteClick = async (deletion: LogDeletion) => {
-        if (!canDelete || mutationActive.current || downloadActive.current ||
+        if (!canDelete || mutationActive.current || downloader.isRunning() ||
             ("all" in deletion && !canDeleteAll)) return;
         if (!isLogDeleteConfirmed(pendingDelete, deletion)) {
             setPendingDelete({ deletion, expiresAt: Date.now() + 5000 });
@@ -148,40 +153,38 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
     };
 
     const handleDownload = async (filename: string) => {
-        if (!connected || !onGround || busy || listing || downloadActive.current || mutationActive.current) return;
+        if (!connected || !onGround || busy || listing || downloader.isRunning() || mutationActive.current) return;
         const controller = new AbortController();
-        downloadController.current = controller;
-        downloadActive.current = true;
+        saveController.current = controller;
+        const session = store.getSession();
         setPendingDelete(null);
         setDeleteMessage(null);
-        setDownloading(filename);
         setSaving(false);
-        setProgress({ received: 0, total: 0 });
         setError(null);
         setSavedPath(null);
         try {
-            const bytes = await downloadLog(commander, filename, controller.signal,
-                (received, total) => setProgress({ received, total }));
-            controller.signal.throwIfAborted();
-            setSaving(true);
+            const bytes = await downloader.startDownload(filename);
+            if (session !== store.getSession()) return;
+            if (!controller.signal.aborted) {
+                setSavingFilename(filename);
+                setSaving(true);
+            }
             const path = await invoke<string>("save_rocket_log", { filename, data: Array.from(bytes) });
             if (!controller.signal.aborted) setSavedPath(path);
         } catch (e) {
-            if (!controller.signal.aborted) setError(e instanceof Error ? e.message : String(e));
+            if (!controller.signal.aborted && !(e instanceof Error && e.name === "AbortError")) {
+                setError(e instanceof Error ? e.message : String(e));
+            }
         } finally {
-            downloadActive.current = false;
-            if (downloadController.current === controller) {
-                setDownloading(null);
+            if (!controller.signal.aborted && saveController.current === controller) {
+                setSavingFilename(null);
                 setSaving(false);
             }
         }
     };
 
-    const cancelDownload = () => {
-        downloadController.current?.abort();
-    };
     const label = !connected ? "Offline" : !logging.hasValue ? "Unknown" : logging.value ? "Recording" : "Stopped";
-    const displayError = error ?? logging.error;
+    const displayError = error ?? progress.error ?? logging.error;
     return (
         <Card className={`p-3 flex flex-col gap-3 ${className}`}>
             <PanelHeader icon="L" title="Rocket Logs" connected={connected} subtitle="onboard recording"
@@ -220,10 +223,12 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
             </div>
             {deleteMessage && <p className="text-[11px] text-emerald-300 break-all" role="status">{deleteMessage}</p>}
             {downloading !== null && <div className="flex flex-col gap-1.5" aria-live="polite">
-                <span className="text-[11px] text-zinc-400 break-all">{saving ? "Saving " : "Downloading "}{downloading}: {progress.received} / {progress.total} bytes</span>
+                <span className="text-[11px] text-zinc-400 break-all">{saving ? "Saving " : "Downloading "}{downloading}:</span>
+                <span className="text-[11px] text-zinc-400 break-all">{progress.received} / {progress.total} bytes</span>
                 <ProgressBar value={saving && progress.total === 0 ? 1 : progress.total > 0 ? progress.received : undefined}
                     max={progress.total || 1} aria-label="Log download progress" />
-                <Button variant="ghost" className="px-2 py-1 text-xs" disabled={saving} onClick={cancelDownload}>Cancel Download</Button>
+                <Button variant="ghost" className="px-2 py-1 text-xs" disabled={saving || progress.state === "stopping"}
+                    onClick={downloader.stopDownload}>{progress.state === "stopping" ? "Cancelling..." : "Cancel Download"}</Button>
             </div>}
             {savedPath && <p className="text-[11px] text-emerald-300 break-all" role="status">Saved: {savedPath}</p>}
             <p className="text-[10px] text-zinc-500">Downloads are saved as raw .rcktlog files in your Downloads folder.</p>

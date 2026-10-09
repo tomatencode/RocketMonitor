@@ -1,23 +1,23 @@
-import type { RocketCommands, FlightProfile, Quaternion, LogMetadata, RocketLogReader, DownloadTrafficControl } from "../RocketStatus/rocketTypes";
+import type { RocketCommands, FlightProfile, Quaternion, LogMetadata, RocketLogReader } from "../RocketStatus/rocketTypes";
+import type { LogDownloadControl } from "../RocketLogDownloader/RocketLogDownloader";
 import { RocketStatusStore, type RocketStatusTopic } from "../RocketStatus/RocketStatusStore";
 
 /** All rocket mutations pass here; consumers never need a transport reference. */
 export class RocketCommander implements RocketCommands, RocketLogReader {
-    private download: AbortController | null = null;
     private activeRequests = new Set<Promise<unknown>>();
 
     constructor(
         private readonly getCommands: () => RocketCommands,
         private readonly status: RocketStatusStore,
         private readonly getLogReader?: () => RocketLogReader,
-        private readonly traffic?: DownloadTrafficControl,
+        private readonly download?: LogDownloadControl,
     ) {}
 
     private run(command: (commands: RocketCommands) => Promise<void>, topics: RocketStatusTopic[] = [], emergency = false) {
         const session = this.status.getSession();
         // Do not queue all mutations: an abort must not wait behind a slow unrelated action.
         return this.track(async () => {
-            if (emergency) this.download?.abort();
+            if (emergency) this.download?.stopDownload();
             else this.ensureNotDownloading();
             if (!this.status.getConnected() || session !== this.status.getSession()) {
                 throw new Error("Rocket is not connected or the connection has changed");
@@ -61,7 +61,7 @@ export class RocketCommander implements RocketCommands, RocketLogReader {
     deleteLog = (filename: string) => this.run(c => c.deleteLog(filename));
     deleteAllLogs = () => this.run(c => c.deleteAllLogs(), ["logging"]);
 
-    /** Log file reads are explicit operations, not status polls. Request chunks sequentially. */
+    /** Log file reads are explicit operations, not status polls. */
     listLogs = (startIndex?: number) => this.readLog(reader => reader.listLogs(startIndex));
     getLogInfo = (filename: string) => this.readLog(reader => reader.getLogInfo(filename));
     getLogBytes = (filename: string, offset: number, length: number) =>
@@ -84,7 +84,7 @@ export class RocketCommander implements RocketCommands, RocketLogReader {
     }
 
     private ensureNotDownloading() {
-        if (this.download) throw new Error("Rocket commands are paused during a log download");
+        if (this.download?.isRunning()) throw new Error("Rocket commands are paused during a log download");
     }
 
     private track<T>(operation: () => Promise<T>): Promise<T> {
@@ -94,55 +94,8 @@ export class RocketCommander implements RocketCommands, RocketLogReader {
         return result;
     }
 
-    /** Scoped download reader is the only commander API allowed to read during exclusivity. */
-    async withLogDownload<T>(operation: (reader: RocketLogReader) => Promise<T>, signal?: AbortSignal): Promise<T> {
-        this.ensureNotDownloading();
-        signal?.throwIfAborted();
-        if (!this.status.getConnected()) throw new Error("Rocket is not connected");
-        const session = this.status.getSession();
-        const controller = new AbortController();
-        this.download = controller;
-        const cancel = () => controller.abort();
-        signal?.addEventListener("abort", cancel, { once: true });
-        const polling = this.status.pausePolling();
-        let traffic: ReturnType<DownloadTrafficControl["acquireDownload"]> | undefined;
-        const outstanding = new Set<Promise<unknown>>();
-        let open = true;
-        const read = <R,>(fn: (reader: RocketLogReader) => Promise<R>): Promise<R> => {
-            const result = (async () => {
-                if (!open) throw new Error("Download reader has expired");
-                controller.signal.throwIfAborted();
-                if (session !== this.status.getSession()) throw new Error("Rocket connection changed during download");
-                const value = await this.readLogDirect(fn);
-                controller.signal.throwIfAborted();
-                return value;
-            })();
-            outstanding.add(result);
-            void result.then(() => outstanding.delete(result), () => outstanding.delete(result));
-            return result;
-        };
-        try {
-            traffic = this.traffic?.acquireDownload();
-            await Promise.all([polling.ready, traffic?.ready, Promise.allSettled([...this.activeRequests])]);
-            controller.signal.throwIfAborted();
-            if (session !== this.status.getSession()) throw new Error("Rocket connection changed during download");
-            const result = await operation({
-                listLogs: async () => { throw new Error("Log listing is paused during download"); },
-                getLogInfo: filename => read(reader => reader.getLogInfo(filename)),
-                getLogBytes: (filename, offset, length) => read(reader => reader.getLogBytes(filename, offset, length)),
-            });
-            controller.signal.throwIfAborted();
-            if (session !== this.status.getSession()) throw new Error("Rocket connection changed during download");
-            return result;
-        } finally {
-            open = false;
-            await Promise.allSettled([...outstanding]);
-            signal?.removeEventListener("abort", cancel);
-            traffic?.release();
-            this.download = null;
-            polling.release();
-        }
-    }
+    /** Wait for already-started application operations, including their readbacks. */
+    waitForIdle = () => Promise.allSettled([...this.activeRequests]).then(() => {});
 
     private flightTopics(): RocketStatusTopic[] {
         return ["flightState", "countdownTime", "flightLocation", "controlling"];

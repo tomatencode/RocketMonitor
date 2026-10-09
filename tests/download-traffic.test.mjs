@@ -5,6 +5,7 @@ import { DownloadTrafficGate } from "../src/features/RadioLink/DownloadTrafficGa
 import { MessageType } from "../src/features/RadioLink/Protocol.ts";
 import { RocketStatusStore } from "../src/features/RocketStatus/RocketStatusStore.ts";
 import { RocketCommander } from "../src/features/RocketCommander/RocketCommander.ts";
+import { RocketLogDownloader } from "../src/features/RocketLogDownloader/RocketLogDownloader.ts";
 
 function deferred() {
     let resolve;
@@ -107,23 +108,23 @@ function services(t, reader = {}) {
     t.after(() => store.suspend());
     store.subscribe("batteryVoltage", () => {});
     const gate = new DownloadTrafficGate();
+    const downloader = new RocketLogDownloader(() => ({
+        getLogInfo: async () => ({ sizeBytes: 1, maxChunkBytes: 240 }),
+        ...reader,
+    }), store, gate, () => commander.waitForIdle());
     const commander = new RocketCommander(() => ({
         beepBuzzer: async () => { mutations++; }, abortFlight: async () => { mutations++; },
-    }), store, () => reader, gate);
-    return { store, gate, commander, reads: () => reads, mutations: () => mutations };
+    }), store, () => reader, downloader);
+    return { store, gate, commander, downloader, reads: () => reads, mutations: () => mutations };
 }
 
 test("exclusive download pauses status, rejects unrelated commander requests, and resumes afterward", async t => {
-    const s = services(t, { getLogInfo: async () => ({ sizeBytes: 0, maxChunkBytes: 240 }) });
-    const entered = deferred();
     const finish = deferred();
-    let scoped;
-    const downloading = s.commander.withLogDownload(async reader => {
-        scoped = reader;
-        assert.deepEqual(await reader.getLogInfo("f"), { sizeBytes: 0, maxChunkBytes: 240 });
-        entered.resolve();
-        return finish.promise;
-    });
+    const entered = deferred();
+    const s = services(t, { getLogBytes: () => {
+        entered.resolve(); return finish.promise;
+    } });
+    const downloading = s.downloader.startDownload("f");
     await entered.promise;
     const count = s.reads();
     await delay(10);
@@ -131,12 +132,12 @@ test("exclusive download pauses status, rejects unrelated commander requests, an
     await assert.rejects(s.commander.beepBuzzer(), /paused/);
     await assert.rejects(s.commander.listLogs(), /paused/);
     await assert.rejects(s.commander.getLogBytes("f", 0, 1), /paused/);
-    await assert.rejects(s.commander.withLogDownload(async () => {}), /paused/);
+    await assert.rejects(s.downloader.startDownload("other"), /already/);
     assert.equal(s.mutations(), 0);
-    finish.resolve("done");
-    assert.equal(await downloading, "done");
+    finish.resolve({ offset: 0, bytes: new Uint8Array([42]) });
+    assert.deepEqual(await downloading, new Uint8Array([42]));
     assert.equal(s.gate.isDownloading(), false);
-    await assert.rejects(scoped.getLogInfo("f"), /expired/);
+    assert.equal(s.downloader.isRunning(), false);
     await s.commander.beepBuzzer();
     await delay(10);
     assert.ok(s.reads() > count);
@@ -147,10 +148,13 @@ test("downloads drain existing commander operations before issuing chunks", asyn
     const store = new RocketStatusStore(() => ({}));
     store.setConnected(true);
     t.after(() => store.suspend());
-    const commander = new RocketCommander(() => ({ beepBuzzer: () => old.promise }), store, () => ({}));
-    const previous = commander.beepBuzzer();
     let entered = false;
-    const transfer = commander.withLogDownload(async () => { entered = true; });
+    const downloader = new RocketLogDownloader(() => ({ getLogInfo: async () => {
+        entered = true; return { sizeBytes: 0, maxChunkBytes: 240 };
+    } }), store, new DownloadTrafficGate(), () => commander.waitForIdle());
+    const commander = new RocketCommander(() => ({ beepBuzzer: () => old.promise }), store, undefined, downloader);
+    const previous = commander.beepBuzzer();
+    const transfer = downloader.startDownload("f");
     await delay(5);
     assert.equal(entered, false);
     old.resolve();
@@ -160,39 +164,35 @@ test("downloads drain existing commander operations before issuing chunks", asyn
 
 test("failure and cancellation release traffic and status leases after outstanding chunks drain", async t => {
     const chunk = deferred();
-    const s = services(t, { getLogBytes: () => chunk.promise });
-    const controller = new AbortController();
     const entered = deferred();
-    const transfer = s.commander.withLogDownload(async reader => {
-        // Deliberately fail before waiting for the started chunk, exercising finally cleanup.
-        void reader.getLogBytes("f", 0, 1).catch(() => {});
-        entered.resolve();
-        throw Error("transfer failed");
-    }, controller.signal);
+    const s = services(t, {
+        getLogInfo: async () => ({ sizeBytes: 480, maxChunkBytes: 240 }),
+        getLogBytes: (_, offset) => {
+            if (offset === 0) return Promise.reject(Error("transfer failed"));
+            entered.resolve(); return chunk.promise;
+        },
+    });
+    const transfer = s.downloader.startDownload("f");
     const result = transfer.catch(error => error);
     await entered.promise;
-    controller.abort();
     await delay(5);
     assert.equal(s.gate.isDownloading(), true);
-    chunk.resolve({ offset: 0, bytes: new Uint8Array([1]) });
+    chunk.resolve({ offset: 240, bytes: new Uint8Array(240) });
     assert.match((await result).message, /transfer failed/);
     assert.equal(s.gate.isDownloading(), false);
     await s.commander.beepBuzzer();
-    const canceled = new AbortController();
-    canceled.abort();
-    await assert.rejects(s.commander.withLogDownload(async () => {}, canceled.signal), { name: "AbortError" });
+    assert.equal(s.downloader.getProgress().state, "failed");
+    const cancelled = s.downloader.startDownload("f");
+    s.downloader.stopDownload();
+    await assert.rejects(cancelled, { name: "AbortError" });
     assert.equal(s.gate.isDownloading(), false);
 });
 
 test("emergency abort cancels transfer and is never blocked by the download lease", async t => {
     const chunk = deferred();
-    const s = services(t, { getLogBytes: () => chunk.promise });
     const entered = deferred();
-    const transfer = s.commander.withLogDownload(async reader => {
-        const result = reader.getLogBytes("f", 0, 1);
-        entered.resolve();
-        return result;
-    });
+    const s = services(t, { getLogBytes: () => { entered.resolve(); return chunk.promise; } });
+    const transfer = s.downloader.startDownload("f");
     const outcome = transfer.catch(error => error);
     await entered.promise;
     await s.commander.abortFlight();
@@ -204,18 +204,14 @@ test("emergency abort cancels transfer and is never blocked by the download leas
 
 test("a disconnect during exclusive download rejects results and does not resume offline polling", async t => {
     const chunk = deferred();
-    const s = services(t, { getLogBytes: () => chunk.promise });
     const entered = deferred();
-    const transfer = s.commander.withLogDownload(async reader => {
-        const result = reader.getLogBytes("f", 0, 1);
-        entered.resolve();
-        return result;
-    });
+    const s = services(t, { getLogBytes: () => { entered.resolve(); return chunk.promise; } });
+    const transfer = s.downloader.startDownload("f");
     const outcome = transfer.catch(error => error);
     await entered.promise;
     s.store.setConnected(false);
     chunk.resolve({ offset: 0, bytes: new Uint8Array([1]) });
-    assert.match((await outcome).message, /connection changed/);
+    assert.equal((await outcome).name, "AbortError");
     const count = s.reads();
     await delay(5);
     assert.equal(s.reads(), count);
