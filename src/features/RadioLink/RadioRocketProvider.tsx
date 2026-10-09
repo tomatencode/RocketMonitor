@@ -21,10 +21,11 @@ export function RadioRocketProvider({ children }: { children: React.ReactNode })
                 batteryVoltage: r.getBatteryVoltage, pyroContinuity: r.getPyroContinuity,
                 pyroHardwareArmed: r.getPyroHardwareArmed, pyroSoftwareArmed: r.getPyroSoftwareArmed,
                 pidParameters: r.getPIDParameters, pidTarget: r.getPIDTarget, controlling: r.getControlling,
+                logging: r.getLogging,
             };
         };
         const store = new RocketStatusStore(getPollers);
-        services.current = { store, commander: new RocketCommander(() => radioRef.current, store) };
+        services.current = { store, commander: new RocketCommander(() => radioRef.current, store, () => radioRef.current) };
     }
     const { store, commander } = services.current;
     useEffect(() => {

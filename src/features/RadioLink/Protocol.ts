@@ -31,6 +31,12 @@ export enum MessageType {
     GET_PID_TARGET = 0x1D,
     GET_BATTERY_VOLTAGE = 0x1E,
     SET_ACCUMULATING_ROTATION = 0x1F,
+    START_LOG = 0x20,
+    FINISH_LOG = 0x21,
+    IS_LOGGING = 0x22,
+    LIST_LOGS = 0x23,
+    GET_LOG_INFO = 0x24,
+    GET_LOG_BYTES = 0x25,
 }
 
 // Responses reuse the request's MessageType/seqId; status distinguishes request vs. outcome

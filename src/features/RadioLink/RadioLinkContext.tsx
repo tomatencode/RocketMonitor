@@ -2,44 +2,13 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRocketLink } from "../RocketLink/RocketLinkContext";
 import { MessageType } from "./Protocol";
 import { useMessageTransport, LogEntry } from "./useMessageTransport";
-import { useRadioCommands, IMUData, BaroData, RotationData, GimbalData, FlightLocationData, FlightState, PIDParameters, Quaternion, FlightProfile } from "./useRadioCommands";
+import { useRadioCommands } from "./useRadioCommands";
 
 export type { LogEntry };
 
 
-interface RadioLinkContextValue {
+interface RadioLinkContextValue extends ReturnType<typeof useRadioCommands> {
     connected: boolean;
-
-    setGimbalPos: (degX: number, degY: number) => Promise<void>;
-    getGimbal: () => Promise<GimbalData>;
-    beepBuzzer: () => Promise<void>;
-    firePyroChanel: (channel: number, durationMs?: number) => Promise<void>;
-    getPyroContinuity: (channel: number) => Promise<boolean>;
-    getPyroSoftwareArmed: () => Promise<boolean>;
-    setPyroSoftwareArmed: (armed: boolean) => Promise<void>;
-    getPyroHardwareArmed: () => Promise<boolean>;
-    getIMU: () => Promise<IMUData>;
-    getBaro: () => Promise<BaroData>;
-    getRotation: () => Promise<RotationData>;
-    setRotation: (quaternion: Quaternion) => Promise<void>;
-    setAccumulatingRotation: (accumulating: boolean) => Promise<void>;
-    abortFlight: () => Promise<void>;
-    endFlight: () => Promise<void>;
-    getBaroHeight: () => Promise<number>;
-    calibrateBaroHeight: (height_m: number) => Promise<void>;
-    getFlightLocation: () => Promise<FlightLocationData>;
-    getFlightState: () => Promise<FlightState>;
-    getCountdownTime: () => Promise<number | null>;
-    flashLed: (durationMs?: number) => Promise<void>;
-    startCountdown: (profile: FlightProfile) => Promise<void>;
-    retryDeployParachute: () => Promise<void>;
-    setPIDParameters: (kp: number, ki: number, kd: number) => Promise<void>;
-    getPIDParameters: () => Promise<PIDParameters | null>;
-    setControlling: (controlling: boolean) => Promise<void>;
-    getControlling: () => Promise<boolean>;
-    setPIDTarget: (target: Quaternion) => Promise<void>;
-    getPIDTarget: () => Promise<Quaternion | null>;
-    getBatteryVoltage: () => Promise<number>;
 
     log: LogEntry[];
 }

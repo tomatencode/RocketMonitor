@@ -28,7 +28,7 @@ const EMPTY_SNAPSHOT: RocketStatusValue<never> = Object.freeze({
     value: null, error: null, hasValue: false, lastUpdatedAt: null,
 });
 const CACHED_TOPICS = new Set<RocketStatusTopic>([
-    "pidParameters", "pidTarget", "controlling", "pyroSoftwareArmed",
+    "pidParameters", "pidTarget", "controlling", "pyroSoftwareArmed", "logging",
 ]);
 const ERROR_RETRY_MS = 250;
 const HARDWARE_POLL_MS = 1500;

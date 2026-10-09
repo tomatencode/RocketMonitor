@@ -20,6 +20,36 @@ provide them with `RocketStatusProvider` and `RocketCommanderProvider`.
   `pyroSoftwareArmed` are read once successfully per connection session, on demand.
   This assumes only this app changes them, not autonomous firmware or other clients.
 
+- `logging` is likewise session-cached and refreshed by `startLog`/`finishLog`.
+
+## Firmware log access
+
+`useRocketCommander()` exposes `startLog(filename, metadata)` and `finishLog()`;
+`useRocketStatus("logging")` reports whether a firmware log is currently open.
+Metadata includes a UNIX timestamp in **seconds**, initial/target quaternions,
+PID gains, and initial height. Filenames use 1..32 UTF-8 bytes, without NUL.
+
+On-demand reads are also available on commander so callers need no radio imports:
+
+- `listLogs(startIndex = 0)` returns `{ totalFiles, nextIndex, filenames }`.
+  Continue from `nextIndex` until it equals `totalFiles`. Only completed/recovered
+  files are listed; the open log is excluded.
+- `getLogInfo(filename)` returns `{ sizeBytes, maxChunkBytes }` after firmware
+  verifies the file. Unknown, open, or corrupt files reject the operation.
+- `getLogBytes(filename, offset, length)` returns `{ offset, bytes }`. Request
+  sequential chunks of 1..`maxChunkBytes` (currently at most 240), with **one
+  outstanding chunk request**. Near EOF, the returned bytes may be shorter;
+  at EOF they are empty. These are raw log payload bytes, without flash framing.
+
+RadioLink also exposes the firmware-named `isLogging()` and its status-compatible
+alias `getLogging()`. Log contents are not decoded into events by this API, and
+this update does not add a log-management UI or automatically start recording.
+Firmware restricts start/finish and file info/byte reads to ground operation;
+logging-state and file-list queries are also allowed during flight. Refused
+operations reject their promises rather than appearing successful.
+
+## Status lifecycle
+
 All subscribers share reads. Cached configuration survives component unmounts.
 Disconnects clear snapshots, stop polling, and invalidate old responses; reconnects
 read subscribed topics again. Failed reads retry with a 250 ms backoff.

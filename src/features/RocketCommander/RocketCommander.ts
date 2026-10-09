@@ -1,11 +1,12 @@
-import type { RocketCommands, FlightProfile, Quaternion } from "../RocketStatus/rocketTypes";
+import type { RocketCommands, FlightProfile, Quaternion, LogMetadata, RocketLogReader } from "../RocketStatus/rocketTypes";
 import { RocketStatusStore, type RocketStatusTopic } from "../RocketStatus/RocketStatusStore";
 
 /** All rocket mutations pass here; consumers never need a transport reference. */
-export class RocketCommander implements RocketCommands {
+export class RocketCommander implements RocketCommands, RocketLogReader {
     constructor(
         private readonly getCommands: () => RocketCommands,
         private readonly status: RocketStatusStore,
+        private readonly getLogReader?: () => RocketLogReader,
     ) {}
 
     private run(command: (commands: RocketCommands) => Promise<void>, topics: RocketStatusTopic[] = []) {
@@ -48,6 +49,24 @@ export class RocketCommander implements RocketCommands {
         this.run(c => c.setPIDParameters(kp, ki, kd), ["pidParameters"]);
     setControlling = (controlling: boolean) => this.run(c => c.setControlling(controlling), ["controlling", "gimbal"]);
     setPIDTarget = (target: Quaternion) => this.run(c => c.setPIDTarget(target), ["pidTarget"]);
+    startLog = (filename: string, metadata: LogMetadata) =>
+        this.run(c => c.startLog(filename, metadata), ["logging"]);
+    finishLog = () => this.run(c => c.finishLog(), ["logging"]);
+
+    /** Log file reads are explicit operations, not status polls. Request chunks sequentially. */
+    listLogs = (startIndex?: number) => this.readLog(reader => reader.listLogs(startIndex));
+    getLogInfo = (filename: string) => this.readLog(reader => reader.getLogInfo(filename));
+    getLogBytes = (filename: string, offset: number, length: number) =>
+        this.readLog(reader => reader.getLogBytes(filename, offset, length));
+
+    private async readLog<T>(read: (reader: RocketLogReader) => Promise<T>): Promise<T> {
+        const session = this.status.getSession();
+        if (!this.status.getConnected()) throw new Error("Rocket is not connected");
+        if (!this.getLogReader) throw new Error("Rocket log reader is not configured");
+        const value = await read(this.getLogReader());
+        if (session !== this.status.getSession()) throw new Error("Rocket connection changed while reading log");
+        return value;
+    }
 
     private flightTopics(): RocketStatusTopic[] {
         return ["flightState", "countdownTime", "flightLocation", "controlling"];

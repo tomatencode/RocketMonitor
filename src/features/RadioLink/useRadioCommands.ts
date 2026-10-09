@@ -7,10 +7,12 @@ import {
 } from "./codecs/quaternion";
 import type { Quaternion } from "./codecs/quaternion";
 import { decode16, decode32, encode16, encode32 } from "./codecs/fixedPoint";
-import { decodeU32, encodeU16, encodeU32 } from "./codecs/littleEndian";
+import { decodeU16, decodeU32, encodeU16, encodeU32 } from "./codecs/littleEndian";
+import { encodeLogFilename, decodeLogFilename } from "./codecs/logFilename";
 
 import type { IMUData, BaroData, RotationData, GimbalData, FlightLocationData, PIDParameters, FlightProfile } from "../RocketStatus/rocketTypes";
 import { FlightState } from "../RocketStatus/rocketTypes";
+import type { LogMetadata, LogListPage, LogInfo, LogBytes } from "../RocketStatus/rocketTypes";
 export * from "../RocketStatus/rocketTypes";
 
 type SendMessage = (
@@ -29,6 +31,12 @@ interface UseRadioCommandsOptions {
 function ensureSuccess(status: ResponseStatus, command: string): void {
     if (status === ResponseStatus.FAILURE) {
         throw new Error(`${command} was rejected`);
+    }
+}
+
+function ensureUnsigned(value: number, max: number, name: string) {
+    if (!Number.isInteger(value) || value < 0 || value > max) {
+        throw new Error(`${name} must be an integer between 0 and ${max}`);
     }
 }
 
@@ -374,6 +382,101 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         return decode16(response.payload, 0);
     };
 
+    const startLog = async (filename: string, metadata: LogMetadata): Promise<void> => {
+        const name = encodeLogFilename(filename);
+        ensureUnsigned(metadata.timestamp_unix, 0xffffffff, "Log timestamp");
+        const fields = [
+            metadata.initialRotation.x, metadata.initialRotation.y,
+            metadata.initialRotation.z, metadata.initialRotation.w,
+            metadata.targetAngle.x, metadata.targetAngle.y, metadata.targetAngle.z, metadata.targetAngle.w,
+            metadata.pidKp, metadata.pidKi, metadata.pidKd, metadata.initialHeight_m,
+        ];
+        if (fields.some(value => !Number.isFinite(value) ||
+            Math.trunc(value * 100) < -0x80000000 || Math.trunc(value * 100) > 0x7fffffff)) {
+            throw new Error("Log metadata must contain finite int32 fixed-point values");
+        }
+        const payload = new Uint8Array(52 + name.length);
+        encodeU32(metadata.timestamp_unix, payload, 0);
+        encodeQuaternion(metadata.initialRotation, payload, 4);
+        encodeQuaternion(metadata.targetAngle, payload, 20);
+        encode32(metadata.pidKp, payload, 36);
+        encode32(metadata.pidKi, payload, 40);
+        encode32(metadata.pidKd, payload, 44);
+        encode32(metadata.initialHeight_m, payload, 48);
+        payload.set(name, 52);
+        const response = await sendMessage(MessageType.START_LOG, payload);
+        ensureSuccess(response.status, "START_LOG");
+    };
+
+    const finishLog = async (): Promise<void> => {
+        const response = await sendMessage(MessageType.FINISH_LOG);
+        ensureSuccess(response.status, "FINISH_LOG");
+    };
+
+    const isLogging = async (): Promise<boolean> => {
+        const response = await sendMessage(MessageType.IS_LOGGING);
+        ensureSuccess(response.status, "IS_LOGGING");
+        if (!response.payload || response.payload.length !== 1 || response.payload[0] > 1) {
+            throw new Error("IS_LOGGING response has an invalid payload");
+        }
+        return response.payload[0] === 1;
+    };
+
+    const listLogs = async (startIndex = 0): Promise<LogListPage> => {
+        ensureUnsigned(startIndex, 255, "Log start index");
+        const response = await sendMessage(MessageType.LIST_LOGS, new Uint8Array([startIndex]));
+        ensureSuccess(response.status, "LIST_LOGS");
+        const payload = response.payload;
+        if (!payload || payload.length < 3 || payload.length > 255) {
+            throw new Error("LIST_LOGS response has an invalid payload");
+        }
+        const [totalFiles, nextIndex, count] = payload;
+        if (startIndex > totalFiles || nextIndex > totalFiles || nextIndex !== startIndex + count ||
+            (count === 0 && nextIndex < totalFiles)) {
+            throw new Error("LIST_LOGS response has invalid pagination");
+        }
+        const filenames: string[] = [];
+        let offset = 3;
+        for (let i = 0; i < count; i++) {
+            const decoded = decodeLogFilename(payload, offset);
+            filenames.push(decoded.filename);
+            offset = decoded.nextOffset;
+        }
+        if (offset !== payload.length) throw new Error("LIST_LOGS response has trailing bytes");
+        return { totalFiles, nextIndex, filenames };
+    };
+
+    const getLogInfo = async (filename: string): Promise<LogInfo> => {
+        const response = await sendMessage(MessageType.GET_LOG_INFO, encodeLogFilename(filename));
+        ensureSuccess(response.status, "GET_LOG_INFO");
+        if (!response.payload || response.payload.length !== 6) {
+            throw new Error("GET_LOG_INFO response has an invalid payload");
+        }
+        const maxChunkBytes = decodeU16(response.payload, 4);
+        if (maxChunkBytes === 0 || maxChunkBytes > 240) {
+            throw new Error("GET_LOG_INFO response has an invalid maximum chunk size");
+        }
+        return { sizeBytes: decodeU32(response.payload, 0), maxChunkBytes };
+    };
+
+    const getLogBytes = async (filename: string, offset: number, length: number): Promise<LogBytes> => {
+        const name = encodeLogFilename(filename);
+        ensureUnsigned(offset, 0xffffffff, "Log offset");
+        ensureUnsigned(length, 240, "Log chunk length");
+        if (length === 0) throw new Error("Log chunk length must be between 1 and 240");
+        const payload = new Uint8Array(name.length + 6);
+        payload.set(name);
+        encodeU32(offset, payload, name.length);
+        encodeU16(length, payload, name.length + 4);
+        const response = await sendMessage(MessageType.GET_LOG_BYTES, payload);
+        ensureSuccess(response.status, "GET_LOG_BYTES");
+        if (!response.payload || response.payload.length < 4 || response.payload.length > 4 + length ||
+            decodeU32(response.payload, 0) !== offset) {
+            throw new Error("GET_LOG_BYTES response has an invalid payload or offset");
+        }
+        return { offset, bytes: response.payload.slice(4) };
+    };
+
     return {
         setGimbalPos,
         getGimbal,
@@ -405,6 +508,13 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         setPIDTarget,
         getPIDTarget,
         getBatteryVoltage,
+        startLog,
+        finishLog,
+        isLogging,
+        getLogging: isLogging,
+        listLogs,
+        getLogInfo,
+        getLogBytes,
     };
 }
 
