@@ -25,7 +25,10 @@ export function RadioRocketProvider({ children }: { children: React.ReactNode })
             };
         };
         const store = new RocketStatusStore(getPollers);
-        services.current = { store, commander: new RocketCommander(() => radioRef.current, store, () => radioRef.current) };
+        services.current = { store, commander: new RocketCommander(
+            () => radioRef.current, store, () => radioRef.current,
+            { acquireDownload: () => radioRef.current.acquireDownload() },
+        ) };
     }
     const { store, commander } = services.current;
     useEffect(() => {

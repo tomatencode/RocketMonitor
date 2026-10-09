@@ -477,6 +477,16 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         return { offset, bytes: response.payload.slice(4) };
     };
 
+    const deleteLog = async (filename: string): Promise<void> => {
+        const response = await sendMessage(MessageType.DELETE_LOG, encodeLogFilename(filename));
+        ensureSuccess(response.status, "DELETE_LOG");
+    };
+
+    const deleteAllLogs = async (): Promise<void> => {
+        const response = await sendMessage(MessageType.DELETE_ALL_LOGS);
+        ensureSuccess(response.status, "DELETE_ALL_LOGS");
+    };
+
     return {
         setGimbalPos,
         getGimbal,
@@ -515,6 +525,8 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         listLogs,
         getLogInfo,
         getLogBytes,
+        deleteLog,
+        deleteAllLogs,
     };
 }
 

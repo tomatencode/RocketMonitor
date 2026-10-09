@@ -37,16 +37,67 @@ On-demand reads are also available on commander so callers need no radio imports
 - `getLogInfo(filename)` returns `{ sizeBytes, maxChunkBytes }` after firmware
   verifies the file. Unknown, open, or corrupt files reject the operation.
 - `getLogBytes(filename, offset, length)` returns `{ offset, bytes }`. Request
-  sequential chunks of 1..`maxChunkBytes` (currently at most 240), with **one
-  outstanding chunk request**. Near EOF, the returned bytes may be shorter;
+  chunks of 1..`maxChunkBytes` (currently at most 240). Near EOF, the returned bytes may be shorter;
   at EOF they are empty. These are raw log payload bytes, without flash framing.
 
 RadioLink also exposes the firmware-named `isLogging()` and its status-compatible
-alias `getLogging()`. Log contents are not decoded into events by this API, and
-this update does not add a log-management UI or automatically start recording.
+alias `getLogging()`. Log contents are not decoded into events by this API.
+The test screen's Rocket Logs panel provides recording controls and file downloads.
+Recording is started only by the user, never automatically.
 Firmware restricts start/finish and file info/byte reads to ground operation;
 logging-state and file-list queries are also allowed during flight. Refused
 operations reject their promises rather than appearing successful.
+
+`deleteLog(filename)` and `deleteAllLogs()` are exposed through commander and
+RadioLink, matching firmware `DELETE_LOG` (0x26) and `DELETE_ALL_LOGS` (0x27).
+Both are ground-only. Single deletion removes a closed log entry but does not
+reclaim flash space. Delete-all removes all log entries and reclaims space; it
+is refused while recording and is not a secure flash wipe.
+
+## Logging panel
+
+The test screen lists all completed/recovered logs, with Refresh, Start/Stop Logging,
+download progress and cancellation. New recordings use a timestamped filename and
+current attitude, PID target/gains and barometric height as metadata; unavailable
+values use identity attitude/zero gains/zero height (target defaults to current attitude).
+Downloads concatenate batched raw chunks and save into the OS Downloads directory
+through the Tauri `save_rocket_log` command, with a `.rcktlog` suffix. No bytes or
+headers are added. Existing downloads are never overwritten: a numbered suffix is
+used on collision. The displayed path confirms a completed save. Canceling a transfer
+does not save a partial file; saving itself is not cancelable once dispatched.
+
+Each file row also has a Delete button; Delete All Logs is available only when
+recording is confirmed stopped. Both require explicit confirmation naming the
+affected rocket logs. Pending confirmations reset on reconnect, recording/ground
+state changes, refresh, or another operation. Deletion cannot run alongside a
+download or other panel mutation. After success the list refreshes; failures are
+shown without optimistically removing files. Local `.rcktlog` downloads are never
+deleted by these commands.
+
+## Exclusive, batched downloads
+
+The panel runs its transfer inside `commander.withLogDownload(reader => ..., signal)`.
+This pauses all status polls (without clearing the last readings), stops idle radio
+pings, rejects unrelated commander requests, and waits for previously started
+requests to settle before downloading. The callback receives a scoped reader for
+log info/bytes; normal commander read APIs remain blocked. Leases are released in
+`finally` on success, error, cancellation, or disconnect; expired scoped readers
+cannot be reused. File saving happens after radio exclusivity is released.
+
+`downloadLog` issues each batch synchronously so the transport combines requests
+in one frame. Responses are assembled at their verified offsets, even if they arrive
+out of order. Batch size respects 16 messages and the firmware's 1024-byte full
+response-frame limit: four 240-byte chunks produce a 998-byte response frame.
+Smaller chunk sizes allow more messages. The next batch starts only after all
+responses settle, including failures/retries; cancellation also drains the current
+batch rather than leaving radio requests running behind resumed polling.
+
+Log-byte requests use a 5-second timeout, since a nearly 1 KB response exceeds
+one second at 9600 baud before turnaround and flash verification. All other requests
+retain their existing timeout. Abort Flight is an intentional emergency exception:
+it cancels the download and remains sendable immediately. Telemetry is stale while
+paused, and downloads should only be initiated on the ground. Hardware throughput
+and timing should be measured before further tuning chunk size/timeouts.
 
 ## Status lifecycle
 

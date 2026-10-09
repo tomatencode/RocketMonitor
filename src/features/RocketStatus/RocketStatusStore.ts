@@ -49,11 +49,32 @@ export class RocketStatusStore {
     private connected = false;
     private session = 0;
     private connectionListeners = new Set<() => void>();
+    private pollingPauses = 0;
+    private activeReads = new Set<Promise<void>>();
 
     constructor(private readonly getPollers: () => TopicPollers) {}
 
     getSession = () => this.session;
     getConnected = () => this.connected;
+
+    /** Retains snapshots/subscriptions; refreshes requested while paused run on release. */
+    pausePolling() {
+        this.pollingPauses += 1;
+        for (const entry of this.entries.values()) {
+            clearTimeout(entry.timer);
+            entry.timer = undefined;
+        }
+        let released = false;
+        return {
+            ready: Promise.allSettled([...this.activeReads]).then(() => {}),
+            release: () => {
+                if (released) return;
+                released = true;
+                this.pollingPauses -= 1;
+                for (const entry of this.entries.values()) this.kick(entry);
+            },
+        };
+    }
     subscribeConnection = (listener: () => void) => {
         this.connectionListeners.add(listener);
         return () => { this.connectionListeners.delete(listener); };
@@ -122,7 +143,7 @@ export class RocketStatusStore {
     }
 
     private needsRead(entry: TopicEntry) {
-        return this.connected && (entry.forceRead || (entry.listeners.size > 0 &&
+        return this.connected && this.pollingPauses === 0 && (entry.forceRead || (entry.listeners.size > 0 &&
             (!CACHED_TOPICS.has(entry.topic) || !entry.snapshot.hasValue)));
     }
 
@@ -130,7 +151,7 @@ export class RocketStatusStore {
         if (entry.running || entry.timer !== undefined || !this.needsRead(entry)) return;
         entry.running = true;
         const revision = entry.revision;
-        void (async () => {
+        const read = (async () => {
             let retryMs = entry.topic === "pyroHardwareArmed" || entry.topic.startsWith("pyroContinuity:")
                 ? HARDWARE_POLL_MS : 0;
             try {
@@ -156,6 +177,8 @@ export class RocketStatusStore {
                 }
             }
         })();
+        this.activeReads.add(read);
+        void read.finally(() => this.activeReads.delete(read));
     }
 
     private publish(entry: TopicEntry, snapshot: RocketStatusValue<unknown>) {

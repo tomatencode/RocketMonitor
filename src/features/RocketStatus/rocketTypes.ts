@@ -101,6 +101,11 @@ export interface RocketLogReader {
     getLogBytes: (filename: string, offset: number, length: number) => Promise<LogBytes>;
 }
 
+/** Adapter-level traffic lease; already-sent requests settle before ready resolves. */
+export interface DownloadTrafficControl {
+    acquireDownload: () => { ready: Promise<void>; release: () => void };
+}
+
 /** Read contract implemented by any rocket data source. */
 export interface RocketGetters {
     getGimbal: () => Promise<GimbalData>;
@@ -140,4 +145,8 @@ export interface RocketCommands {
     setPIDTarget: (target: Quaternion) => Promise<void>;
     startLog: (filename: string, metadata: LogMetadata) => Promise<void>;
     finishLog: () => Promise<void>;
+    /** Removes a closed log entry; does not reclaim flash space. */
+    deleteLog: (filename: string) => Promise<void>;
+    /** Removes all logs and reclaims space; firmware refuses while recording. */
+    deleteAllLogs: () => Promise<void>;
 }

@@ -23,3 +23,4 @@ export { useRotationStatus, type RotationStatus } from "./RotationPanel/useRotat
 export { PIDPanel, type PIDPanelProps } from "./PIDPanel/PIDPanel";
 export { usePIDStatus, type PIDStatus } from "./PIDPanel/usePIDStatus";
 export type { LineSample } from "./types";
+export { LoggingPanel, type LoggingPanelProps } from "./LoggingPanel/LoggingPanel";

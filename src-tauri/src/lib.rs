@@ -6,6 +6,19 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
+mod log_files;
+
+/// Save raw firmware log bytes in Downloads; no browser/WebView download support required.
+#[tauri::command]
+async fn save_rocket_log(app: tauri::AppHandle, filename: String, data: Vec<u8>) -> Result<String, String> {
+    let directory = app.path().download_dir().map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        log_files::save_log(&directory, &filename, &data)
+            .map(|path| path.to_string_lossy().into_owned())
+            .map_err(|error| error.to_string())
+    }).await.map_err(|error| error.to_string())?
+}
+
 const HANDSHAKE_SEND: &[u8] = &[0x7E, 0x01, 0x00, 0x00, 0x6B];
 const HANDSHAKE_RESPONSE: &[u8] = &[0x7E, 0x02, 0x00, 0x00, 0xD6];
 const BAUD_RATE: u32 = 115200;
@@ -234,6 +247,7 @@ pub fn run() {
             broadcast_radio_log,
             get_rocket_log_history,
             get_radio_log_history,
+            save_rocket_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
