@@ -68,7 +68,9 @@ does not save a partial file; saving itself is not cancelable once dispatched.
 
 Each file row also has a Delete button; Delete All Logs is available only when
 recording is confirmed stopped. Both require explicit confirmation naming the
-affected rocket logs. Pending confirmations reset on reconnect, recording/ground
+affected rocket logs. The Delete button changes to a yellow "Confirm?" on the first
+press; press the same button again within five seconds to delete. Selecting another
+log requires its own second press. Pending confirmations reset on reconnect, recording/ground
 state changes, refresh, or another operation. Deletion cannot run alongside a
 download or other panel mutation. After success the list refreshes; failures are
 shown without optimistically removing files. Local `.rcktlog` downloads are never

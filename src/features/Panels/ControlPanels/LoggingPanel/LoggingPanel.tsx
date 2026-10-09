@@ -7,8 +7,9 @@ import { Card } from "../../../../shared/components/elements/Card";
 import { PanelHeader } from "../../../../shared/components/elements/PanelHeader";
 import { StatusPill } from "../../../../shared/components/elements/StatusPill";
 import { Button } from "../../../../shared/components/primitives/Button";
-import { createLogFilename, createLogMetadata, downloadLog, listAllLogs } from "./logOperations";
-import { DeleteLogConfirmation, type LogDeletion } from "./DeleteLogConfirmation";
+import { ProgressBar } from "../../../../shared/components/primitives/ProgressBar";
+import { createLogFilename, createLogMetadata, downloadLog, listAllLogs, isLogDeleteConfirmed,
+    type LogDeletion, type LogDeleteConfirmation } from "./logOperations";
 
 export interface LoggingPanelProps { className?: string }
 
@@ -27,7 +28,7 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
     const [listing, setListing] = useState(false);
     const [acting, setActing] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [pendingDelete, setPendingDelete] = useState<LogDeletion | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<LogDeleteConfirmation | null>(null);
     const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
     const [downloading, setDownloading] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
@@ -86,6 +87,12 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
     // A confirmation must not survive a flight-state or recording-state change.
     useEffect(() => { setPendingDelete(null); }, [onGround, logging.value]);
 
+    useEffect(() => {
+        if (!pendingDelete) return;
+        const timer = setTimeout(() => setPendingDelete(null), Math.max(0, pendingDelete.expiresAt - Date.now()));
+        return () => clearTimeout(timer);
+    }, [pendingDelete]);
+
     const toggleLogging = async () => {
         if (!connected || !onGround || busy || listing || mutationActive.current || downloadActive.current ||
             !logging.hasValue || logging.value === null) return;
@@ -108,10 +115,14 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
         }
     };
 
-    const confirmDelete = async () => {
-        if (!pendingDelete || !canDelete || mutationActive.current || downloadActive.current ||
-            ("all" in pendingDelete && !canDeleteAll)) return;
-        const deletion = pendingDelete;
+    const handleDeleteClick = async (deletion: LogDeletion) => {
+        if (!canDelete || mutationActive.current || downloadActive.current ||
+            ("all" in deletion && !canDeleteAll)) return;
+        if (!isLogDeleteConfirmed(pendingDelete, deletion)) {
+            setPendingDelete({ deletion, expiresAt: Date.now() + 5000 });
+            setError(null);
+            return;
+        }
         const controller = new AbortController();
         actionController.current = controller;
         mutationActive.current = true;
@@ -181,9 +192,6 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
                 onClick={() => void toggleLogging()}>
                 {acting ? "Sending..." : logging.value ? "Stop Logging" : "Start Logging"}
             </Button>
-            <p className="text-[10px] text-zinc-500">
-                Timestamped name; metadata uses current status. Missing attitude, gains or height use identity/zero defaults.
-            </p>
             {connected && !onGround && <p className="text-[11px] text-zinc-500">Recording controls, downloads and deletion require ground state.</p>}
             <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] uppercase tracking-wider text-zinc-500">Saved logs {loaded ? `(${logs.length})` : ""}</span>
@@ -198,21 +206,23 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
                     <Button variant="neutral" className="min-w-0 flex-1 px-2.5 py-2 text-xs text-left break-all"
                         disabled={!connected || !onGround || busy || listing} title={`Download ${filename} as .rcktlog`}
                         onClick={() => void handleDownload(filename)}>{filename} <span className="text-zinc-500">↓</span></Button>
-                    <Button variant="danger" className="shrink-0 px-2 py-1.5 text-[10px]" disabled={!canDelete}
-                        aria-label={`Delete ${filename} from rocket`} onClick={() => setPendingDelete({ filename })}>Delete</Button>
+                    <Button variant={isLogDeleteConfirmed(pendingDelete, { filename }) ? "warning" : "danger"}
+                        className="shrink-0 min-w-16 px-2 py-1.5 text-[10px]" disabled={!canDelete}
+                        title={isLogDeleteConfirmed(pendingDelete, { filename })
+                            ? `Click again within five seconds to permanently delete ${filename} from the rocket`
+                            : `Delete ${filename} from the rocket; does not reclaim flash space or delete local downloads`}
+                        aria-label={isLogDeleteConfirmed(pendingDelete, { filename })
+                            ? `Confirm deletion of ${filename} from rocket` : `Delete ${filename} from rocket`}
+                        onClick={() => void handleDeleteClick({ filename })}>
+                        {isLogDeleteConfirmed(pendingDelete, { filename }) ? "Confirm?" : "Delete"}
+                    </Button>
                 </div>)}
             </div>
-            <Button variant="danger" className="px-2.5 py-1.5 text-xs" disabled={!canDeleteAll}
-                title={logging.value !== false ? "Stop logging before deleting all logs" : "Delete all rocket logs and reclaim flash space"}
-                onClick={() => setPendingDelete({ all: true })}>{deleting ? "Deleting..." : "Delete All Logs"}</Button>
-            {logging.value === true && <p className="text-[10px] text-zinc-500">Stop logging to delete all logs. Individual completed logs can still be deleted.</p>}
-            {pendingDelete && <DeleteLogConfirmation deletion={pendingDelete}
-                disabled={"all" in pendingDelete ? !canDeleteAll : !canDelete}
-                onConfirm={() => void confirmDelete()} onCancel={() => setPendingDelete(null)} />}
             {deleteMessage && <p className="text-[11px] text-emerald-300 break-all" role="status">{deleteMessage}</p>}
             {downloading !== null && <div className="flex flex-col gap-1.5" aria-live="polite">
                 <span className="text-[11px] text-zinc-400 break-all">{saving ? "Saving " : "Downloading "}{downloading}: {progress.received} / {progress.total} bytes</span>
-                <progress className="w-full h-1.5" value={progress.received} max={progress.total || 1} aria-label="Log download progress" />
+                <ProgressBar value={saving && progress.total === 0 ? 1 : progress.total > 0 ? progress.received : undefined}
+                    max={progress.total || 1} aria-label="Log download progress" />
                 <Button variant="ghost" className="px-2 py-1 text-xs" disabled={saving} onClick={cancelDownload}>Cancel Download</Button>
             </div>}
             {savedPath && <p className="text-[11px] text-emerald-300 break-all" role="status">Saved: {savedPath}</p>}

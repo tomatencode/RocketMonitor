@@ -5,7 +5,7 @@ import { createLogFilename, createLogMetadata, listAllLogs, downloadLog, logDown
 test("recording names fit firmware limits and metadata uses current status", () => {
     const date = new Date("2026-10-09T12:34:56.789Z");
     const name = createLogFilename(date);
-    assert.equal(name, "log-20261009T123456Z");
+    assert.equal(name, "testlog-20261009T123456Z");
     assert.ok(new TextEncoder().encode(name).length <= 32);
     const rotation = { x: 0, y: 0.1, z: 0, w: 1 };
     const target = { x: 0.2, y: 0, z: 0, w: 1 };

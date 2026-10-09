@@ -31,14 +31,14 @@ export default function TestPanels() {
 
 			<div className="shrink-0 flex flex-row overflow-y-auto pointer-events-none ml-auto [&>*]:shrink-0">
 				<div className="w-80 shrink-0 flex flex-col p-3 gap-3 pointer-events-none [&>*]:shrink-0">
-					<LoggingPanel />
 					<RotationPanel />
 					<PIDPanel />
+					<LoggingPanel />
+					<BuzzerPanel />
+					<LedPanel />
 				</div>
 				<div className="w-80 shrink-0 flex flex-col py-3 pr-3 gap-3 pointer-events-none [&>*]:shrink-0">
 					<BatteryPanel />
-					<BuzzerPanel />
-					<LedPanel />
 					<PyroPanel />
 					<GimbalPanel />
 				</div>

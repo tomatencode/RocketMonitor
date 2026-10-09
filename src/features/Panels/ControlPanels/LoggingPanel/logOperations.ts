@@ -1,7 +1,20 @@
 import type { RocketLogReader, LogMetadata, Quaternion, PIDParameters } from "../../../RocketStatus/rocketTypes";
 
+export type LogDeletion = { filename: string } | { all: true };
+export interface LogDeleteConfirmation {
+    deletion: LogDeletion;
+    expiresAt: number;
+}
+
+/** A second press only confirms the same target within the five-second window. */
+export function isLogDeleteConfirmed(pending: LogDeleteConfirmation | null, deletion: LogDeletion, now = Date.now()): boolean {
+    if (!pending || now >= pending.expiresAt) return false;
+    return "all" in deletion ? "all" in pending.deletion
+        : "filename" in pending.deletion && pending.deletion.filename === deletion.filename;
+}
+
 export function createLogFilename(now = new Date()): string {
-    return `log-${now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`;
+    return `testlog-${now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`;
 }
 
 export function createLogMetadata(rotation: Quaternion | null, target: Quaternion | null,

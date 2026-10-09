@@ -1,13 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { useRadioCommands } from "../src/features/RadioLink/useRadioCommands.ts";
 import { MessageType, JobStatus, encode, createParser, feed, take } from "../src/features/RadioLink/Protocol.ts";
 import { RocketStatusStore } from "../src/features/RocketStatus/RocketStatusStore.ts";
 import { RocketCommander } from "../src/features/RocketCommander/RocketCommander.ts";
-import { listAllLogs } from "../src/features/Panels/ControlPanels/LoggingPanel/logOperations.ts";
-import { DeleteLogConfirmation } from "../src/features/Panels/ControlPanels/LoggingPanel/DeleteLogConfirmation.tsx";
+import { listAllLogs, isLogDeleteConfirmed } from "../src/features/Panels/ControlPanels/LoggingPanel/logOperations.ts";
 
 test("delete message IDs match firmware and survive framing", () => {
     assert.equal(MessageType.DELETE_LOG, 0x26);
@@ -88,34 +85,21 @@ test("failed deletion leaves file list untouched; offline mutations do not send"
     assert.equal(calls, 2);
 });
 
-test("confirmation identifies single/all deletion, irreversibility and local-file safety", () => {
-    for (const deletion of [{ filename: "flight" }, { all: true }]) {
-        const html = renderToStaticMarkup(createElement(DeleteLogConfirmation, {
-            deletion, disabled: false, onConfirm: () => {}, onCancel: () => {},
-        }));
-        assert.match(html, /role="alertdialog"/);
-        assert.match(html, /cannot be undone/);
-        assert.match(html, /Downloaded files on your computer are not affected/);
-        assert.match(html, /Cancel/);
-        assert.match(html, "all" in deletion ? /Confirm Delete All/ : /flight/);
-        assert.match(html, "all" in deletion ? /reclaim flash space/ : /does not reclaim flash space/);
-    }
+test("first press and expired confirmation never authorize deletion", () => {
+    const deletion = { filename: "flight" };
+    assert.equal(isLogDeleteConfirmed(null, deletion, 1000), false);
+    const pending = { deletion, expiresAt: 6000 };
+    assert.equal(isLogDeleteConfirmed(pending, deletion, 5999), true);
+    assert.equal(isLogDeleteConfirmed(pending, deletion, 6000), false);
+    assert.equal(isLogDeleteConfirmed(pending, deletion, 7000), false);
 });
 
-test("confirmation does not delete on render; confirm and cancel are separate actions", () => {
-    let confirmed = 0;
-    let canceled = 0;
-    const element = DeleteLogConfirmation({ deletion: { all: true }, disabled: true,
-        onConfirm: () => { confirmed++; }, onCancel: () => { canceled++; } });
-    const buttons = element.props.children[1].props.children;
-    assert.equal(confirmed, 0);
-    assert.equal(canceled, 0);
-    assert.equal(buttons[0].props.disabled, true);
-    buttons[1].props.onClick();
-    assert.equal(canceled, 1);
-    assert.equal(confirmed, 0);
-    const enabled = DeleteLogConfirmation({ deletion: { filename: "f" }, disabled: false,
-        onConfirm: () => { confirmed++; }, onCancel: () => {} });
-    enabled.props.children[1].props.children[0].props.onClick();
-    assert.equal(confirmed, 1);
+test("confirmation is target-specific and cannot transfer between files or delete-all", () => {
+    const single = { deletion: { filename: "flight" }, expiresAt: 6000 };
+    assert.equal(isLogDeleteConfirmed(single, { filename: "other" }, 2000), false);
+    assert.equal(isLogDeleteConfirmed(single, { all: true }, 2000), false);
+    const all = { deletion: { all: true }, expiresAt: 6000 };
+    assert.equal(isLogDeleteConfirmed(all, { all: true }, 2000), true);
+    assert.equal(isLogDeleteConfirmed(all, { filename: "flight" }, 2000), false);
+    assert.equal(isLogDeleteConfirmed(null, { all: true }, 2000), false);
 });
