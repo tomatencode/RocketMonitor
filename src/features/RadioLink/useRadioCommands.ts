@@ -12,7 +12,7 @@ import { encodeLogFilename, decodeLogFilename } from "./codecs/logFilename";
 
 import type { IMUData, BaroData, RotationData, GimbalData, FlightLocationData, PIDParameters, FlightProfile } from "../RocketStatus/rocketTypes";
 import { FlightState } from "../RocketStatus/rocketTypes";
-import type { LogMetadata, LogListPage, LogDownloadSession, LogDownloadChunk } from "../RocketStatus/rocketTypes";
+import type { LogListPage, LogDownloadSession, LogDownloadChunk } from "../RocketStatus/rocketTypes";
 export * from "../RocketStatus/rocketTypes";
 
 type SendMessage = (
@@ -382,28 +382,12 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         return decode16(response.payload, 0);
     };
 
-    const startLog = async (filename: string, metadata: LogMetadata): Promise<void> => {
+    const startLog = async (filename: string, timestamp_unix: number): Promise<void> => {
         const name = encodeLogFilename(filename);
-        ensureUnsigned(metadata.timestamp_unix, 0xffffffff, "Log timestamp");
-        const fields = [
-            metadata.initialRotation.x, metadata.initialRotation.y,
-            metadata.initialRotation.z, metadata.initialRotation.w,
-            metadata.targetAngle.x, metadata.targetAngle.y, metadata.targetAngle.z, metadata.targetAngle.w,
-            metadata.pidKp, metadata.pidKi, metadata.pidKd, metadata.initialHeight_m,
-        ];
-        if (fields.some(value => !Number.isFinite(value) ||
-            Math.trunc(value * 100) < -0x80000000 || Math.trunc(value * 100) > 0x7fffffff)) {
-            throw new Error("Log metadata must contain finite int32 fixed-point values");
-        }
-        const payload = new Uint8Array(52 + name.length);
-        encodeU32(metadata.timestamp_unix, payload, 0);
-        encodeQuaternion(metadata.initialRotation, payload, 4);
-        encodeQuaternion(metadata.targetAngle, payload, 20);
-        encode32(metadata.pidKp, payload, 36);
-        encode32(metadata.pidKi, payload, 40);
-        encode32(metadata.pidKd, payload, 44);
-        encode32(metadata.initialHeight_m, payload, 48);
-        payload.set(name, 52);
+        ensureUnsigned(timestamp_unix, 0xffffffff, "Log timestamp");
+        const payload = new Uint8Array(4 + name.length);
+        encodeU32(timestamp_unix, payload, 0);
+        payload.set(name, 4);
         const response = await sendMessage(MessageType.START_LOG, payload);
         ensureSuccess(response.status, "START_LOG");
     };

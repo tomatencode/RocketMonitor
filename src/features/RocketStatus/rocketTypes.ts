@@ -64,17 +64,6 @@ export interface PIDParameters {
     kd: number;
 }
 
-/** Metadata recorded in the firmware log header; timestamp is UNIX seconds. */
-export interface LogMetadata {
-    timestamp_unix: number;
-    initialRotation: Quaternion;
-    targetAngle: Quaternion;
-    pidKp: number;
-    pidKi: number;
-    pidKd: number;
-    initialHeight_m: number;
-}
-
 export interface LogListPage {
     totalFiles: number;
     /** Equal to totalFiles when there are no more pages. */
@@ -151,7 +140,7 @@ export interface RocketCommands {
     setPIDParameters: (kp: number, ki: number, kd: number) => Promise<void>;
     setControlling: (controlling: boolean) => Promise<void>;
     setPIDTarget: (target: Quaternion) => Promise<void>;
-    startLog: (filename: string, metadata: LogMetadata) => Promise<void>;
+    startLog: (filename: string, timestamp_unix: number) => Promise<void>;
     finishLog: () => Promise<void>;
     /** Removes a closed log entry; does not reclaim flash space. */
     deleteLog: (filename: string) => Promise<void>;

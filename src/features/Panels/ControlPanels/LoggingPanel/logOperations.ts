@@ -1,4 +1,4 @@
-import type { RocketLogReader, LogMetadata, Quaternion, PIDParameters } from "../../../RocketStatus/rocketTypes";
+import type { RocketLogReader, Quaternion, PIDParameters } from "../../../RocketStatus/rocketTypes";
 
 export type LogDeletion = { filename: string } | { all: true };
 export interface LogDeleteConfirmation {
@@ -15,17 +15,6 @@ export function isLogDeleteConfirmed(pending: LogDeleteConfirmation | null, dele
 
 export function createLogFilename(now = new Date()): string {
     return `test-${now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`;
-}
-
-export function createLogMetadata(rotation: Quaternion | null, target: Quaternion | null,
-    parameters: PIDParameters | null, height: number | null, now = Date.now()): LogMetadata {
-    const initialRotation = rotation ?? { x: 0, y: 0, z: 0, w: 1 };
-    return {
-        timestamp_unix: Math.floor(now / 1000), initialRotation,
-        targetAngle: target ?? initialRotation,
-        pidKp: parameters?.kp ?? 0, pidKi: parameters?.ki ?? 0, pidKd: parameters?.kd ?? 0,
-        initialHeight_m: height ?? 0,
-    };
 }
 
 export async function listAllLogs(reader: RocketLogReader, signal: AbortSignal): Promise<string[]> {

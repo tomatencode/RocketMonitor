@@ -10,7 +10,7 @@ import { PanelHeader } from "../../../../shared/components/elements/PanelHeader"
 import { StatusPill } from "../../../../shared/components/elements/StatusPill";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { ProgressBar } from "../../../../shared/components/primitives/ProgressBar";
-import { createLogFilename, createLogMetadata, listAllLogs, isLogDeleteConfirmed,
+import { createLogFilename, listAllLogs, isLogDeleteConfirmed,
     type LogDeletion, type LogDeleteConfirmation } from "./logOperations";
 import { scheduleFeedbackDismissal } from "./feedbackTimeout";
 
@@ -131,7 +131,7 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
         setError(null);
         try {
             if (logging.value) await commander.finishLog();
-            else await commander.startLog(createLogFilename(), createLogMetadata(rotation, target, parameters, height));
+            else await commander.startLog(createLogFilename(), Math.floor(Date.now() / 1000));
             if (!controller.signal.aborted) await refreshLogs();
         } catch (e) {
             if (!controller.signal.aborted) setError(e instanceof Error ? e.message : String(e));
