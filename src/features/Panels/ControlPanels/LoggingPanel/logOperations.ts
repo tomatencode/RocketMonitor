@@ -1,4 +1,4 @@
-import type { RocketLogReader, Quaternion, PIDParameters } from "../../../RocketStatus/rocketTypes";
+import type { RocketLogReader } from "../../../RocketStatus/rocketTypes";
 
 export type LogDeletion = { filename: string } | { all: true };
 export interface LogDeleteConfirmation {
