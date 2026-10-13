@@ -10,7 +10,7 @@ import { decode16, decode32, encode16, encode32 } from "./codecs/fixedPoint";
 import { decodeU16, decodeU32, encodeU16, encodeU32 } from "./codecs/littleEndian";
 import { encodeLogFilename, decodeLogFilename } from "./codecs/logFilename";
 
-import type { IMUData, BaroData, RotationData, GimbalData, FlightLocationData, PIDParameters, FlightProfile } from "../RocketStatus/rocketTypes";
+import type { IMUData, BaroData, RotationData, GimbalData, FlightLocationData, PDParameters, FlightProfile } from "../RocketStatus/rocketTypes";
 import { FlightState } from "../RocketStatus/rocketTypes";
 import type { LogListPage, LogDownloadSession, LogDownloadChunk } from "../RocketStatus/rocketTypes";
 export * from "../RocketStatus/rocketTypes";
@@ -280,19 +280,18 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     };
 
     // Starts the launch countdown; throws if the firmware refuses (not IDLE or preflight failed).
-    // See FlightProfile for the countdown/burn durations, attitude, PID gains, pyro channels and start height.
+    // See FlightProfile for the countdown/burn durations, attitude, PD gains, pyro channels and start height.
     const startCountdown = async (profile: FlightProfile): Promise<void> => {
-        const payload = new Uint8Array(58);
+        const payload = new Uint8Array(54);
         encodeU32(profile.countdownDuration_ms, payload, 0);
         encodeU32(profile.motorBurnDuration_ms, payload, 4);
         encodeQuaternion(profile.initialRotation, payload, 8);
         encodeQuaternion(profile.targetAngle, payload, 24);
         encode32(profile.pidKp, payload, 40);
-        encode32(profile.pidKi, payload, 44);
-        encode32(profile.pidKd, payload, 48);
-        payload[52] = profile.motorIgniterChannel;
-        payload[53] = profile.parachutePyroChannel;
-        encode32(profile.initialHeight_m, payload, 54);
+        encode32(profile.pidKd, payload, 44);
+        payload[48] = profile.motorIgniterChannel;
+        payload[49] = profile.parachutePyroChannel;
+        encode32(profile.initialHeight_m, payload, 50);
         const response = await sendMessage(MessageType.START_COUNTDOWN, payload);
         ensureSuccess(response.status, "START_COUNTDOWN");
     };
@@ -303,17 +302,16 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         ensureSuccess(response.status, "RETRY_DEPLOY_PARACHUTE");
     };
 
-    const setPIDParameters = async (kp: number, ki: number, kd: number): Promise<void> => {
-        const payload = new Uint8Array(12);
+    const setPIDParameters = async (kp: number, kd: number): Promise<void> => {
+        const payload = new Uint8Array(8);
         encode32(kp, payload, 0);
-        encode32(ki, payload, 4);
-        encode32(kd, payload, 8);
+        encode32(kd, payload, 4);
         const response = await sendMessage(MessageType.SET_PID_PARAMETERS, payload);
         ensureSuccess(response.status, "SET_PID_PARAMETERS");
     };
 
-    /** Returns null until all three gains have been configured on the firmware. */
-    const getPIDParameters = async (): Promise<PIDParameters | null> => {
+    /** Returns null until both PD gains have been configured on the firmware. */
+    const getPIDParameters = async (): Promise<PDParameters | null> => {
         const response = await sendMessage(MessageType.GET_PID_PARAMETERS);
 
         // FAILURE is the normal "not configured yet" outcome, not an error.
@@ -321,19 +319,18 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
             return null;
         }
 
-        if (!response.payload || response.payload.byteLength < 12) {
+        if (!response.payload || response.payload.byteLength < 8) {
             throw new Error("GET_PID_PARAMETERS response has an invalid payload");
         }
 
         const payload = response.payload;
         return {
             kp: decode32(payload, 0),
-            ki: decode32(payload, 4),
-            kd: decode32(payload, 8),
+            kd: decode32(payload, 4),
         };
     };
 
-    // Throws if starting was refused (PID parameters or target not configured).
+    // Throws if starting was refused (PD parameters or target not configured).
     const setControlling = async (controlling: boolean): Promise<void> => {
         const response = await sendMessage(MessageType.SET_CONTROLLING, new Uint8Array([controlling ? 1 : 0]));
         ensureSuccess(response.status, "SET_CONTROLLING");
@@ -540,4 +537,3 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         deleteAllLogs,
     };
 }
-

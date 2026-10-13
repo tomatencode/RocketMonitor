@@ -16,7 +16,6 @@ interface ProfileValues {
     countdownDuration_ms: string;
     motorBurnDuration_ms: string;
     pidKp: string;
-    pidKi: string;
     pidKd: string;
     motorIgniterChannel: string;
     parachutePyroChannel: string;
@@ -33,7 +32,6 @@ const DEFAULT_VALUES: ProfileValues = {
     countdownDuration_ms: "5000",
     motorBurnDuration_ms: "3000",
     pidKp: "0",
-    pidKi: "0",
     pidKd: "0",
     motorIgniterChannel: "0",
     parachutePyroChannel: "1",
@@ -134,7 +132,6 @@ export function FlightProfileForm({ connected, launching, onLaunch }: FlightProf
                 degreesToRadians(numbers.targetZ_deg),
             ),
             pidKp: numbers.pidKp,
-            pidKi: numbers.pidKi,
             pidKd: numbers.pidKd,
             motorIgniterChannel: numbers.motorIgniterChannel,
             parachutePyroChannel: numbers.parachutePyroChannel,
@@ -166,10 +163,9 @@ export function FlightProfileForm({ connected, launching, onLaunch }: FlightProf
                 <Field label="Initial height (m)" value={values.initialHeight_m} onChange={(value) => setField("initialHeight_m", value)} />
             </div>
             <div className="flex flex-col gap-2 border-t border-zinc-800 pt-3">
-                <span className="text-[10px] uppercase tracking-wider text-zinc-500">PID gains</span>
-                <div className="grid grid-cols-3 gap-2">
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500">PD gains</span>
+                <div className="grid grid-cols-2 gap-2">
                     <Field label="Kp" value={values.pidKp} onChange={(value) => setField("pidKp", value)} />
-                    <Field label="Ki" value={values.pidKi} onChange={(value) => setField("pidKi", value)} />
                     <Field label="Kd" value={values.pidKd} onChange={(value) => setField("pidKd", value)} />
                 </div>
             </div>

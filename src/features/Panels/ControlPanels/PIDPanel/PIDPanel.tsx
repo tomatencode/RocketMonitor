@@ -36,7 +36,7 @@ function controllingPill(state: ControllingState) {
 }
 
 /**
- * Sets the firmware's PID gains (Kp/Ki/Kd) and starts/stops the attitude
+ * Sets the firmware's PD gains (Kp/Kd) and starts/stops the attitude
  * controller. Shows the live gains + controlling state polled from the rocket.
  */
 export function PIDPanel({ className = "" }: PIDPanelProps) {
@@ -46,7 +46,6 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
 
     // Gain inputs mirror the last polled values until the user edits them.
     const [kpInput, setKpInput] = useState("");
-    const [kiInput, setKiInput] = useState("");
     const [kdInput, setKdInput] = useState("");
     const [editing, setEditing] = useState(false);
 
@@ -59,21 +58,19 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
     useEffect(() => {
         if (editing || !parameters) return;
         setKpInput(parameters.kp.toFixed(2));
-        setKiInput(parameters.ki.toFixed(2));
         setKdInput(parameters.kd.toFixed(2));
     }, [editing, parameters]);
 
     const kp = parseGain(kpInput);
-    const ki = parseGain(kiInput);
     const kd = parseGain(kdInput);
-    const gainsValid = kp !== null && ki !== null && kd !== null;
+    const gainsValid = kp !== null && kd !== null;
 
     const handleSetParameters = async () => {
-        if (kp === null || ki === null || kd === null) return;
+        if (kp === null || kd === null) return;
         setActionError(null);
         setSending(true);
         try {
-            await setPIDParameters(kp, ki, kd);
+            await setPIDParameters(kp, kd);
             // Commander requests confirmed status; preserve inputs until editing ends.
         } catch (e) {
             setActionError(e instanceof Error ? e.message : String(e));
@@ -103,8 +100,8 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
         <Card className={`p-3 flex flex-col gap-2 ${className}`}>
             <PanelHeader
                 icon={<PidIcon />}
-                title="PID Controller"
-                subtitle="Kp / Ki / Kd gains"
+                title="PD Controller"
+                subtitle="Kp / Kd gains"
                 connected={connected}
                 end={
                     <StatusPill tone={pill.tone} pulse={pill.pulse}>
@@ -112,7 +109,7 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
                     </StatusPill>
                 }
             />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
                 <label className="flex flex-col gap-1">
                     <span className="text-[10px] uppercase tracking-wider text-zinc-400">Kp</span>
                     <Input
@@ -125,21 +122,6 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
                             setKpInput(e.target.value);
                         }}
                         aria-label="Proportional gain"
-                        className="px-1.5 text-right font-mono"
-                    />
-                </label>
-                <label className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-400">Ki</span>
-                    <Input
-                        type="number"
-                        step={0.01}
-                        value={kiInput}
-                        disabled={!connected}
-                        onChange={(e) => {
-                            setEditing(true);
-                            setKiInput(e.target.value);
-                        }}
-                        aria-label="Integral gain"
                         className="px-1.5 text-right font-mono"
                     />
                 </label>
@@ -183,20 +165,13 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
                     {controllingBusy ? "Sending..." : controlling === true ? "Stop Controlling" : "Start Controlling"}
                 </Button>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
                 <StatusTile
                     label="Kp"
                     value={fmt(parameters ? parameters.kp : null)}
                     icon={<StatusDot tone={connected ? "info" : "neutral"} />}
                     tone={connected ? "info" : "neutral"}
                     title="Proportional gain reported by the rocket"
-                />
-                <StatusTile
-                    label="Ki"
-                    value={fmt(parameters ? parameters.ki : null)}
-                    icon={<StatusDot tone={connected ? "info" : "neutral"} />}
-                    tone={connected ? "info" : "neutral"}
-                    title="Integral gain reported by the rocket"
                 />
                 <StatusTile
                     label="Kd"

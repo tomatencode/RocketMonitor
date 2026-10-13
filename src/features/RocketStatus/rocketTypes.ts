@@ -50,17 +50,15 @@ export interface FlightProfile {
     initialRotation: Quaternion;
     targetAngle: Quaternion;
     pidKp: number;
-    pidKi: number;
     pidKd: number;
     motorIgniterChannel: number;
     parachutePyroChannel: number;
     initialHeight_m: number;
 }
 
-/** Mirrors the firmware's ControlPID::PIDParameters (controlPID/ControlPID.hpp). */
-export interface PIDParameters {
+/** Mirrors the firmware's ControlPD::PDParameters (controlPD/ControlPD.hpp). */
+export interface PDParameters {
     kp: number;
-    ki: number;
     kd: number;
 }
 
@@ -116,7 +114,7 @@ export interface RocketGetters {
     getFlightLocation: () => Promise<FlightLocationData>;
     getFlightState: () => Promise<FlightState>;
     getCountdownTime: () => Promise<number | null>;
-    getPIDParameters: () => Promise<PIDParameters | null>;
+    getPIDParameters: () => Promise<PDParameters | null>;
     getControlling: () => Promise<boolean>;
     getPIDTarget: () => Promise<Quaternion | null>;
     getBatteryVoltage: () => Promise<number>;
@@ -137,7 +135,7 @@ export interface RocketCommands {
     flashLed: (durationMs?: number) => Promise<void>;
     startCountdown: (profile: FlightProfile) => Promise<void>;
     retryDeployParachute: () => Promise<void>;
-    setPIDParameters: (kp: number, ki: number, kd: number) => Promise<void>;
+    setPIDParameters: (kp: number, kd: number) => Promise<void>;
     setControlling: (controlling: boolean) => Promise<void>;
     setPIDTarget: (target: Quaternion) => Promise<void>;
     startLog: (filename: string, timestamp_unix: number) => Promise<void>;

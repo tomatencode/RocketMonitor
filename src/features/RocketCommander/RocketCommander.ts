@@ -1,4 +1,4 @@
-import type { RocketCommands, FlightProfile, Quaternion, LogMetadata, RocketLogReader } from "../RocketStatus/rocketTypes";
+import type { RocketCommands, FlightProfile, Quaternion, RocketLogReader } from "../RocketStatus/rocketTypes";
 import type { LogDownloadControl } from "../RocketLogDownloader/RocketLogDownloader";
 import { RocketStatusStore, type RocketStatusTopic } from "../RocketStatus/RocketStatusStore";
 
@@ -51,12 +51,12 @@ export class RocketCommander implements RocketCommands, RocketLogReader {
         "pyroSoftwareArmed",
     ]);
     retryDeployParachute = () => this.run(c => c.retryDeployParachute(), this.flightTopics());
-    setPIDParameters = (kp: number, ki: number, kd: number) =>
-        this.run(c => c.setPIDParameters(kp, ki, kd), ["pidParameters"]);
+    setPIDParameters = (kp: number, kd: number) =>
+        this.run(c => c.setPIDParameters(kp, kd), ["pidParameters"]);
     setControlling = (controlling: boolean) => this.run(c => c.setControlling(controlling), ["controlling", "gimbal"]);
     setPIDTarget = (target: Quaternion) => this.run(c => c.setPIDTarget(target), ["pidTarget"]);
-    startLog = (filename: string, metadata: LogMetadata) =>
-        this.run(c => c.startLog(filename, metadata), ["logging"]);
+    startLog = (filename: string, timestamp_unix: number) =>
+        this.run(c => c.startLog(filename, timestamp_unix), ["logging"]);
     finishLog = () => this.run(c => c.finishLog(), ["logging"]);
     deleteLog = (filename: string) => this.run(c => c.deleteLog(filename));
     deleteAllLogs = () => this.run(c => c.deleteAllLogs(), ["logging"]);
