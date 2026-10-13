@@ -22,7 +22,7 @@ export function RadioRocketProvider({ children }: { children: React.ReactNode })
                 flightState: r.getFlightState, countdownTime: r.getCountdownTime,
                 batteryVoltage: r.getBatteryVoltage, pyroContinuity: r.getPyroContinuity,
                 pyroHardwareArmed: r.getPyroHardwareArmed, pyroSoftwareArmed: r.getPyroSoftwareArmed,
-                pidParameters: r.getPIDParameters, pidTarget: r.getPIDTarget, controlling: r.getControlling,
+                PDParameters: r.getPDParameters, PDTarget: r.getPDTarget, controlling: r.getControlling,
                 logging: r.getLogging,
             };
         };

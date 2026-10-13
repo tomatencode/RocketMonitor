@@ -16,7 +16,7 @@ transport can instead construct `RocketStatusStore`, `RocketCommander`, and
 - Physical inputs: `pyroHardwareArmed` and `pyroContinuity:<channel>` poll every
   1500 ms while subscribed. `useRocketPyroContinuity(channels)` supports variable
   channel lists with a shared poller per channel.
-- Configuration: `pidParameters`, `pidTarget`, `controlling`, and
+- Configuration: `PDParameters`, `PDTarget`, `controlling`, and
   `pyroSoftwareArmed` are read once successfully per connection session, on demand.
   This assumes only this app changes them, not autonomous firmware or other clients.
 
@@ -27,7 +27,7 @@ transport can instead construct `RocketStatusStore`, `RocketCommander`, and
 `useRocketCommander()` exposes `startLog(filename, metadata)` and `finishLog()`;
 `useRocketStatus("logging")` reports whether a firmware log is currently open.
 Metadata includes a UNIX timestamp in **seconds**, initial/target quaternions,
-PID gains, and initial height. Filenames use 1..32 UTF-8 bytes, without NUL.
+PD gains, and initial height. Filenames use 1..32 UTF-8 bytes, without NUL.
 
 On-demand reads are also available on commander so callers need no radio imports:
 
@@ -60,7 +60,7 @@ is refused while recording and is not a secure flash wipe.
 
 The test screen lists all completed/recovered logs, with Refresh, Start/Stop Logging,
 download progress and cancellation. New recordings use a timestamped filename and
-current attitude, PID target/gains and barometric height as metadata; unavailable
+current attitude, PD target/gains and barometric height as metadata; unavailable
 values use identity attitude/zero gains/zero height (target defaults to current attitude).
 Downloads concatenate batched raw chunks and save into the OS Downloads directory
 through the Tauri `save_rocket_log` command, with a `.rcktlog` suffix. No bytes or
@@ -164,7 +164,7 @@ Disconnects clear snapshots, stop polling, and invalidate old responses; reconne
 read subscribed topics again. Failed reads retry with a 250 ms backoff.
 
 Snapshots include `value`, `error`, `hasValue`, and `lastUpdatedAt`. `hasValue`
-distinguishes a valid null (unconfigured PID or inactive countdown) from an unread
+distinguishes a valid null (unconfigured PD or inactive countdown) from an unread
 topic. Ordinary polling failures retain the last good reading and expose the error.
 
 ## Commands

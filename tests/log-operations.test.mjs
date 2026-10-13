@@ -20,12 +20,12 @@ test("recording names fit firmware limits and metadata uses current status", () 
     const target = { x: 0.2, y: 0, z: 0, w: 1 };
     assert.deepEqual(createLogMetadata(rotation, target, { kp: 1, ki: 2, kd: 3 }, 4, date.getTime()), {
         timestamp_unix: Math.floor(date.getTime() / 1000), initialRotation: rotation,
-        targetAngle: target, pidKp: 1, pidKi: 2, pidKd: 3, initialHeight_m: 4,
+        targetAngle: target, PDKp: 1, PDKi: 2, PDKd: 3, initialHeight_m: 4,
     });
     const fallback = createLogMetadata(null, null, null, null, 0);
     assert.deepEqual(fallback.initialRotation, { x: 0, y: 0, z: 0, w: 1 });
     assert.equal(fallback.targetAngle, fallback.initialRotation);
-    assert.equal(fallback.pidKp, 0);
+    assert.equal(fallback.PDKp, 0);
     assert.equal(fallback.initialHeight_m, 0);
 });
 

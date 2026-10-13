@@ -49,8 +49,8 @@ export interface FlightProfile {
     motorBurnDuration_ms: number;
     initialRotation: Quaternion;
     targetAngle: Quaternion;
-    pidKp: number;
-    pidKd: number;
+    PDKp: number;
+    PDKd: number;
     motorIgniterChannel: number;
     parachutePyroChannel: number;
     initialHeight_m: number;
@@ -114,9 +114,9 @@ export interface RocketGetters {
     getFlightLocation: () => Promise<FlightLocationData>;
     getFlightState: () => Promise<FlightState>;
     getCountdownTime: () => Promise<number | null>;
-    getPIDParameters: () => Promise<PDParameters | null>;
+    getPDParameters: () => Promise<PDParameters | null>;
     getControlling: () => Promise<boolean>;
-    getPIDTarget: () => Promise<Quaternion | null>;
+    getPDTarget: () => Promise<Quaternion | null>;
     getBatteryVoltage: () => Promise<number>;
     getLogging: () => Promise<boolean>;
 }
@@ -135,9 +135,9 @@ export interface RocketCommands {
     flashLed: (durationMs?: number) => Promise<void>;
     startCountdown: (profile: FlightProfile) => Promise<void>;
     retryDeployParachute: () => Promise<void>;
-    setPIDParameters: (kp: number, kd: number) => Promise<void>;
+    setPDParameters: (kp: number, kd: number) => Promise<void>;
     setControlling: (controlling: boolean) => Promise<void>;
-    setPIDTarget: (target: Quaternion) => Promise<void>;
+    setPDTarget: (target: Quaternion) => Promise<void>;
     startLog: (filename: string, timestamp_unix: number) => Promise<void>;
     finishLog: () => Promise<void>;
     /** Removes a closed log entry; does not reclaim flash space. */

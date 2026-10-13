@@ -10,7 +10,7 @@ import { BuzzerPanel } from "../ControlPanels/BuzzerPanel/BuzzerPanel";
 import { LedPanel } from "../ControlPanels/LedPanel/LedPanel";
 import { BatteryPanel } from "../ControlPanels/BatteryPanel/BatteryPanel";
 import { RotationPanel } from "../ControlPanels/RotationPanel/RotationPanel";
-import { PIDPanel } from "../ControlPanels/PIDPanel/PIDPanel";
+import { PDPanel } from "../ControlPanels/PDPanel/PDPanel";
 import { LoggingPanel } from "../ControlPanels/LoggingPanel/LoggingPanel";
 
 export default function TestPanels() {
@@ -34,7 +34,7 @@ export default function TestPanels() {
 					<BuzzerPanel />
 					<LedPanel />
 					<RotationPanel />
-					<PIDPanel />
+					<PDPanel />
 					<LoggingPanel />
 				</div>
 				<div className="w-80 shrink-0 flex flex-col py-3 pr-3 gap-3 pointer-events-none [&>*]:shrink-0">

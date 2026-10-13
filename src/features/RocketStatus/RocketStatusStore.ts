@@ -1,7 +1,7 @@
 import type { RocketGetters } from "./rocketTypes";
 
 type TopicName<Name extends string> = Name extends "IMU" ? "imu"
-    : Name extends `PID${infer Rest}` ? `pid${Rest}` : Uncapitalize<Name>;
+    : Name extends `PD${infer Rest}` ? `PD${Rest}` : Uncapitalize<Name>;
 
 export type RocketStatusTopics = {
     [K in keyof RocketGetters as K extends `get${infer Name}` ? TopicName<Name> : never]:
@@ -19,7 +19,7 @@ export type TopicPollers = {
 export interface RocketStatusValue<T> {
     value: T | null;
     error: string | null;
-    /** True even when a successful getter returned null (e.g. unconfigured PID). */
+    /** True even when a successful getter returned null (e.g. unconfigured PD). */
     hasValue: boolean;
     lastUpdatedAt: number | null;
 }
@@ -28,7 +28,7 @@ const EMPTY_SNAPSHOT: RocketStatusValue<never> = Object.freeze({
     value: null, error: null, hasValue: false, lastUpdatedAt: null,
 });
 const CACHED_TOPICS = new Set<RocketStatusTopic>([
-    "pidParameters", "pidTarget", "controlling", "pyroSoftwareArmed", "logging",
+    "PDParameters", "PDTarget", "controlling", "pyroSoftwareArmed", "logging",
 ]);
 const ERROR_RETRY_MS = 250;
 const HARDWARE_POLL_MS = 1500;

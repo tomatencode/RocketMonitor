@@ -47,14 +47,14 @@ export class RocketCommander implements RocketCommands, RocketLogReader {
         this.run(c => c.calibrateBaroHeight(height_m), ["baroHeight", "flightLocation"]);
     flashLed = (durationMs?: number) => this.run(c => c.flashLed(durationMs));
     startCountdown = (profile: FlightProfile) => this.run(c => c.startCountdown(profile), [
-        ...this.flightTopics(), "rotation", "baroHeight", "pidParameters", "pidTarget",
+        ...this.flightTopics(), "rotation", "baroHeight", "PDParameters", "PDTarget",
         "pyroSoftwareArmed",
     ]);
     retryDeployParachute = () => this.run(c => c.retryDeployParachute(), this.flightTopics());
-    setPIDParameters = (kp: number, kd: number) =>
-        this.run(c => c.setPIDParameters(kp, kd), ["pidParameters"]);
+    setPDParameters = (kp: number, kd: number) =>
+        this.run(c => c.setPDParameters(kp, kd), ["PDParameters"]);
     setControlling = (controlling: boolean) => this.run(c => c.setControlling(controlling), ["controlling", "gimbal"]);
-    setPIDTarget = (target: Quaternion) => this.run(c => c.setPIDTarget(target), ["pidTarget"]);
+    setPDTarget = (target: Quaternion) => this.run(c => c.setPDTarget(target), ["PDTarget"]);
     startLog = (filename: string, timestamp_unix: number) =>
         this.run(c => c.startLog(filename, timestamp_unix), ["logging"]);
     finishLog = () => this.run(c => c.finishLog(), ["logging"]);

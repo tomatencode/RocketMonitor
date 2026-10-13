@@ -21,8 +21,8 @@ test("START_COUNTDOWN matches the 54-byte firmware PD profile layout", async () 
         motorBurnDuration_ms: 3000,
         initialRotation: { x: 0, y: 0, z: 0, w: 1 },
         targetAngle: { x: -0.5, y: 0.5, z: 0, w: 1 },
-        pidKp: 1.25,
-        pidKd: -0.5,
+        PDKp: 1.25,
+        PDKd: -0.5,
         motorIgniterChannel: 2,
         parachutePyroChannel: 7,
         initialHeight_m: -10.25,
@@ -38,24 +38,24 @@ test("START_COUNTDOWN matches the 54-byte firmware PD profile layout", async () 
     assert.equal(view.getInt32(50, true), -1025);
 });
 
-test("PD parameter commands use the existing PID message IDs with two gains", async () => {
+test("PD parameter commands use the existing PD message IDs with two gains", async () => {
     const encodedParameters = new Uint8Array(8);
     const encodedView = new DataView(encodedParameters.buffer);
     encodedView.setInt32(0, 125, true);
     encodedView.setInt32(4, -50, true);
     const { commands, calls } = setup(type =>
-        type === MessageType.GET_PID_PARAMETERS ? success(encodedParameters) : success());
+        type === MessageType.GET_PD_PARAMETERS ? success(encodedParameters) : success());
 
-    await commands.setPIDParameters(1.25, -0.5);
-    assert.equal(calls[0].type, MessageType.SET_PID_PARAMETERS);
+    await commands.setPDParameters(1.25, -0.5);
+    assert.equal(calls[0].type, MessageType.SET_PD_PARAMETERS);
     assert.equal(calls[0].payload.length, 8);
     assert.deepEqual([...calls[0].payload], [...encodedParameters]);
 
-    assert.deepEqual(await commands.getPIDParameters(), { kp: 1.25, kd: -0.5 });
-    assert.equal(calls[1].type, MessageType.GET_PID_PARAMETERS);
+    assert.deepEqual(await commands.getPDParameters(), { kp: 1.25, kd: -0.5 });
+    assert.equal(calls[1].type, MessageType.GET_PD_PARAMETERS);
 });
 
-test("GET_PID_PARAMETERS rejects a response shorter than the PD payload", async () => {
+test("GET_PD_PARAMETERS rejects a response shorter than the PD payload", async () => {
     const { commands } = setup(() => success(new Uint8Array(7)));
-    await assert.rejects(commands.getPIDParameters(), /invalid payload/);
+    await assert.rejects(commands.getPDParameters(), /invalid payload/);
 });

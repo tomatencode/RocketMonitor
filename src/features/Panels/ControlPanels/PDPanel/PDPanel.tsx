@@ -5,13 +5,13 @@ import { Button } from "../../../../shared/components/primitives/Button";
 import { Card } from "../../../../shared/components/elements/Card";
 import { Input } from "../../../../shared/components/primitives/Input";
 import { PanelHeader } from "../../../../shared/components/elements/PanelHeader";
-import { PidIcon } from "../../../../shared/components/elements/Icons";
+import { PDIcon } from "../../../../shared/components/elements/Icons";
 import { StatusDot } from "../../../../shared/components/elements/StatusDot";
 import { StatusPill } from "../../../../shared/components/elements/StatusPill";
 import { StatusTile } from "../../../../shared/components/elements/StatusTile";
-import { usePIDStatus } from "./usePIDStatus";
+import { usePDStatus } from "./usePDStatus";
 
-export interface PIDPanelProps {
+export interface PDPanelProps {
     className?: string;
 }
 
@@ -39,10 +39,10 @@ function controllingPill(state: ControllingState) {
  * Sets the firmware's PD gains (Kp/Kd) and starts/stops the attitude
  * controller. Shows the live gains + controlling state polled from the rocket.
  */
-export function PIDPanel({ className = "" }: PIDPanelProps) {
+export function PDPanel({ className = "" }: PDPanelProps) {
     const connected = useRocketConnected();
-    const { setPIDParameters, setControlling } = useRocketCommander();
-    const { parameters, controlling, error: pollError } = usePIDStatus();
+    const { setPDParameters, setControlling } = useRocketCommander();
+    const { parameters, controlling, error: pollError } = usePDStatus();
 
     // Gain inputs mirror the last polled values until the user edits them.
     const [kpInput, setKpInput] = useState("");
@@ -70,7 +70,7 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
         setActionError(null);
         setSending(true);
         try {
-            await setPIDParameters(kp, kd);
+            await setPDParameters(kp, kd);
             // Commander requests confirmed status; preserve inputs until editing ends.
         } catch (e) {
             setActionError(e instanceof Error ? e.message : String(e));
@@ -99,7 +99,7 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
     return (
         <Card className={`p-3 flex flex-col gap-2 ${className}`}>
             <PanelHeader
-                icon={<PidIcon />}
+                icon={<PDIcon />}
                 title="PD Controller"
                 subtitle="Kp / Kd gains"
                 connected={connected}
@@ -193,4 +193,4 @@ export function PIDPanel({ className = "" }: PIDPanelProps) {
     );
 }
 
-export default PIDPanel;
+export default PDPanel;

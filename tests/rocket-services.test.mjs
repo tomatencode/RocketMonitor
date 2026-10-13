@@ -20,16 +20,16 @@ function setup(t, pollers) {
 
 test("cached settings share one successful read, including null, across remounts", async t => {
     let reads = 0;
-    const store = setup(t, { pidParameters: async () => { reads++; return null; } });
+    const store = setup(t, { PDParameters: async () => { reads++; return null; } });
     const listener = () => {};
-    const a = store.subscribe("pidParameters", listener);
-    const b = store.subscribe("pidParameters", listener);
+    const a = store.subscribe("PDParameters", listener);
+    const b = store.subscribe("PDParameters", listener);
     await tick();
     assert.equal(reads, 1);
-    assert.equal(store.getSnapshot("pidParameters").hasValue, true);
-    assert.equal(store.getSnapshot("pidParameters").value, null);
+    assert.equal(store.getSnapshot("PDParameters").hasValue, true);
+    assert.equal(store.getSnapshot("PDParameters").value, null);
     a(); b();
-    const c = store.subscribe("pidParameters", listener);
+    const c = store.subscribe("PDParameters", listener);
     await tick();
     assert.equal(reads, 1);
     c();
@@ -37,10 +37,10 @@ test("cached settings share one successful read, including null, across remounts
 
 test("all four command-only settings stop after one successful read", async t => {
     const counts = {};
-    const topics = ["pidParameters", "pidTarget", "controlling", "pyroSoftwareArmed"];
+    const topics = ["PDParameters", "PDTarget", "controlling", "pyroSoftwareArmed"];
     const pollers = Object.fromEntries(topics.map(topic => [topic, async () => {
         counts[topic] = (counts[topic] ?? 0) + 1;
-        return topic.startsWith("pid") ? null : false;
+        return topic.startsWith("PD") ? null : false;
     }]));
     const store = setup(t, pollers);
     topics.forEach(topic => store.subscribe(topic, () => {}));
@@ -97,16 +97,16 @@ test("reconnect ignores an old in-flight response and starts a fresh read", asyn
 test("a setter invalidates an older read and publishes firmware readback, not input", async t => {
     const old = deferred();
     let reads = 0;
-    const store = setup(t, { pidParameters: () => ++reads === 1 ? old.promise :
+    const store = setup(t, { PDParameters: () => ++reads === 1 ? old.promise :
         Promise.resolve({ kp: 1.23, kd: 0 }) });
-    store.subscribe("pidParameters", () => {});
-    const commander = new RocketCommander(() => ({ setPIDParameters: async () => {} }), store);
-    await commander.setPIDParameters(1.23456, 0);
-    assert.equal(store.getSnapshot("pidParameters").hasValue, false);
+    store.subscribe("PDParameters", () => {});
+    const commander = new RocketCommander(() => ({ setPDParameters: async () => {} }), store);
+    await commander.setPDParameters(1.23456, 0);
+    assert.equal(store.getSnapshot("PDParameters").hasValue, false);
     old.resolve({ kp: 99, kd: 99 });
     await tick();
     assert.equal(reads, 2);
-    assert.deepEqual(store.getSnapshot("pidParameters").value, { kp: 1.23, kd: 0 });
+    assert.deepEqual(store.getSnapshot("PDParameters").value, { kp: 1.23, kd: 0 });
 });
 
 test("commander refreshes configuration even without subscribers", async t => {
@@ -202,9 +202,9 @@ test("all low-level mutations reject firmware FAILURE", async () => {
         setPyroSoftwareArmed: [true], setRotation: [q], setAccumulatingRotation: [true],
         abortFlight: [], endFlight: [], calibrateBaroHeight: [0], flashLed: [],
         startCountdown: [{ countdownDuration_ms: 5000, motorBurnDuration_ms: 3000,
-            initialRotation: q, targetAngle: q, pidKp: 0, pidKd: 0,
+            initialRotation: q, targetAngle: q, PDKp: 0, PDKd: 0,
             motorIgniterChannel: 0, parachutePyroChannel: 1, initialHeight_m: 0 }],
-        retryDeployParachute: [], setPIDParameters: [0, 0], setControlling: [true], setPIDTarget: [q],
+        retryDeployParachute: [], setPDParameters: [0, 0], setControlling: [true], setPDTarget: [q],
     };
     for (const [name, parameters] of Object.entries(args)) {
         await assert.rejects(commands[name](...parameters), /rejected/, name);
@@ -223,7 +223,7 @@ test("commander wraps every mutation and forwards its arguments", async t => {
         setPyroSoftwareArmed: [true], setRotation: [q], setAccumulatingRotation: [false],
         abortFlight: [], endFlight: [], calibrateBaroHeight: [12], flashLed: [100],
         startCountdown: [{ initialRotation: q }], retryDeployParachute: [],
-        setPIDParameters: [1, 2], setControlling: [false], setPIDTarget: [q],
+        setPDParameters: [1, 2], setControlling: [false], setPDTarget: [q],
     };
     for (const [name, args] of Object.entries(cases)) await commander[name](...args);
     assert.deepEqual(forwarded, Object.entries(cases));

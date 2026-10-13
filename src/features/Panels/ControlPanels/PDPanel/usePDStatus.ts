@@ -1,11 +1,11 @@
 import { useRocketConnected, useRocketStatus } from "../../../RocketStatus/RocketStatusContext";
 
-export type PIDStatus = ReturnType<typeof usePIDStatus>;
+export type PDStatus = ReturnType<typeof usePDStatus>;
 
 /** Commander refreshes this shared session-cached status after setters. */
-export function usePIDStatus() {
+export function usePDStatus() {
     const connected = useRocketConnected();
-    const parameters = useRocketStatus("pidParameters");
+    const parameters = useRocketStatus("PDParameters");
     const controlling = useRocketStatus("controlling");
     return {
         parameters: connected ? parameters.value : null,

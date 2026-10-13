@@ -287,8 +287,8 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         encodeU32(profile.motorBurnDuration_ms, payload, 4);
         encodeQuaternion(profile.initialRotation, payload, 8);
         encodeQuaternion(profile.targetAngle, payload, 24);
-        encode32(profile.pidKp, payload, 40);
-        encode32(profile.pidKd, payload, 44);
+        encode32(profile.PDKp, payload, 40);
+        encode32(profile.PDKd, payload, 44);
         payload[48] = profile.motorIgniterChannel;
         payload[49] = profile.parachutePyroChannel;
         encode32(profile.initialHeight_m, payload, 50);
@@ -302,17 +302,17 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         ensureSuccess(response.status, "RETRY_DEPLOY_PARACHUTE");
     };
 
-    const setPIDParameters = async (kp: number, kd: number): Promise<void> => {
+    const setPDParameters = async (kp: number, kd: number): Promise<void> => {
         const payload = new Uint8Array(8);
         encode32(kp, payload, 0);
         encode32(kd, payload, 4);
-        const response = await sendMessage(MessageType.SET_PID_PARAMETERS, payload);
-        ensureSuccess(response.status, "SET_PID_PARAMETERS");
+        const response = await sendMessage(MessageType.SET_PD_PARAMETERS, payload);
+        ensureSuccess(response.status, "SET_PD_PARAMETERS");
     };
 
     /** Returns null until both PD gains have been configured on the firmware. */
-    const getPIDParameters = async (): Promise<PDParameters | null> => {
-        const response = await sendMessage(MessageType.GET_PID_PARAMETERS);
+    const getPDParameters = async (): Promise<PDParameters | null> => {
+        const response = await sendMessage(MessageType.GET_PD_PARAMETERS);
 
         // FAILURE is the normal "not configured yet" outcome, not an error.
         if (response.status === ResponseStatus.FAILURE) {
@@ -320,7 +320,7 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         }
 
         if (!response.payload || response.payload.byteLength < 8) {
-            throw new Error("GET_PID_PARAMETERS response has an invalid payload");
+            throw new Error("GET_PD_PARAMETERS response has an invalid payload");
         }
 
         const payload = response.payload;
@@ -346,16 +346,16 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         return response.payload[0] !== 0;
     };
 
-    const setPIDTarget = async (target: Quaternion): Promise<void> => {
+    const setPDTarget = async (target: Quaternion): Promise<void> => {
         const payload = new Uint8Array(QUATERNION_ENCODED_SIZE);
         encodeQuaternion(target, payload, 0);
-        const response = await sendMessage(MessageType.SET_PID_TARGET, payload);
-        ensureSuccess(response.status, "SET_PID_TARGET");
+        const response = await sendMessage(MessageType.SET_PD_TARGET, payload);
+        ensureSuccess(response.status, "SET_PD_TARGET");
     };
 
     /** Returns null until a target attitude has been configured on the firmware. */
-    const getPIDTarget = async (): Promise<Quaternion | null> => {
-        const response = await sendMessage(MessageType.GET_PID_TARGET);
+    const getPDTarget = async (): Promise<Quaternion | null> => {
+        const response = await sendMessage(MessageType.GET_PD_TARGET);
 
         // FAILURE is the normal "not configured yet" outcome, not an error.
         if (response.status === ResponseStatus.FAILURE) {
@@ -363,7 +363,7 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         }
 
         if (!response.payload || response.payload.byteLength < QUATERNION_ENCODED_SIZE) {
-            throw new Error("GET_PID_TARGET response has an invalid payload");
+            throw new Error("GET_PD_TARGET response has an invalid payload");
         }
 
         return decodeQuaternion(response.payload, 0);
@@ -517,12 +517,12 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         flashLed,
         startCountdown,
         retryDeployParachute,
-        setPIDParameters,
-        getPIDParameters,
+        setPDParameters,
+        getPDParameters,
         setControlling,
         getControlling,
-        setPIDTarget,
-        getPIDTarget,
+        setPDTarget,
+        getPDTarget,
         getBatteryVoltage,
         startLog,
         finishLog,

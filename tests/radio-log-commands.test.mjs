@@ -10,7 +10,7 @@ const metadata = {
     timestamp_unix: 0x12345678,
     initialRotation: { x: 0, y: 0, z: 0, w: 1 },
     targetAngle: { x: -0.5, y: 0.5, z: 0, w: 1 },
-    pidKp: 1.25, pidKi: -2.5, pidKd: 0.75, initialHeight_m: -10.25,
+    PDKp: 1.25, PDKi: -2.5, PDKd: 0.75, initialHeight_m: -10.25,
 };
 const success = payload => ({ status: 0, payload });
 function mock(response) {
@@ -101,7 +101,7 @@ test("invalid filenames and numeric ranges fail before sending", async () => {
     for (const index of [-1, 0x100000000, 0.5]) await assert.rejects(commands.getLogChunk(1, index), /index/);
     for (const session of [0, -1, 0x100000000, 1.5]) await assert.rejects(commands.stopLogDownload(session), /session/);
     await assert.rejects(commands.startLog("f", { ...metadata, timestamp_unix: -1 }), /timestamp/);
-    await assert.rejects(commands.startLog("f", { ...metadata, pidKp: Infinity }), /fixed-point/);
+    await assert.rejects(commands.startLog("f", { ...metadata, PDKp: Infinity }), /fixed-point/);
     assert.equal(calls.length, 0);
 });
 

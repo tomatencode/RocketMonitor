@@ -79,8 +79,8 @@ export function RotationIcon(props: SVGProps<SVGSVGElement>) {
     );
 }
 
-/** Three horizontal sliders — header icon for the PID tuning panel. */
-export function PidIcon(props: SVGProps<SVGSVGElement>) {
+/** Three horizontal sliders — header icon for the PD tuning panel. */
+export function PDIcon(props: SVGProps<SVGSVGElement>) {
     return (
         <IconBase {...props}>
             <path d="M4 7h16" />
