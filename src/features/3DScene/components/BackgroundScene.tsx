@@ -5,8 +5,10 @@ import { PolarGround } from "./PolarGround";
 import { RocketModel } from "./RocketModel";
 import { GroundSpotlight } from "./GroundSpotlight";
 import { CameraFrameOffset } from "./CameraFrameOffset";
+import { CameraFollowTarget } from "./CameraFollowTarget";
 import { useGroundClampedZoom } from "./useGroundClampedZoom";
 import { useRocketOrientation } from "../useRocketOrientation";
+import { useRocketLocation } from "../useRocketLocation"; 
 
 const GROUND_SPOTLIGHT_RADIUS = 0.3;
 const GROUND_SPOTLIGHT_COUNT = 4;
@@ -28,7 +30,7 @@ const groundSpotlights = Array.from({ length: GROUND_SPOTLIGHT_COUNT }, (_, inde
 
 export default function BackgroundScene() {
   const { controlsRef, handleControlsChange } = useGroundClampedZoom();
-  const RocketPosition: [number, number, number] = [0, 0.155, 0];
+  const RocketPosition = useRocketLocation();
   const RocketRotation = useRocketOrientation();
 
 
@@ -43,7 +45,6 @@ export default function BackgroundScene() {
     <div className="pointer-events-none absolute inset-0 z-0">
       <Canvas camera={{ position: [0.4, 0.35, 0.4], fov: 60 }} shadows dpr={[1, 2]}>
         <color attach="background" args={["#060606"]} />
-        <fog attach="fog" args={["#060606", 5, 20]} />
 
         <ambientLight intensity={0.5} />
         <directionalLight
@@ -68,9 +69,9 @@ export default function BackgroundScene() {
         ))}
 
         <CameraFrameOffset verticalOffset={0.15} />
+        <CameraFollowTarget controlsRef={controlsRef} target={target} />
         <OrbitControls
           ref={controlsRef}
-          target={target}
           enablePan={false}
           enableZoom={true}
           autoRotate

@@ -203,6 +203,7 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
     const recording = connected && logging.hasValue && logging.value === true;
     const label = !connected ? "Offline" : !logging.hasValue || logging.value === null ? "Unknown" : logging.value ? "Recording" : "Stopped";
     const downloadPercent = progress.total > 0 ? Math.min(100, Math.round(progress.received / progress.total * 100)) : null;
+    const confirmingDeleteAll = isLogDeleteConfirmed(pendingDelete, { all: true });
     return (
         <Card className={`min-w-0 p-3 flex flex-col gap-3 ${className}`}>
             <PanelHeader icon={<LogFileIcon aria-hidden="true" />} title="Rocket Logs" connected={connected} subtitle="onboard recording"
@@ -223,12 +224,25 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
                         <span className="text-[10px] uppercase tracking-wider text-zinc-500">Saved logs</span>
                         {loaded && <span className="rounded border border-zinc-700/60 bg-zinc-800/50 px-1.5 text-[10px] tabular-nums text-zinc-400">{logs.length}</span>}
                     </div>
-                    <Button variant="ghost" className="flex items-center gap-1.5 px-2 py-1 text-[10px] disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-zinc-400"
-                        disabled={!connected || busy || listing} aria-label="Refresh rocket logs"
-                        onClick={() => { store.refresh("logging"); void refreshLogs(); }}>
-                        <RefreshIcon aria-hidden="true" className={`h-3 w-3 ${listing ? "animate-spin motion-reduce:animate-none" : ""}`} />
-                        {listing ? "Refreshing..." : "Refresh"}
-                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Button variant="ghost" className="flex items-center gap-1.5 px-2 py-1 text-[10px] disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-zinc-400"
+                            disabled={!connected || busy || listing} aria-label="Refresh rocket logs"
+                            onClick={() => { store.refresh("logging"); void refreshLogs(); }}>
+                            <RefreshIcon aria-hidden="true" className={`h-3 w-3 ${listing ? "animate-spin motion-reduce:animate-none" : ""}`} />
+                            {listing ? "Refreshing..." : "Refresh"}
+                        </Button>
+                        <Button variant={confirmingDeleteAll ? "warning" : "ghost"}
+                            className={`flex items-center gap-1 px-2 py-1 text-[10px] disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-zinc-400 ${confirmingDeleteAll ? "" : "hover:text-red-300 hover:border-red-800/60"}`}
+                            disabled={!canDeleteAll || logs.length === 0}
+                            title={confirmingDeleteAll
+                                ? "Click again within five seconds to permanently delete all logs from the rocket"
+                                : "Delete all rocket logs and reclaim flash space"}
+                            aria-label={confirmingDeleteAll ? "Confirm deletion of all rocket logs" : "Delete all rocket logs"}
+                            onClick={() => void handleDeleteClick({ all: true })}>
+                            <TrashIcon aria-hidden="true" className="h-3 w-3" />
+                            {confirmingDeleteAll ? "Confirm?" : "all"}
+                        </Button>
+                    </div>
                 </div>
                 <div className="max-h-48 overflow-y-auto flex flex-col gap-1.5" aria-label="Rocket log files" aria-busy={listing}>
                     {(listing || !connected || logs.length === 0) && <Card variant="empty" className="flex flex-col items-center gap-1 px-3 py-2 text-center" role="status">
