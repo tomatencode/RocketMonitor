@@ -55,8 +55,8 @@ export class RocketCommander implements RocketCommands, RocketLogReader {
         this.run(c => c.setPDParameters(kp, kd), ["PDParameters"]);
     setControlling = (controlling: boolean) => this.run(c => c.setControlling(controlling), ["controlling", "gimbal"]);
     setPDTarget = (target: Quaternion) => this.run(c => c.setPDTarget(target), ["PDTarget"]);
-    startLog = (filename: string, timestamp_unix: number) =>
-        this.run(c => c.startLog(filename, timestamp_unix), ["logging"]);
+    startLog = (filename: string) =>
+        this.run(c => c.startLog(filename), ["logging"]);
     finishLog = () => this.run(c => c.finishLog(), ["logging"]);
     deleteLog = (filename: string) => this.run(c => c.deleteLog(filename));
     deleteAllLogs = () => this.run(c => c.deleteAllLogs(), ["logging"]);

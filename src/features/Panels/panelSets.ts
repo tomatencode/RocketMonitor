@@ -2,7 +2,7 @@ import type { ComponentType, SVGProps } from "react";
 import { accentColor1, accentColor2 } from "../../shared/styles";
 import LaunchPanels from "./Sets/LaunchPanels";
 import TestPanels from "./Sets/TestPanels";
-import { LaunchIcon, TestIcon } from "./PanelSetIcons";
+import { RocketIcon, TestIcon } from "../../shared/components/elements/Icons";
 
 /** A monochrome SVG icon used to represent a panel set in the selector. */
 export type PanelSetIcon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -35,7 +35,7 @@ export const PANEL_SETS: PanelSet[] = [
         id: "launch",
         label: "Launch",
         description: "Configure flight",
-        icon: LaunchIcon,
+        icon: RocketIcon,
         color: accentColor1,
         Component: LaunchPanels,
     },

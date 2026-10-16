@@ -132,6 +132,16 @@ export function RocketIcon(props: SVGProps<SVGSVGElement>) {
     );
 }
 
+export function TestIcon(props: SVGProps<SVGSVGElement>) {
+    return (
+        <IconBase {...props}>
+            <path d="M9 3h6" />
+            <path d="M10 3v6l-4.3 8.4A2 2 0 0 0 7.5 20.5h9A2 2 0 0 0 18.3 17.4L14 9V3" />
+            <path d="M7.2 15h9.6" />
+        </IconBase>
+    );
+}
+
 /** Waste bin — remove an onboard file. */
 export function TrashIcon(props: SVGProps<SVGSVGElement>) {
     return (

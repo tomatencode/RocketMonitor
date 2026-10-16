@@ -381,12 +381,10 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         return decode16(response.payload, 0);
     };
 
-    const startLog = async (filename: string, timestamp_unix: number): Promise<void> => {
+    const startLog = async (filename: string): Promise<void> => {
         const name = encodeLogFilename(filename);
-        ensureUnsigned(timestamp_unix, 0xffffffff, "Log timestamp");
-        const payload = new Uint8Array(4 + name.length);
-        encodeU32(timestamp_unix, payload, 0);
-        payload.set(name, 4);
+        const payload = new Uint8Array(name.length);
+        payload.set(name, 0);
         const response = await sendMessage(MessageType.START_LOG, payload);
         ensureSuccess(response.status, "START_LOG");
     };

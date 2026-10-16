@@ -127,7 +127,7 @@ export function LoggingPanel({ className = "" }: LoggingPanelProps) {
         setError(null);
         try {
             if (logging.value) await commander.finishLog();
-            else await commander.startLog(createLogFilename(), Math.floor(Date.now() / 1000));
+            else await commander.startLog(createLogFilename());
             if (!controller.signal.aborted) await refreshLogs();
         } catch (e) {
             if (!controller.signal.aborted) setError(e instanceof Error ? e.message : String(e));

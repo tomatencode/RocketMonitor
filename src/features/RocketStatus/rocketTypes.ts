@@ -138,7 +138,7 @@ export interface RocketCommands {
     setPDParameters: (kp: number, kd: number) => Promise<void>;
     setControlling: (controlling: boolean) => Promise<void>;
     setPDTarget: (target: Quaternion) => Promise<void>;
-    startLog: (filename: string, timestamp_unix: number) => Promise<void>;
+    startLog: (filename: string) => Promise<void>;
     finishLog: () => Promise<void>;
     /** Removes a closed log entry; does not reclaim flash space. */
     deleteLog: (filename: string) => Promise<void>;
