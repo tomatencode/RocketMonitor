@@ -45,15 +45,13 @@ export enum FlightState {
 }
 
 export interface FlightProfile {
-    countdownDuration_ms: number;
-    motorBurnDuration_ms: number;
+    /** Non-empty UTF-8 name, at most 32 bytes and no NUL characters. */
+    flightName: string;
     initialRotation: Quaternion;
-    targetAngle: Quaternion;
     PDKp: number;
     PDKd: number;
     motorIgniterChannel: number;
     parachutePyroChannel: number;
-    initialHeight_m: number;
 }
 
 /** Mirrors the firmware's ControlPD::PDParameters (controlPD/ControlPD.hpp). */

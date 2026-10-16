@@ -12,6 +12,7 @@ import { encodeLogFilename, decodeLogFilename } from "./codecs/logFilename";
 
 import type { IMUData, BaroData, RotationData, GimbalData, FlightLocationData, PDParameters, FlightProfile } from "../RocketStatus/rocketTypes";
 import { FlightState } from "../RocketStatus/rocketTypes";
+import { validateFlightProfile } from "../RocketStatus/flightProfile";
 import type { LogListPage, LogDownloadSession, LogDownloadChunk } from "../RocketStatus/rocketTypes";
 export * from "../RocketStatus/rocketTypes";
 
@@ -280,18 +281,18 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     };
 
     // Starts the launch countdown; throws if the firmware refuses (not IDLE or preflight failed).
-    // See FlightProfile for the countdown/burn durations, attitude, PD gains, pyro channels and start height.
+    // Name uses StringCodec (u8 UTF-8 length + bytes), followed by the 26-byte profile.
     const startCountdown = async (profile: FlightProfile): Promise<void> => {
-        const payload = new Uint8Array(54);
-        encodeU32(profile.countdownDuration_ms, payload, 0);
-        encodeU32(profile.motorBurnDuration_ms, payload, 4);
-        encodeQuaternion(profile.initialRotation, payload, 8);
-        encodeQuaternion(profile.targetAngle, payload, 24);
-        encode32(profile.PDKp, payload, 40);
-        encode32(profile.PDKd, payload, 44);
-        payload[48] = profile.motorIgniterChannel;
-        payload[49] = profile.parachutePyroChannel;
-        encode32(profile.initialHeight_m, payload, 50);
+        validateFlightProfile(profile);
+        const name = encodeLogFilename(profile.flightName);
+        const payload = new Uint8Array(name.length + 26);
+        payload.set(name);
+        const offset = name.length;
+        encodeQuaternion(profile.initialRotation, payload, offset);
+        encode32(profile.PDKp, payload, offset + 16);
+        encode32(profile.PDKd, payload, offset + 20);
+        payload[offset + 24] = profile.motorIgniterChannel;
+        payload[offset + 25] = profile.parachutePyroChannel;
         const response = await sendMessage(MessageType.START_COUNTDOWN, payload);
         ensureSuccess(response.status, "START_COUNTDOWN");
     };

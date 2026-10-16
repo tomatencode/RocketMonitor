@@ -201,9 +201,8 @@ test("all low-level mutations reject firmware FAILURE", async () => {
         setGimbalPos: [0, 0], beepBuzzer: [], firePyroChanel: [0, 200],
         setPyroSoftwareArmed: [true], setRotation: [q], setAccumulatingRotation: [true],
         abortFlight: [], endFlight: [], calibrateBaroHeight: [0], flashLed: [],
-        startCountdown: [{ countdownDuration_ms: 5000, motorBurnDuration_ms: 3000,
-            initialRotation: q, targetAngle: q, PDKp: 0, PDKd: 0,
-            motorIgniterChannel: 0, parachutePyroChannel: 1, initialHeight_m: 0 }],
+        startCountdown: [{ flightName: "Flight 1", initialRotation: q, PDKp: 0, PDKd: 0,
+            motorIgniterChannel: 0, parachutePyroChannel: 1 }],
         retryDeployParachute: [], setPDParameters: [0, 0], setControlling: [true], setPDTarget: [q],
     };
     for (const [name, parameters] of Object.entries(args)) {
@@ -222,7 +221,8 @@ test("commander wraps every mutation and forwards its arguments", async t => {
         setGimbalPos: [1, 2], beepBuzzer: [], firePyroChanel: [7, 100],
         setPyroSoftwareArmed: [true], setRotation: [q], setAccumulatingRotation: [false],
         abortFlight: [], endFlight: [], calibrateBaroHeight: [12], flashLed: [100],
-        startCountdown: [{ initialRotation: q }], retryDeployParachute: [],
+        startCountdown: [{ flightName: "Flight 1", initialRotation: q, PDKp: 1, PDKd: 2,
+            motorIgniterChannel: 0, parachutePyroChannel: 1 }], retryDeployParachute: [],
         setPDParameters: [1, 2], setControlling: [false], setPDTarget: [q],
     };
     for (const [name, args] of Object.entries(cases)) await commander[name](...args);
