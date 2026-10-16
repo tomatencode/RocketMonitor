@@ -25,4 +25,9 @@ test("flight profile form exposes the named flight, burn duration, pyro, PD and 
     }
     assert.doesNotMatch(html, /Countdown \(ms\)|Burn \(ms\)|Initial height|Target [XYZ]/);
     assert.match(html, /disabled=""/);
+    const profile = html.match(/<div[^>]*aria-label="Flight profile">([\s\S]*?)<\/fieldset><\/div><\/div>/)?.[1];
+    assert.ok(profile, "all configuration sections share the flight profile card");
+    assert.equal((profile.match(/<input /g) ?? []).length, 9);
+    assert.equal((profile.match(/<fieldset /g) ?? []).length, 2);
+    assert.doesNotMatch(profile, /Launch control|bg-zinc-900\/40/);
 });

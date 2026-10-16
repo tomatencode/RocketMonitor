@@ -121,6 +121,17 @@ export function RefreshIcon(props: SVGProps<SVGSVGElement>) {
     );
 }
 
+/** Rocket and exhaust — flight control and launch actions. */
+export function RocketIcon(props: SVGProps<SVGSVGElement>) {
+    return (
+        <IconBase {...props}>
+            <path d="M12 3c-3 3-4 6-4 10l4 3 4-3c0-4-1-7-4-10Z" />
+            <circle cx="12" cy="9" r="1.5" />
+            <path d="m8 10-4 5v3l4-2m8-6 4 5v3l-4-2M10 19l-1 2m5-2 1 2m-3-3v4" />
+        </IconBase>
+    );
+}
+
 /** Waste bin — remove an onboard file. */
 export function TrashIcon(props: SVGProps<SVGSVGElement>) {
     return (
