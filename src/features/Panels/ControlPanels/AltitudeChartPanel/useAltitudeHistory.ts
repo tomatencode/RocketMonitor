@@ -21,16 +21,16 @@ const MAX_SAMPLES = 100;
  * traffic.
  */
 export function useAltitudeHistory(): AltitudeHistory {
-    const { value: height, error } = useRocketStatus("baroHeight");
+    const { value: height, error, lastUpdatedAt } = useRocketStatus("baroHeight");
 
     const [altitude, setAltitude] = useState<LineSample[]>([]);
     const startRef = useRef(Date.now());
 
     useEffect(() => {
-        if (height === null) return;
+        if (height === null || lastUpdatedAt === null) return;
         const t = (Date.now() - startRef.current) / 1000;
         setAltitude(prev => [...prev.slice(-MAX_SAMPLES), { x: t, y: height }]);
-    }, [height]);
+    }, [height, lastUpdatedAt]);
 
     const reset = useCallback(() => {
         startRef.current = Date.now();
