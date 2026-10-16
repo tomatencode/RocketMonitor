@@ -12,5 +12,5 @@ export function useRocketLocation(): RocketPosition {
     const { value } = useRocketStatus("flightLocation");
     if (!value) return [0, 0, 0];
     const { posX_m, posY_m, height_m } = value as FlightLocationData;
-    return [posX_m, height_m, posY_m];
+    return [posX_m, height_m + 0.155, posY_m];
 }
