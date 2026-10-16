@@ -15,6 +15,10 @@ export function validateFlightProfile(profile: FlightProfile): void {
             throw new Error("Pyro channels must be whole numbers from 0 to 255.");
         }
     }
+    if (!Number.isInteger(profile.motorBurnDuration_ms)
+        || profile.motorBurnDuration_ms <= 0 || profile.motorBurnDuration_ms > 0xffffffff) {
+        throw new Error("Burn phase duration must be between 1 and 4294967295 whole milliseconds.");
+    }
     const components = profile.initialRotation
         ? [profile.initialRotation.x, profile.initialRotation.y, profile.initialRotation.z, profile.initialRotation.w]
         : [];

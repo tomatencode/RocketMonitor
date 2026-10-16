@@ -15,6 +15,7 @@ interface FlightProfileFormProps {
 
 interface ProfileValues {
     flightName: string;
+    burnPhaseDuration: string;
     PDKp: string;
     PDKd: string;
     motorIgniterChannel: string;
@@ -26,6 +27,7 @@ interface ProfileValues {
 
 const DEFAULT_VALUES: ProfileValues = {
     flightName: "",
+    burnPhaseDuration: "6.5",
     PDKp: "0",
     PDKd: "0",
     motorIgniterChannel: "0",
@@ -97,6 +99,7 @@ export function FlightProfileForm({ connected, launching, onLaunch }: FlightProf
         }
         const profile: FlightProfile = {
             flightName,
+            motorBurnDuration_ms: Math.round(numbers.burnPhaseDuration * 1000),
             initialRotation: eulerXYZToQuaternion(
                 degreesToRadians(numbers.initialX_deg),
                 degreesToRadians(numbers.initialY_deg),
@@ -143,6 +146,7 @@ export function FlightProfileForm({ connected, launching, onLaunch }: FlightProf
                 <span className="text-[10px] uppercase tracking-wider text-zinc-500">Flight Name</span>
                 <Input
                     type="text"
+                    placeholder="Flight-01"
                     value={values.flightName}
                     maxLength={MAX_FLIGHT_NAME_LENGTH}
                     required
@@ -151,6 +155,9 @@ export function FlightProfileForm({ connected, launching, onLaunch }: FlightProf
                     className="w-full font-mono"
                 />
             </label>
+            <div className="flex flex-col gap-2 border-t border-zinc-800 pt-3">
+                <Field label="Burn Phase Duration (s)" value={values.burnPhaseDuration} onChange={(value) => setField("burnPhaseDuration", value)} min={0.001} max={4294967.295} step="0.001" />
+            </div>
             <div className="flex flex-col gap-2 border-t border-zinc-800 pt-3">
                 <span className="text-[10px] uppercase tracking-wider text-zinc-500">Pyro Config</span>
                 <div className="grid grid-cols-2 gap-2">

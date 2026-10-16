@@ -16,6 +16,7 @@ const success = payload => ({ status: 0, payload });
 
 const flightProfile = {
     flightName: "Flight 1",
+    motorBurnDuration_ms: 6500,
     initialRotation: { x: -0.5, y: 0.5, z: 0, w: 1 },
     PDKp: 1.25,
     PDKd: -0.5,
@@ -29,14 +30,15 @@ test("START_COUNTDOWN encodes the name and only the visible profile parameters",
 
     const { type, payload } = calls[0];
     assert.equal(type, MessageType.START_COUNTDOWN);
-    assert.equal(payload.length, 35);
+    assert.equal(payload.length, 39);
     assert.equal(payload[0], 8);
     assert.equal(new TextDecoder().decode(payload.slice(1, 9)), "Flight 1");
     const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
     assert.deepEqual([9, 13, 17, 21].map(offset => view.getInt32(offset, true)), [-50, 50, 0, 100]);
     assert.equal(view.getInt32(25, true), 125);
     assert.equal(view.getInt32(29, true), -50);
-    assert.deepEqual([...payload.slice(33)], [2, 7]);
+    assert.deepEqual([...payload.slice(33, 35)], [2, 7]);
+    assert.equal(view.getUint32(35, true), 6500);
 });
 
 test("START_COUNTDOWN accepts the maximum name and uses UTF-8 byte offsets", async () => {
@@ -44,11 +46,12 @@ test("START_COUNTDOWN accepts the maximum name and uses UTF-8 byte offsets", asy
         const { commands, calls } = setup(() => success());
         await commands.startCountdown({ ...flightProfile, flightName });
         const payload = calls[0].payload;
-        assert.equal(payload.length, 59);
+        assert.equal(payload.length, 63);
         assert.equal(payload[0], 32);
         assert.equal(new TextDecoder().decode(payload.slice(1, 33)), flightName);
         assert.equal(new DataView(payload.buffer).getInt32(49, true), 125);
-        assert.deepEqual([...payload.slice(57)], [2, 7]);
+        assert.deepEqual([...payload.slice(57, 59)], [2, 7]);
+        assert.equal(new DataView(payload.buffer).getUint32(59, true), 6500);
     }
 });
 
@@ -70,10 +73,20 @@ test("START_COUNTDOWN rejects invalid numeric profiles before transmitting", asy
         { initialRotation: { x: 0, y: NaN, z: 0, w: 1 } },
         { initialRotation: { x: 0, y: 0, z: 0, w: 0 } },
         { initialRotation: undefined },
+        ...[0, -1, 0.5, NaN, Infinity, 0x100000000, undefined]
+            .map(motorBurnDuration_ms => ({ motorBurnDuration_ms })),
     ]) {
         await assert.rejects(commands.startCountdown({ ...flightProfile, ...invalid }));
     }
     assert.equal(calls.length, 0);
+});
+
+test("START_COUNTDOWN preserves uint32 burn duration boundaries", async () => {
+    for (const motorBurnDuration_ms of [1, 0xffffffff]) {
+        const { commands, calls } = setup(() => success());
+        await commands.startCountdown({ ...flightProfile, motorBurnDuration_ms });
+        assert.equal(new DataView(calls[0].payload.buffer).getUint32(35, true), motorBurnDuration_ms);
+    }
 });
 
 test("PD parameter commands use the existing PD message IDs with two gains", async () => {

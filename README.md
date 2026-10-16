@@ -2,11 +2,14 @@
 
 ## Flight profile radio contract
 
-The flight form sends only `flightName`, `initialRotation`, `PDKp`, `PDKd`,
+The flight form sends only `flightName`, `motorBurnDuration_ms`, `initialRotation`, `PDKp`, `PDKd`,
 `motorIgniterChannel`, and `parachutePyroChannel`. Initial X/Y/Z angles are entered
 in degrees and converted to an XYZ quaternion before sending. Names must be
 non-blank, contain no NUL, and fit in 32 UTF-8 bytes (at most 32 characters;
 multibyte characters consume more than one byte).
+
+Burn phase duration is entered in seconds (default 6.5 s), rounded to the nearest
+millisecond, and sent as positive whole milliseconds (1–4294967295).
 
 `START_COUNTDOWN` retains message ID `0x16`, but uses this **new, incompatible**
 payload layout. Let `N` be the UTF-8 name length and `B = 1 + N`:
@@ -20,8 +23,9 @@ payload layout. Let `N` be the UTF-8 name length and `B = 1 + N`:
 | B + 20 | little-endian int32, scaled by 100 | Kd |
 | B + 24 | uint8 | Motor igniter channel |
 | B + 25 | uint8 | Parachute pyro channel |
+| B + 26 | little-endian uint32 | Motor burn duration in milliseconds |
 
-Total payload length is `27 + N` bytes (28–59). Countdown/burn durations, target
+Total payload length is `31 + N` bytes (32–63). Countdown duration, target
 attitude, and initial height are no longer sent, including as hidden defaults.
 The commander forwards the typed profile unchanged; the radio boundary validates
 it before encoding. Existing pyro arming and two-click launch confirmation remain.

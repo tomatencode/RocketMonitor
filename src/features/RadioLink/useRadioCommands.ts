@@ -281,18 +281,19 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
     };
 
     // Starts the launch countdown; throws if the firmware refuses (not IDLE or preflight failed).
-    // Name uses StringCodec (u8 UTF-8 length + bytes), followed by the 26-byte profile.
+    // Name uses StringCodec (u8 UTF-8 length + bytes), followed by the 30-byte profile.
     const startCountdown = async (profile: FlightProfile): Promise<void> => {
         validateFlightProfile(profile);
         const name = encodeLogFilename(profile.flightName);
-        const payload = new Uint8Array(name.length + 26);
+        const payload = new Uint8Array(name.length + 30);
         payload.set(name);
         const offset = name.length;
-        encodeQuaternion(profile.initialRotation, payload, offset);
-        encode32(profile.PDKp, payload, offset + 16);
-        encode32(profile.PDKd, payload, offset + 20);
-        payload[offset + 24] = profile.motorIgniterChannel;
-        payload[offset + 25] = profile.parachutePyroChannel;
+        encodeU32(profile.motorBurnDuration_ms, payload, offset);
+        encodeQuaternion(profile.initialRotation, payload, offset + 4);
+        encode32(profile.PDKp, payload, offset + 20);
+        encode32(profile.PDKd, payload, offset + 24);
+        payload[offset + 28] = profile.motorIgniterChannel;
+        payload[offset + 29] = profile.parachutePyroChannel;
         const response = await sendMessage(MessageType.START_COUNTDOWN, payload);
         ensureSuccess(response.status, "START_COUNTDOWN");
     };

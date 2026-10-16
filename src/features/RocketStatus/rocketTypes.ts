@@ -47,6 +47,8 @@ export enum FlightState {
 export interface FlightProfile {
     /** Non-empty UTF-8 name, at most 32 bytes and no NUL characters. */
     flightName: string;
+    /** Positive whole milliseconds, encoded as uint32. */
+    motorBurnDuration_ms: number;
     initialRotation: Quaternion;
     PDKp: number;
     PDKd: number;

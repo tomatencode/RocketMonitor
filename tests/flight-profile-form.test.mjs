@@ -8,7 +8,7 @@ import { RocketCommanderProvider } from "../src/features/RocketCommander/RocketC
 import { RocketStatusStore } from "../src/features/RocketStatus/RocketStatusStore.ts";
 import { RocketCommander } from "../src/features/RocketCommander/RocketCommander.ts";
 
-test("flight profile form exposes only the named flight, pyro, PD and initial attitude fields", t => {
+test("flight profile form exposes the named flight, burn duration, pyro, PD and initial attitude fields", t => {
     const store = new RocketStatusStore(() => ({}));
     t.after(() => store.suspend());
     const commander = new RocketCommander(() => ({}), store);
@@ -17,7 +17,9 @@ test("flight profile form exposes only the named flight, pyro, PD and initial at
             createElement(FlightProfileForm, { connected: false, launching: false, onLaunch: async () => {} }))));
     assert.match(html, /Flight Name/);
     assert.match(html, /type="text"[^>]*maxLength="32"[^>]*required=""/);
-    assert.equal((html.match(/type="number"/g) ?? []).length, 7);
+    assert.equal((html.match(/type="number"/g) ?? []).length, 8);
+    assert.match(html, /Burn Phase Duration \(s\)/);
+    assert.match(html, /type="number"[^>]*min="0.001"[^>]*max="4294967.295"[^>]*step="0.001"[^>]*value="6.5"/);
     for (const label of ["Igniter channel", "Parachute channel", "Kp", "Kd", "Initial X", "Initial Y", "Initial Z"]) {
         assert.ok(html.includes(label), label);
     }
