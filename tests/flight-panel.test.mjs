@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { FlightPanel } from "../src/features/Panels/ControlPanels/FlightPanel/FlightPanel.tsx";
+import { FlightSummary } from "../src/features/Panels/ControlPanels/FlightPanel/FlightSummary.tsx";
+import { RocketLogDownloaderProvider } from "../src/features/RocketLogDownloader/RocketLogDownloaderContext.tsx";
+import { RocketLogDownloader } from "../src/features/RocketLogDownloader/RocketLogDownloader.ts";
+import { DownloadTrafficGate } from "../src/features/RadioLink/DownloadTrafficGate.ts";
 import { FlightTelemetry, formatFlightTime } from "../src/features/Panels/ControlPanels/FlightPanel/FlightTelemetry.tsx";
 import { RocketStatusProvider } from "../src/features/RocketStatus/RocketStatusContext.tsx";
 import { RocketCommanderProvider } from "../src/features/RocketCommander/RocketCommanderContext.tsx";
@@ -25,8 +29,10 @@ async function renderPanel(t, state, armed = false) {
         await Promise.resolve();
     }
     const commander = new RocketCommander(() => ({}), store);
+    const downloader = new RocketLogDownloader(() => ({}), store, new DownloadTrafficGate(), commander.waitForIdle);
     return renderToStaticMarkup(createElement(RocketStatusProvider, { store },
-        createElement(RocketCommanderProvider, { commander }, createElement(FlightPanel))));
+        createElement(RocketCommanderProvider, { commander },
+            createElement(RocketLogDownloaderProvider, { downloader }, createElement(FlightPanel)))));
 }
 
 test("flight panel explains its offline state without showing launch controls", async t => {
@@ -64,21 +70,63 @@ test("completed and aborted flights show a summary and reset control", async t =
         const html = await renderPanel(t, state);
         assert.ok(html.includes(label));
         assert.match(html, /Set Idle/);
+        assert.match(html, /Download Flight Log/);
+        assert.match(html, /Flight name unavailable/);
+        if (state === FlightState.ABORTED) assert.match(html, /Downloading will set the controller to idle first/);
+        else assert.doesNotMatch(html, /Downloading will set the controller to idle first/);
         assert.doesNotMatch(html, /Abort Flight|Launch countdown/);
     }
 });
 
+test("flight summary enables the named flight log only when connected and idle", t => {
+    const store = new RocketStatusStore(() => ({}));
+    t.after(() => store.suspend());
+    const downloader = new RocketLogDownloader(() => ({}), store, new DownloadTrafficGate(), async () => {});
+    const commander = new RocketCommander(() => ({}), store);
+    const render = (flightName, ending = false) => renderToStaticMarkup(createElement(RocketStatusProvider, { store },
+        createElement(RocketCommanderProvider, { commander },
+            createElement(RocketLogDownloaderProvider, { downloader }, createElement(FlightSummary, {
+                state: FlightState.LANDED, flightName, ending, location: null, maxAltitude_m: null, maxVelocity_m_s: null, elapsedMs: null, onSetIdle: async () => {}, onPrepareIdleDownload: () => {}, onIdleDownloadReady: () => {},
+            })))));
+    const downloadButton = html => html.match(/<button[^>]*>[\s\S]*?Download Flight Log<\/button>/)?.[0];
+    assert.match(downloadButton(render("Flight-01")), /disabled=""/);
+    store.setConnected(true);
+    const ready = render("Flight-01");
+    assert.match(ready, /Flight-01 · saves to Downloads/);
+    assert.doesNotMatch(downloadButton(ready), /disabled=""/);
+    assert.match(downloadButton(render(null)), /disabled=""/);
+    assert.match(downloadButton(render("Flight-01", true)), /disabled=""/);
+});
+
 test("telemetry renders measurements and preserves unknown-value placeholders", () => {
-    const props = { location: null, maxAltitude_m: null, elapsedMs: null, countdownTime_ms: null };
+    const props = { location: null, maxAltitude_m: null, maxVelocity_m_s: null, elapsedMs: null, countdownTime_ms: null };
     const unknown = renderToStaticMarkup(createElement(FlightTelemetry, props));
-    assert.match(unknown, /--:--/);
-    assert.equal((unknown.match(/>--</g) ?? []).length, 3);
+    assert.match(unknown, /T\+--s/);
+    assert.equal((unknown.match(/>--</g) ?? []).length, 4);
     const measured = renderToStaticMarkup(createElement(FlightTelemetry, {
         ...props,
         location: { height_m: 125.35, verticalVelocity_m_s: -12.5 },
         maxAltitude_m: 150,
+        maxVelocity_m_s: 42.5,
         elapsedMs: 65000,
     }));
-    for (const value of ["125.3 m", "-12.5 m/s", "150.0 m", "01:05"]) assert.ok(measured.includes(value), value);
-    assert.equal(formatFlightTime(-1000), "00:00");
+    for (const value of ["125.3 m", "-12.5 m/s", "150.0 m", "42.5 m/s", "T+65.0s", "Peak velocity"]) assert.ok(measured.includes(value), value);
+    assert.equal(formatFlightTime(-1000), "T+0.0s");
+    assert.equal(formatFlightTime(1250), "T+1.3s");
+});
+
+test("mission clock changes from warning countdown to neutral elapsed time in the same card", () => {
+    const props = { location: null, maxAltitude_m: null, maxVelocity_m_s: null, elapsedMs: 12300, countdownTime_ms: null };
+    const countdown = renderToStaticMarkup(createElement(FlightTelemetry, { ...props, countdownTime_ms: 3200, countingDown: true }));
+    assert.match(countdown, /bg-amber-950\/20/);
+    assert.match(countdown, /T-3\.2s/);
+    assert.doesNotMatch(countdown, /T\+12\.3s/);
+    const flight = renderToStaticMarkup(createElement(FlightTelemetry, props));
+    assert.match(flight, /T\+12\.3s/);
+    assert.doesNotMatch(flight, /amber|Launch countdown/);
+    assert.equal((countdown.match(/backdrop-blur-sm/g) ?? []).length, 5);
+    assert.equal((flight.match(/backdrop-blur-sm/g) ?? []).length, 5);
+    const waiting = renderToStaticMarkup(createElement(FlightTelemetry, { ...props, countingDown: true }));
+    assert.match(waiting, /Launch countdown/);
+    assert.doesNotMatch(waiting, /T\+12\.3s/);
 });

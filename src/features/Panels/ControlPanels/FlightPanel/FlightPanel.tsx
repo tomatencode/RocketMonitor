@@ -6,12 +6,14 @@ import { RocketIcon } from "../../../../shared/components/elements/Icons";
 import { Button } from "../../../../shared/components/primitives/Button";
 import { useRocketCommander } from "../../../RocketCommander/RocketCommanderContext";
 import { useRocketConnected } from "../../../RocketStatus/RocketStatusContext";
-import { useRocketStatus } from "../../../RocketStatus/RocketStatusContext";
+import { useRocketStatus, useRocketStatusStore } from "../../../RocketStatus/RocketStatusContext";
 import type { FlightProfile } from "../../../RocketStatus/rocketTypes";
 import { FlightState } from "../../../RocketStatus/rocketTypes";
 import { FlightProfileForm } from "./FlightProfileForm";
 import { FlightSummary } from "./FlightSummary";
 import { FlightTelemetry } from "./FlightTelemetry";
+import { returnToFlightSetup } from "./returnToFlightSetup";
+import { isAirborneFlight, updateFlightClock } from "./flightClock";
 
 const STATE_LABELS: Record<FlightState, string> = {
     [FlightState.IDLE]: "Idle",
@@ -28,6 +30,10 @@ const isCompleteFlight = (state: FlightState) => state === FlightState.LANDED ||
 
 export function FlightPanel() {
     const connected = useRocketConnected();
+    const store = useRocketStatusStore();
+    const [flightLog, setFlightLog] = useState<{ name: string; session: number } | null>(null);
+    const [retainedSummary, setRetainedSummary] = useState<FlightState | null>(null);
+    const idleAcknowledgedSession = useRef<number | null>(null);
     const { startCountdown, abortFlight, retryDeployParachute, endFlight } = useRocketCommander();
     const { value: state, error: stateError } = useRocketStatus("flightState");
     const { value: location, error: locationError } = useRocketStatus("flightLocation");
@@ -38,6 +44,7 @@ export function FlightPanel() {
     const [startedAt, setStartedAt] = useState<number | null>(null);
     const [elapsedMs, setElapsedMs] = useState<number | null>(null);
     const [maxAltitude_m, setMaxAltitude] = useState<number | null>(null);
+    const [maxVelocity_m_s, setMaxVelocity] = useState<number | null>(null);
     const previousState = useRef<FlightState | null>(null);
 
     useEffect(() => {
@@ -46,33 +53,48 @@ export function FlightPanel() {
         previousState.current = state;
 
         if (state === FlightState.IDLE && previous !== FlightState.IDLE) {
+            if (retainedSummary !== null) return;
+            setFlightLog(null);
             setStartedAt(null);
             setElapsedMs(null);
             setMaxAltitude(null);
+            setMaxVelocity(null);
             return;
         }
         if (isActiveFlight(state) && !isActiveFlight(previous ?? FlightState.IDLE)) {
-            setStartedAt(Date.now());
-            setElapsedMs(0);
             setMaxAltitude(location?.height_m ?? null);
+            setMaxVelocity(null);
         }
-        if (isCompleteFlight(state) && isActiveFlight(previous ?? FlightState.IDLE)) {
-            setElapsedMs((current) => current ?? (startedAt === null ? 0 : Date.now() - startedAt));
-            setStartedAt(null);
+        if (state !== previous) {
+            const clock = updateFlightClock(state, startedAt, elapsedMs, Date.now());
+            setStartedAt(clock.startedAt);
+            setElapsedMs(clock.elapsedMs);
         }
-    }, [state, location?.height_m, startedAt]);
+    }, [state, location?.height_m, startedAt, elapsedMs, retainedSummary]);
 
     useEffect(() => {
-        if (startedAt === null || state === null || !isActiveFlight(state)) return;
+        if (!connected || (state !== null && isActiveFlight(state))) {
+            setRetainedSummary(null);
+            idleAcknowledgedSession.current = null;
+        }
+    }, [connected, state]);
+
+    useEffect(() => {
+        if (startedAt === null || state === null || !isAirborneFlight(state)) return;
         const updateElapsed = () => setElapsedMs(Date.now() - startedAt);
         updateElapsed();
-        const intervalId = setInterval(updateElapsed, 1000);
+        const intervalId = setInterval(updateElapsed, 100);
         return () => clearInterval(intervalId);
     }, [startedAt, state]);
 
     useEffect(() => {
         if (location === null || state === null || (!isActiveFlight(state) && !isCompleteFlight(state))) return;
         setMaxAltitude((current) => current === null ? location.height_m : Math.max(current, location.height_m));
+    }, [location, state]);
+
+    useEffect(() => {
+        if (location === null || state === null || !isAirborneFlight(state)) return;
+        setMaxVelocity((current) => current === null ? location.verticalVelocity_m_s : Math.max(current, location.verticalVelocity_m_s));
     }, [location, state]);
 
     const runAction = async (action: "abort" | "deploy" | "idle", command: () => Promise<void>) => {
@@ -90,8 +112,11 @@ export function FlightPanel() {
     const handleLaunch = async (profile: FlightProfile) => {
         setActionError(null);
         setLaunching(true);
+        const session = store.getSession();
+        idleAcknowledgedSession.current = null;
         try {
             await startCountdown(profile);
+            if (session === store.getSession()) setFlightLog({ name: profile.flightName, session });
         } catch (error) {
             setActionError(error instanceof Error ? error.message : String(error));
         } finally {
@@ -115,14 +140,14 @@ export function FlightPanel() {
                 className="border-b border-zinc-800/80 pb-3"
                 end={<StatusPill tone={!connected ? "neutral" : state === FlightState.ABORTED ? "danger" : inFlight ? "warn" : complete ? "ok" : "neutral"} pulse={connected && inFlight}>{connected ? label : "Offline"}</StatusPill>}
             />
-            {state === FlightState.IDLE && <FlightProfileForm connected={connected} launching={launching} onLaunch={handleLaunch} />}
+            {state === FlightState.IDLE && retainedSummary === null && <FlightProfileForm connected={connected} launching={launching} onLaunch={handleLaunch} />}
             {inFlight && (
                 <>
                     <div className="flex items-center justify-between gap-2">
                         <span className="text-[10px] uppercase tracking-wider text-zinc-400">Flight telemetry</span>
                         <span className="font-mono text-[10px] text-zinc-500">{connected ? "LIVE" : "LINK OFFLINE"}</span>
                     </div>
-                    <FlightTelemetry location={location} maxAltitude_m={maxAltitude_m} elapsedMs={elapsedMs} countdownTime_ms={state === FlightState.COUNTDOWN ? countdownTime : null} />
+                    <FlightTelemetry location={location} maxAltitude_m={maxAltitude_m} maxVelocity_m_s={maxVelocity_m_s} elapsedMs={elapsedMs} countdownTime_ms={state === FlightState.COUNTDOWN ? countdownTime : null} countingDown={state === FlightState.COUNTDOWN} />
                     <Card variant="inner" className="flex flex-col gap-2 p-3">
                         <span className="text-[10px] uppercase tracking-wider text-zinc-400">Flight overrides</span>
                         <div className="grid grid-cols-2 gap-2">
@@ -136,7 +161,22 @@ export function FlightPanel() {
                     </Card>
                 </>
             )}
-            {complete && <FlightSummary state={state} location={location} maxAltitude_m={maxAltitude_m} elapsedMs={elapsedMs} ending={acting === "idle"} onSetIdle={() => runAction("idle", endFlight)} />}
+            {(complete || retainedSummary !== null) && <FlightSummary state={retainedSummary ?? state!} flightName={flightLog?.session === store.getSession() ? flightLog.name : null} location={location} maxAltitude_m={maxAltitude_m} maxVelocity_m_s={maxVelocity_m_s} elapsedMs={elapsedMs} ending={acting === "idle"}
+                onPrepareIdleDownload={() => setRetainedSummary(FlightState.ABORTED)}
+                onIdleDownloadReady={(session) => { idleAcknowledgedSession.current = session; }}
+                onSetIdle={() => runAction("idle", () => returnToFlightSetup(
+                    store.getSnapshot("flightState").value === FlightState.IDLE || idleAcknowledgedSession.current === store.getSession(),
+                    endFlight,
+                    () => {
+                        idleAcknowledgedSession.current = null;
+                        setRetainedSummary(null);
+                        setFlightLog(null);
+                        setStartedAt(null);
+                        setElapsedMs(null);
+                        setMaxAltitude(null);
+                        setMaxVelocity(null);
+                    },
+                ))} />}
             {state === null && <Card variant="empty" className="flex flex-col items-center gap-2 px-3 py-6 text-center" role="status">
                 <RocketIcon aria-hidden="true" className="h-6 w-6 text-zinc-600" />
                 <p className="text-xs font-medium text-zinc-400">{connected ? "Awaiting flight controller" : "Rocket offline"}</p>
