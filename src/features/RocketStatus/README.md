@@ -161,7 +161,10 @@ and timing should be measured before further tuning chunk size/timeouts.
 
 All subscribers share reads. Cached configuration survives component unmounts.
 Disconnects clear snapshots, stop polling, and invalidate old responses; reconnects
-read subscribed topics again. Failed reads retry with a 250 ms backoff.
+read subscribed topics again without waiting for reads from the previous connection
+to settle. All topics (including unsubscribed configuration, errors, and timestamps)
+are cleared between sessions; late old responses cannot restore values or interfere
+with the new session's polling. Failed reads retry with a 250 ms backoff.
 
 Snapshots include `value`, `error`, `hasValue`, and `lastUpdatedAt`. `hasValue`
 distinguishes a valid null (unconfigured PD or inactive countdown) from an unread

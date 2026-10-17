@@ -88,7 +88,60 @@ test("reconnect ignores an old in-flight response and starts a fresh read", asyn
     store.subscribe("controlling", () => {});
     store.setConnected(false);
     store.setConnected(true);
+    await tick();
+    assert.equal(reads, 2, "the new connection must not wait for the old read");
+    assert.equal(store.getSnapshot("controlling").value, true);
     old.resolve(false);
+    await tick();
+    assert.equal(reads, 2);
+    assert.equal(store.getSnapshot("controlling").value, true);
+});
+
+test("reconnect clears all cached settings, including unsubscribed values and errors", async t => {
+    const topics = ["PDParameters", "PDTarget", "controlling", "pyroSoftwareArmed", "logging"];
+    const reads = {};
+    const fresh = deferred();
+    const store = setup(t, Object.fromEntries(topics.map(topic => [topic, () => {
+        reads[topic] = (reads[topic] ?? 0) + 1;
+        if (reads[topic] > 1) return fresh.promise;
+        return topic === "logging" ? Promise.reject(Error("old connection error")) : Promise.resolve(null);
+    }])));
+    const unsubscribes = topics.map(topic => store.subscribe(topic, () => {}));
+    await tick();
+    assert.equal(store.getSnapshot("PDParameters").hasValue, true);
+    assert.equal(store.getSnapshot("logging").error, "old connection error");
+    unsubscribes[0]();
+
+    store.setConnected(false);
+    store.setConnected(true);
+    for (const topic of topics) {
+        assert.deepEqual(store.getSnapshot(topic), {
+            value: null, error: null, hasValue: false, lastUpdatedAt: null,
+        });
+        assert.equal(reads[topic], topic === "PDParameters" ? 1 : 2);
+    }
+    store.subscribe("PDParameters", () => {});
+    assert.equal(reads.PDParameters, 2);
+    fresh.resolve(null);
+    await tick();
+    for (const topic of topics) assert.equal(store.getSnapshot(topic).hasValue, true);
+});
+
+test("an old read settling cannot restart polling while the new session read is pending", async t => {
+    const old = deferred();
+    const fresh = deferred();
+    let reads = 0;
+    const store = setup(t, { controlling: () => ++reads === 1 ? old.promise : fresh.promise });
+    store.subscribe("controlling", () => {});
+    store.setConnected(false);
+    store.setConnected(true);
+    assert.equal(reads, 2);
+
+    old.resolve(false);
+    await tick();
+    assert.equal(reads, 2);
+    assert.equal(store.getSnapshot("controlling").hasValue, false);
+    fresh.resolve(true);
     await tick();
     assert.equal(reads, 2);
     assert.equal(store.getSnapshot("controlling").value, true);

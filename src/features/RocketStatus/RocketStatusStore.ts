@@ -85,6 +85,9 @@ export class RocketStatusStore {
         this.connected = connected;
         this.session += 1;
         for (const entry of this.entries.values()) {
+            // Reads from the previous connection may still be pending. They must
+            // neither block fresh reads nor own this session's polling state.
+            entry.running = false;
             this.invalidate(entry);
             entry.forceRead = false;
             this.kick(entry);
@@ -151,6 +154,7 @@ export class RocketStatusStore {
         if (entry.running || entry.timer !== undefined || !this.needsRead(entry)) return;
         entry.running = true;
         const revision = entry.revision;
+        const session = this.session;
         const read = (async () => {
             let retryMs = entry.topic === "pyroHardwareArmed" || entry.topic.startsWith("pyroContinuity:")
                 ? HARDWARE_POLL_MS : 0;
@@ -168,12 +172,14 @@ export class RocketStatusStore {
                 this.publish(entry, { ...entry.snapshot,
                     error: error instanceof Error ? error.message : String(error) });
             } finally {
-                entry.running = false;
-                if (this.needsRead(entry)) {
-                    entry.timer = setTimeout(() => {
-                        entry.timer = undefined;
-                        this.kick(entry);
-                    }, entry.revision === revision ? retryMs : 0);
+                if (this.session === session) {
+                    entry.running = false;
+                    if (this.needsRead(entry)) {
+                        entry.timer = setTimeout(() => {
+                            entry.timer = undefined;
+                            this.kick(entry);
+                        }, entry.revision === revision ? retryMs : 0);
+                    }
                 }
             }
         })();
