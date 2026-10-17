@@ -43,6 +43,7 @@ export class RocketCommander implements RocketCommands, RocketLogReader {
         this.run(c => c.setAccumulatingRotation(accumulating), ["rotation"]);
     abortFlight = () => this.run(c => c.abortFlight(), this.flightTopics(), true);
     endFlight = () => this.run(c => c.endFlight(), this.flightTopics());
+    setDoLocatingSound = (enabled: boolean) => this.run(c => c.setDoLocatingSound(enabled));
     calibrateBaroHeight = (height_m: number) =>
         this.run(c => c.calibrateBaroHeight(height_m), ["baroHeight", "flightLocation"]);
     flashLed = (durationMs?: number) => this.run(c => c.flashLed(durationMs));

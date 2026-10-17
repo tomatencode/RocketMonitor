@@ -38,8 +38,9 @@ On-demand reads are also available on commander so callers need no radio imports
   `GET_LOG_SIZE` (0x24), whose response is exactly four little-endian bytes.
   Unknown, open, or corrupt files reject the operation.
 
-The old `getLogInfo`/`getLogBytes` APIs and message 0x25 are removed, matching
-the current firmware. Full-file transfers use the session protocol below, through
+The old `getLogInfo`/`getLogBytes` APIs are removed, matching
+the current firmware. Message 0x25 is now `SET_DO_LOCATING_SOUND`, not a log read.
+Full-file transfers use the session protocol below, through
 the downloader rather than Commander. Log payloads have no flash framing.
 
 RadioLink also exposes the firmware-named `isLogging()` and its status-compatible
@@ -171,6 +172,16 @@ distinguishes a valid null (unconfigured PD or inactive countdown) from an unrea
 topic. Ordinary polling failures retain the last good reading and expose the error.
 
 ## Commands
+
+`setDoLocatingSound(enabled)` sends `SET_DO_LOCATING_SOUND` (0x25) with one
+boolean byte (0/1) and waits for firmware acknowledgment. The flight summary's
+Stop Locating Sound button sends `false` without setting idle or closing the log.
+The button appears only for landed flights, disables competing summary actions
+while pending, and hides after acknowledgment. Failures remain visible and allow
+retry. Firmware has no getter for this setting, so the UI tracks acknowledgment
+locally and resets it on reconnect or flight-name change. Firmware re-enables the
+locating sound when a new countdown starts; disabling prevents future locating
+melodies, rather than interrupting a melody already playing.
 
 Commander forwards all setters/actions and refreshes affected topics after successful
 acknowledgment, even without subscribers. A readback uses the firmware's value,

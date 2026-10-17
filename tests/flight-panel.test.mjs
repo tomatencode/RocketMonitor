@@ -75,6 +75,8 @@ test("completed and aborted flights show a summary and reset control", async t =
         if (state === FlightState.ABORTED) assert.match(html, /Downloading will set the controller to idle first/);
         else assert.doesNotMatch(html, /Downloading will set the controller to idle first/);
         assert.doesNotMatch(html, /Abort Flight|Launch countdown/);
+        if (state === FlightState.LANDED) assert.match(html, /Stop Locating Sound/);
+        else assert.doesNotMatch(html, /Stop Locating Sound/);
     }
 });
 
@@ -89,13 +91,17 @@ test("flight summary enables the named flight log only when connected and idle",
                 state: FlightState.LANDED, flightName, ending, location: null, maxAltitude_m: null, maxVelocity_m_s: null, elapsedMs: null, onSetIdle: async () => {}, onPrepareIdleDownload: () => {}, onIdleDownloadReady: () => {},
             })))));
     const downloadButton = html => html.match(/<button[^>]*>[\s\S]*?Download Flight Log<\/button>/)?.[0];
+    const locatingButton = html => html.match(/<button[^>]*>\s*Stop Locating Sound\s*<\/button>/)?.[0];
     assert.match(downloadButton(render("Flight-01")), /disabled=""/);
+    assert.match(locatingButton(render("Flight-01")), /disabled=""/);
     store.setConnected(true);
     const ready = render("Flight-01");
     assert.match(ready, /Flight-01 · saves to Downloads/);
     assert.doesNotMatch(downloadButton(ready), /disabled=""/);
+    assert.doesNotMatch(locatingButton(ready), /disabled=""/);
     assert.match(downloadButton(render(null)), /disabled=""/);
     assert.match(downloadButton(render("Flight-01", true)), /disabled=""/);
+    assert.match(locatingButton(render("Flight-01", true)), /disabled=""/);
 });
 
 test("telemetry renders measurements and preserves unknown-value placeholders", () => {

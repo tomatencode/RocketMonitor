@@ -200,6 +200,11 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         ensureSuccess(response.status, "END_FLIGHT");
     };
 
+    const setDoLocatingSound = async (enabled: boolean): Promise<void> => {
+        const response = await sendMessage(MessageType.SET_DO_LOCATING_SOUND, new Uint8Array([enabled ? 1 : 0]));
+        ensureSuccess(response.status, "SET_DO_LOCATING_SOUND");
+    };
+
     const getBaroHeight = async (): Promise<number> => {
         const response = await sendMessage(MessageType.GET_BARO_HEIGHT);
 
@@ -509,6 +514,7 @@ export function useRadioCommands({ sendMessage }: UseRadioCommandsOptions) {
         setAccumulatingRotation,
         abortFlight,
         endFlight,
+        setDoLocatingSound,
         getBaroHeight,
         calibrateBaroHeight,
         getFlightLocation,

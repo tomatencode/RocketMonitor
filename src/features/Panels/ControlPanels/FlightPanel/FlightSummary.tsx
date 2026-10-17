@@ -29,11 +29,15 @@ export function FlightSummary({ state, flightName, location, maxAltitude_m, maxV
     const connected = useRocketConnected();
     const store = useRocketStatusStore();
     const downloader = useRocketLogDownloader();
-    const { endFlight } = useRocketCommander();
+    const { endFlight, setDoLocatingSound } = useRocketCommander();
     const progress = useLogDownloadProgress();
     const [downloading, setDownloading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [preparing, setPreparing] = useState(false);
+    const [stoppingLocatingSound, setStoppingLocatingSound] = useState(false);
+    // Firmware only plays the locating melody while LANDED and has no setting getter.
+    const [locatingSoundStopped, setLocatingSoundStopped] = useState(false);
+    const locatingSoundOn = state === FlightState.LANDED && !locatingSoundStopped;
     const [savedPath, setSavedPath] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const operation = useRef<AbortController | null>(null);
@@ -42,6 +46,8 @@ export function FlightSummary({ state, flightName, location, maxAltitude_m, maxV
         setDownloading(false);
         setSaving(false);
         setPreparing(false);
+        setStoppingLocatingSound(false);
+        setLocatingSoundStopped(false);
         setSavedPath(null);
         setError(null);
         return () => {
@@ -49,6 +55,25 @@ export function FlightSummary({ state, flightName, location, maxAltitude_m, maxV
             operation.current = null;
         };
     }, [connected, flightName, store]);
+
+    const handleStopLocatingSound = async () => {
+        if (!connected || !locatingSoundOn || ending || operation.current || downloader.isRunning()) return;
+        const controller = new AbortController();
+        operation.current = controller;
+        setStoppingLocatingSound(true);
+        setError(null);
+        try {
+            await setDoLocatingSound(false);
+            if (!controller.signal.aborted) setLocatingSoundStopped(true);
+        } catch (e) {
+            if (!controller.signal.aborted) setError(e instanceof Error ? e.message : String(e));
+        } finally {
+            if (operation.current === controller) {
+                operation.current = null;
+                setStoppingLocatingSound(false);
+            }
+        }
+    };
 
     const handleDownload = async () => {
         if (!connected || !flightName || ending || operation.current || downloader.isRunning()) return;
@@ -99,7 +124,7 @@ export function FlightSummary({ state, flightName, location, maxAltitude_m, maxV
                     {flightName ? `${flightName} · saves to Downloads as .rcktlog` : "Flight name unavailable. Select the corresponding log in Rocket Logs."}
                 </p>
                 <Button variant="primary" className="flex w-full items-center justify-center gap-2 px-3 py-2.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400"
-                    disabled={!connected || !flightName || ending || downloading || progress.running}
+                    disabled={!connected || !flightName || ending || stoppingLocatingSound || downloading || progress.running}
                     onClick={() => void handleDownload()}>
                     <DownloadIcon aria-hidden="true" className="h-3.5 w-3.5" />
                     {preparing ? "Setting idle before download..." : saving ? "Saving Flight Log..." : downloading ? "Downloading Flight Log..." : "Download Flight Log"}
@@ -116,7 +141,12 @@ export function FlightSummary({ state, flightName, location, maxAltitude_m, maxV
                 {savedPath && <Card variant="success" className="px-2.5 py-2 text-[11px] text-emerald-300 break-all" role="status">Saved: {savedPath}</Card>}
                 {error && <Card variant="error" className="px-2.5 py-2 text-[11px] text-red-300 break-all" role="alert">{error}</Card>}
             </Card>
-            <Button variant="neutral" className="w-full px-3 py-2.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400" disabled={!connected || ending || downloading || progress.running} onClick={() => void onSetIdle()}>
+            {locatingSoundOn && (
+                <Button variant="neutral" className="w-full px-3 py-2.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400" disabled={!connected || ending || stoppingLocatingSound || downloading || progress.running} onClick={() => void handleStopLocatingSound()}>
+                    {stoppingLocatingSound ? "Stopping..." : "Stop Locating Sound"}
+                </Button>
+            )}
+            <Button variant="neutral" className="w-full px-3 py-2.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400" disabled={!connected || ending || stoppingLocatingSound || downloading || progress.running} onClick={() => void onSetIdle()}>
                 {ending ? "Setting idle..." : "Set Idle"}
             </Button>
         </div>

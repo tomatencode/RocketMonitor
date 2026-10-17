@@ -131,6 +131,7 @@ export interface RocketCommands {
     setAccumulatingRotation: (accumulating: boolean) => Promise<void>;
     abortFlight: () => Promise<void>;
     endFlight: () => Promise<void>;
+    setDoLocatingSound: (enabled: boolean) => Promise<void>;
     calibrateBaroHeight: (height_m: number) => Promise<void>;
     flashLed: (durationMs?: number) => Promise<void>;
     startCountdown: (profile: FlightProfile) => Promise<void>;
